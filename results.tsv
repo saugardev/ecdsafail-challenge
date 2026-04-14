@@ -1,2 +1,3 @@
 timestamp	commit	toffoli	clifford	qubits	ops	correct	notes
 1776208394	dc8fe9d	0.000	0.000	2573	230996450	FAIL	WIP: fixed cuccaro mod-2^n and cmp_neq_zero uncompute
+1776208684	266f418	0.000	0.000	2573	199408066	FAIL	WIP: + cmod_double/halve honest

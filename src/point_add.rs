@@ -59,7 +59,49 @@
 use alloy_primitives::U256;
 
 use crate::builder::{Builder, Layout};
-use crate::circuit::{BitId, QubitId};
+use crate::circuit::{BitId, OperationType, QubitId};
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  emit_inverse: run a closure, pop the ops it emitted, and re-emit them
+//  reversed. The closure MUST NOT allocate/free qubits or call `b.r` — it
+//  can only emit reversible Clifford+Toffoli gates on pre-allocated qubits.
+// ═══════════════════════════════════════════════════════════════════════════
+fn emit_inverse<F: FnOnce(&mut Builder)>(b: &mut Builder, f: F) {
+    let start = b.ops.len();
+    f(b);
+    let end = b.ops.len();
+    // Extract the forward slice and drop it from the builder.
+    let fwd: Vec<_> = b.ops[start..end].to_vec();
+    b.ops.truncate(start);
+    for op in fwd.into_iter().rev() {
+        match op.kind {
+            OperationType::X
+            | OperationType::Z
+            | OperationType::CX
+            | OperationType::CZ
+            | OperationType::CCX
+            | OperationType::CCZ
+            | OperationType::Swap => b.ops.push(op),
+            _ => panic!(
+                "emit_inverse: non-invertible op kind {:?} inside forward block",
+                op.kind
+            ),
+        }
+    }
+}
+
+/// Runs `compute`, then `body`, then the inverse of `compute` — the
+/// "with conjugate" pattern from qrisp. `compute` must emit only
+/// reversible gates (no alloc/free/R).
+fn conjugate<F, G>(b: &mut Builder, compute: F, body: G)
+where
+    F: Fn(&mut Builder),
+    G: FnOnce(&mut Builder),
+{
+    compute(b);
+    body(b);
+    emit_inverse(b, compute);
+}
 
 pub const N: usize = 256;
 
@@ -648,38 +690,49 @@ fn mod_mul_sub_qb(
 //  Kaliski almost-inverse
 // ═══════════════════════════════════════════════════════════════════════════
 
-/// Custom modular halving:  v ← v/2 mod p.
-/// If v odd: v := (v + p)/2; else v := v/2.
-fn mod_halve_v2(b: &mut Builder, v: &[QubitId], p: U256) {
-    let n = v.len();
-    let odd = b.alloc_qubit();
-    b.cx(v[0], odd);
-    let ovf = b.alloc_qubit();
-    let mut v_ext: Vec<QubitId> = v.to_vec(); v_ext.push(ovf);
-    cadd_nbit_const(b, &v_ext, p, odd);
-    // Now v_ext is even and in [0, 2p) ⊂ [0, 2^{n+1}).
-    // Shift right: drop bit 0, fill new top bit from ovf.
-    for i in 0..n - 1 {
-        b.swap(v[i], v[i + 1]);
-    }
-    b.swap(v[n - 1], ovf);
-    b.free_qubit(ovf);
-    b.free_qubit(odd);
+/// Fredkin (controlled swap): swap (a, t) if ctrl. Decomposed as CX/CCX/CX.
+fn cswap(b: &mut Builder, ctrl: QubitId, a: QubitId, t: QubitId) {
+    b.cx(t, a);
+    b.ccx(ctrl, a, t);
+    b.cx(t, a);
 }
 
 fn cmod_double_inplace(b: &mut Builder, v: &[QubitId], p: U256, ctrl: QubitId) {
     let n = v.len();
-    let tmp = b.alloc_qubits(n);
-    for i in 0..n { b.ccx(ctrl, v[i], tmp[i]); }
-    mod_add_qq(b, v, &tmp, p);
-    b.free_qubits_vec(&tmp);
+    let ovf = b.alloc_qubit();
+    let mut v_ext: Vec<QubitId> = v.to_vec();
+    v_ext.push(ovf);
+
+    // Conditional left-shift: if ctrl=1, v[n-1] → ovf; v[i] → v[i+1].
+    cswap(b, ctrl, v[n - 1], ovf);
+    for i in (0..n - 1).rev() {
+        cswap(b, ctrl, v[i], v[i + 1]);
+    }
+
+    csub_nbit_const(b, &v_ext, p, ctrl);
+    cadd_nbit_const(b, &v_ext, p, ovf);
+    // ovf ends at 0 by the same argument as mod_double_inplace.
+    b.free_qubit(ovf);
 }
 
+/// `cmod_halve_inplace` = exact inverse of `cmod_double_inplace`.
 fn cmod_halve_inplace(b: &mut Builder, v: &[QubitId], p: U256, ctrl: QubitId) {
-    mod_halve_v2(b, v, p);
-    b.x(ctrl);
-    cmod_double_inplace(b, v, p, ctrl);
-    b.x(ctrl);
+    let n = v.len();
+    let ovf = b.alloc_qubit();
+    let mut v_ext: Vec<QubitId> = v.to_vec();
+    v_ext.push(ovf);
+
+    // Inverse of: cadd(v_ext, p, ovf).
+    csub_nbit_const(b, &v_ext, p, ovf);
+    // Inverse of: csub(v_ext, p, ctrl).
+    cadd_nbit_const(b, &v_ext, p, ctrl);
+    // Inverse of cswap cascade (self-inverse; reversed order).
+    for i in 0..n - 1 {
+        cswap(b, ctrl, v[i], v[i + 1]);
+    }
+    cswap(b, ctrl, v[n - 1], ovf);
+
+    b.free_qubit(ovf);
 }
 
 /// flag ^= (u < v).  u and v are n-wide qubit registers, both holding values
