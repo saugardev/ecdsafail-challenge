@@ -1388,25 +1388,25 @@ fn with_kal_inv<F: FnOnce(&mut Builder, &[QubitId])>(
 ) {
     let n = v_in.len();
     let st = alloc_kaliski_state(b, n);
-    let inv = b.alloc_qubits(n);
 
     // Forward kaliski. st.r[..n] holds raw = v_in^{-1} * 2^(2n) mod p.
     kaliski_forward(b, v_in, &st, p);
-    // Copy raw into inv.
-    for i in 0..n { b.cx(st.r[i], inv[i]); }
-    // Apply the 2^(-2n) correction by halving 2n times.
-    for _ in 0..(2 * n) { mod_halve_inplace(b, &inv, p); }
 
-    body(b, &inv);
+    // Halve st.r[..n] 2n times in place to apply the 2^(-2n) correction:
+    // st.r[..n] := v_in^{-1}. This aliases the body's `inv` slice onto
+    // the existing kaliski r-register, saving the n-qubit `inv` alloc
+    // and its CX-copy/cancel pair. We restore st.r[..n] after the body
+    // so emit_inverse(kaliski_forward) sees its expected post-forward state.
+    let r_low: Vec<QubitId> = st.r[..n].to_vec();
+    for _ in 0..(2 * n) { mod_halve_inplace(b, &r_low, p); }
 
-    // Un-halve to restore inv to raw form.
-    for _ in 0..(2 * n) { mod_double_inplace(b, &inv, p); }
-    // CX-cancel inv against raw → inv = 0.
-    for i in 0..n { b.cx(st.r[i], inv[i]); }
+    body(b, &r_low);
+
+    // Un-halve st.r[..n] back to raw form.
+    for _ in 0..(2 * n) { mod_double_inplace(b, &r_low, p); }
     // Reverse kaliski_forward → st = 0.
     emit_inverse(b, |b| kaliski_forward(b, v_in, &st, p));
 
-    b.assert_zero_and_free_vec(&inv);
     free_kaliski_state(b, st);
 }
 
