@@ -32,50 +32,32 @@ Minimize the metric `avg executed Toffoli` printed by `cargo run --release`.
 3. `cargo build --release` must succeed with no warnings introduced by your
    edits beyond those already present on the baseline.
 
-### BANNED: dirty ancilla frees
+### Reversibility
 
-`Builder::assert_zero_and_free(q)` is an ASSERTION, not a deallocation
-primitive. It is the gate-level equivalent of `assert q == |0⟩`; calling
-it on a qubit that is not genuinely back to |0⟩ is a correctness bug, not
-an optimization.
+Every ancilla must be uncomputed to |0⟩ before being freed. The standard
+pattern is compute / use / uncompute. The harness enforces this two ways:
 
-**Rule**: every ancilla you allocate must be returned to |0⟩ by an
-explicit inverse gate sequence BEFORE you call `assert_zero_and_free`.
-No exceptions.
+- `sim.rs` treats every `R` op (`Builder::assert_zero_and_free`) as a hard
+  assertion that the target qubit is |0⟩ on every live shot. Dirty frees
+  fail at the dirty op with a localized error.
+- After the forward pass, the harness zeroes the output registers and
+  asserts every remaining qubit is |0⟩. Lingering ancillas anywhere
+  outside the four declared registers fail this check.
 
-**Why this matters**: the simulator's `R` gate unconditionally zeros its
-target, so a "dirty free" can silently pass classical tests on definite
-inputs. But the ancilla is entangled with the computation state, and on
-the superposition inputs Shor's algorithm actually uses, that entanglement
-destroys the interference pattern the algorithm depends on. The circuit
-would be worthless.
-
-**How to apply**: if you compute `anc = f(x, y)` into a fresh ancilla,
-you must emit the inverse of `f` (same gates in reverse order, since all
-our gates are self-inverse) before freeing `anc`. The standard pattern is
-compute / use / uncompute. The harness's `strict_apply` + forward∘reverse
-identity check will catch every violation and fail the run. Do not try
-to find loopholes; there are none.
-
-**Do NOT** try to route around the assertion by using raw `builder.r(q)`,
-never freeing the qubit, using `X` to flip a dirty ancilla back to 0, or
-any other dodge. The forward∘reverse identity check catches all of these.
-
-An optimization that appears to reduce Toffolis by skipping uncomputation
-is not an optimization — it's a broken circuit that the harness will
-reject. Spend your effort finding genuinely better algorithms (see seeds).
+There are no loopholes — a Toffoli "win" from skipping uncomputation
+makes the run fail, not faster.
 
 ### Tie-breakers (when Toffoli counts are within ~0.5%)
 - Lower peak qubits.
 - Lower total Clifford.
 
-## Baseline (starting point, commit `main`)
+## Baseline (honest reversible kaliski, commit `main`)
 
 ```
-avg executed Toffoli  : 55399434
-avg executed Clifford : 146099482
-emitted ops           : 226847650
-qubits                : 2574
+avg executed Toffoli  : 101284162
+avg executed Clifford : 211257273
+emitted ops           : 383933667
+qubits                : 3595
 ```
 
 Reference targets (zenodo `zkp_ecc` Pareto frontier, for calibration —
@@ -86,7 +68,8 @@ these are aspirational, not required):
 | low-qubit | 2,700,000 | 1,175 |
 | low-gate  | 2,100,000 | 1,425 |
 
-You are ~20–25× above these. There is substantial room.
+You are ~40× above these on Toffoli and ~3× over on qubits. There is
+substantial room.
 
 ## Setup
 
@@ -96,8 +79,9 @@ On first run only:
    of `point_add.rs` (steps 1–12 of the point-add algorithm).
 3. Skim `src/circuit.rs` for the `Op` IR and `src/sim.rs` for how gates
    are counted (in particular `sim.rs:102` — `executed_shots` semantics).
-4. Verify the baseline runs: `bash scripts/bench.sh` should print one TSV
-   line ending in `OK`. Append it to `results.tsv` as the starting row.
+4. Verify the baseline runs: `cargo run --release -- --note baseline` should
+   print `=== experiment OK ===` and append a TSV row ending in `OK` to
+   `results.tsv`.
 
 ## Experiment loop
 
@@ -179,12 +163,8 @@ once — you can't attribute the result.
 - Cliffords are free compared to Toffolis (~100× cheaper in fault tolerance).
   Do not optimize Cliffords at the cost of Toffolis.
 - X/Z gates are not counted at all. Abuse them.
-- The simulator's `R` gate unconditionally zeros a qubit — you can use it
-  to "free" dirty ancillas without proper uncompute. `Builder::free_qubit`
-  already does this. But remember that what you compute must still be
-  correct as a mathematical function; you cannot use R to paper over bugs.
 - Correctness is non-negotiable. A 0-Toffoli circuit that fails correctness
-  is worth nothing. Run `bash scripts/bench.sh` after every edit.
+  is worth nothing. Run `cargo run --release` after every edit.
 
 ## Stop conditions
 
