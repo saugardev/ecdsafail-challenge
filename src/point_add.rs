@@ -378,30 +378,13 @@ fn mod_add_qq(b: &mut Builder, acc: &[QubitId], a: &[QubitId], p: U256) {
 }
 
 fn mod_sub_qq(b: &mut Builder, acc: &[QubitId], a: &[QubitId], p: U256) {
-    // acc := (acc - a) mod p
-    //      = (acc + (p - a)) mod p
-    // Use the "add then conditional add" pattern with the subtraction
-    // realized by running cuccaro_add on a_complemented then adjusting.
-    //
-    // Simpler: mod_add_qq(acc, -a) where -a is computed in a temporary.
-    // We compute tmp = (p - a) mod p using mod_neg_into_tmp, then
-    // mod_add_qq(acc, tmp), then uncompute tmp.
-    let n = acc.len();
-    let tmp = b.alloc_qubits(n);
-    // tmp ← a (copy via CX)
-    for i in 0..n {
-        b.cx(a[i], tmp[i]);
-    }
-    // tmp ← -tmp mod p
-    mod_neg_inplace(b, &tmp, p);
-    // acc += tmp
-    mod_add_qq(b, acc, &tmp, p);
-    // Uncompute tmp: undo mod_neg, then undo the copy.
-    mod_neg_inplace(b, &tmp, p);
-    for i in 0..n {
-        b.cx(a[i], tmp[i]);
-    }
-    b.assert_zero_and_free_vec(&tmp);
+    // mod_add_qq is a bijection on (acc, a): (acc, a) ↦ (acc + a mod p, a).
+    // Its gate-level inverse therefore acts as (acc, a) ↦ (acc - a mod p, a),
+    // which is exactly what we want. emit_inverse replays the forward's gates
+    // reversed, skipping R markers — valid because mod_add_qq is clean
+    // (every ancilla is driven to |0⟩ before its R).
+    let a_copy: Vec<QubitId> = a.to_vec();
+    emit_inverse(b, move |b| mod_add_qq(b, acc, &a_copy, p));
 }
 
 fn mod_add_qc(b: &mut Builder, acc: &[QubitId], c: U256, p: U256) {
