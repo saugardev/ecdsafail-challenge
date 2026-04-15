@@ -1508,9 +1508,17 @@ pub fn build(b: &mut Builder) -> Layout {
     mod_sub_qb(b, &tx, &ox, p);
     mod_sub_qb(b, &tx, &ox, p);
 
-    // Py := λ·Qx − λ·Rx − Qy
-    mod_mul_add_qb(b, &ty, &lam, &ox, p);
-    mod_mul_sub_qq(b, &ty, &lam, &tx, p);
+    // Py := λ·(Qx − Rx) − Qy. Fuse the two muls into one by precomputing
+    // (Qx − Rx) into a temporary; saves a full mod_mul_*.
+    {
+        let dxr = b.alloc_qubits(N);
+        for i in 0..N { b.x_if(dxr[i], ox[i]); }     // dxr = Qx
+        mod_sub_qq(b, &dxr, &tx, p);                  // dxr = Qx − Rx
+        mod_mul_add_qq(b, &ty, &lam, &dxr, p);        // ty += λ·(Qx − Rx)
+        mod_add_qq(b, &dxr, &tx, p);                  // dxr += Rx → Qx
+        for i in 0..N { b.x_if(dxr[i], ox[i]); }     // dxr = 0
+        b.assert_zero_and_free_vec(&dxr);
+    }
     mod_sub_qb(b, &ty, &oy, p);
 
     // Uncompute lam using λ = (Qy + Ry) / (Qx - Rx).
