@@ -1410,13 +1410,20 @@ pub fn build(b: &mut Builder) -> Layout {
 
     // Uncompute lam using λ = (Qy + Ry) / (Qx - Rx).
     mod_sub_qb(b, &tx, &ox, p);
-    mod_neg_inplace(b, &tx, p);
-    kaliski_inv_inplace(b, &tx, p);
-    mod_mul_sub_qq(b, &lam, &ty, &tx, p);
-    mod_mul_sub_qb(b, &lam, &tx, &oy, p);
-    kaliski_inv_inplace(b, &tx, p);
-    mod_neg_inplace(b, &tx, p);
-    mod_add_qb(b, &tx, &ox, p);
+    mod_neg_inplace(b, &tx, p);                   // tx = Qx - Rx
+    // Pair 2 (folded): keep tx = Qx-Rx throughout, put its inverse in `inv`.
+    {
+        let st2 = alloc_kaliski_state(b, N);
+        let inv = b.alloc_qubits(N);
+        kal_compute_into(b, &tx, &inv, &st2, p);
+        mod_mul_sub_qq(b, &lam, &ty, &inv, p);
+        mod_mul_sub_qb(b, &lam, &inv, &oy, p);
+        emit_inverse(b, |b| kal_compute_into(b, &tx, &inv, &st2, p));
+        b.assert_zero_and_free_vec(&inv);
+        free_kaliski_state(b, st2);
+    }
+    mod_neg_inplace(b, &tx, p);                   // tx = -(Qx-Rx) = Rx - Qx
+    mod_add_qb(b, &tx, &ox, p);                   // tx = Rx
 
     b.assert_zero_and_free_vec(&lam);
 
