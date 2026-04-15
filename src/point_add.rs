@@ -334,43 +334,43 @@ fn unext_reg(b: &mut Builder, ovf: QubitId) {
 }
 
 /// `acc := (acc + a) mod p`. Both `acc` and `a` are n-bit quantum registers
-/// with value in [0, p). Extends both to n+1 bits, adds, subtracts p,
-/// conditionally adds p back based on the resulting sign bit.
+/// with value in [0, p). Solinas reduction using c = 2^n - p: sum ∈ [0, 2p),
+/// then add c, branch on top bit to either clear it (reduction) or undo
+/// the add (no reduction). Saves one full (n+1)-wide Cuccaro compared to
+/// the sub-p/add-p/csub-p pattern.
 fn mod_add_qq(b: &mut Builder, acc: &[QubitId], a: &[QubitId], p: U256) {
     let n = acc.len();
     assert_eq!(n, a.len());
+    debug_assert_eq!(n, 256);
 
     let (acc_ext, acc_ovf) = ext_reg(b, acc);
     let (a_ext, a_ovf) = ext_reg(b, a);
 
-    // (n+1)-bit add. acc_ext ∈ [0, 2p) ⊂ [0, 2^{n+1}).
+    // Step 1: (n+1)-bit add. acc_ext ∈ [0, 2p).
     add_nbit_qq(b, &a_ext, &acc_ext);
 
-    // Compute `ge = (sum >= p)` into a fresh non-aliased flag via a
-    // non-destructive sub/read/add-back. This avoids the aliasing bug
-    // where acc_ovf doubles as the reduction control and the target of
-    // the reduction's top bit.
-    let ge = b.alloc_qubit();
-    sub_nbit_const(b, &acc_ext, p);
-    // acc_ovf == 1 iff sum < p. ge := !acc_ovf.
-    b.x(acc_ovf);
-    b.cx(acc_ovf, ge);
-    b.x(acc_ovf);
-    add_nbit_const(b, &acc_ext, p);
-    // Now acc_ext == sum, acc_ovf == 0 again.
+    // Step 2: add c. If sum was >= p, the top bit of (sum + c) becomes 1.
+    let c = U256::MAX.wrapping_sub(p).wrapping_add(U256::from(1));
+    add_nbit_const(b, &acc_ext, c);
 
-    // Conditional subtract p using the non-aliased ge control.
-    csub_nbit_const(b, &acc_ext, p, ge);
-    // acc_ext is now the reduced result in [0, p); acc_ovf still 0.
+    // Step 3: flag := acc_ovf (= top bit of sum + c).
+    let flag = b.alloc_qubit();
+    b.cx(acc_ovf, flag);
 
-    // Uncompute ge via the identity: ge == (acc_final < a_orig).
-    //   ge=0 case: sum < p, acc_final = sum = acc_orig + a. acc_orig >= 0
-    //             means acc_final >= a, so (acc_final < a) = 0 = ge.  ✓
-    //   ge=1 case: sum >= p, acc_final = sum - p = acc_orig + a - p.
-    //             acc_orig < p means acc_final < a, so (acc_final < a) = 1 = ge. ✓
-    // cmp_lt_into(acc_final, a, ge) gives ge ^= (acc_final < a), zeroing ge.
-    cmp_lt_into(b, &acc_ext[..n], &a_ext[..n], ge);
-    b.assert_zero_and_free(ge);
+    // Step 4: if flag=0 (no reduction needed), undo the add of c.
+    b.x(flag);
+    csub_nbit_const(b, &acc_ext, c, flag);
+    b.x(flag);
+
+    // Step 5: if flag=1, clear the top bit (drops 2^n → yields sum - p).
+    b.cx(flag, acc_ovf);
+
+    // Step 6: uncompute flag. Same identity as the old version:
+    //   flag == (acc_final < a_orig)
+    // because in the flag=1 case acc_final = acc_orig + a - p < a (since acc_orig < p),
+    // and in the flag=0 case acc_final = acc_orig + a ≥ a.
+    cmp_lt_into(b, &acc_ext[..n], &a_ext[..n], flag);
+    b.assert_zero_and_free(flag);
 
     unext_reg(b, a_ovf);
     unext_reg(b, acc_ovf);
