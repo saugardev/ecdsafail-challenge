@@ -1294,11 +1294,19 @@ fn kal_compute_into(
     let n = v_in.len();
     let two_2n = pow_mod_2_k(p, 2 * n);
     let k_const = classical_modinv(two_2n, p);
+    // Forward pass: st.r[..n] holds the raw form = inverse * two_2n mod p.
     kaliski_forward(b, v_in, st, p);
-    in_place_mul_const(b, &st.r[..n], k_const, p);
+    // Copy the raw form into output (output ^= raw). `output` now holds
+    // inverse * two_2n.
     for i in 0..n { b.cx(st.r[i], output[i]); }
-    in_place_mul_const(b, &st.r[..n], two_2n, p);
+    // Uncompute st entirely — st.r[..n] comes back to 0. `output` is
+    // untouched by this because it lives outside st.
     emit_inverse(b, |b| kaliski_forward(b, v_in, st, p));
+    // Apply the classical correction to `output` directly — one classical
+    // multiplication instead of the previous two-mul compute/uncompute on
+    // st.r. output := output * k_const = true inverse.
+    in_place_mul_const(b, output, k_const, p);
+    let _ = two_2n;
 }
 
 fn kaliski_inv_inplace(b: &mut Builder, v_in: &[QubitId], p: U256) {
