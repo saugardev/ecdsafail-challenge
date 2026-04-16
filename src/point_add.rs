@@ -1819,18 +1819,30 @@ fn kaliski_iteration_backward(
     for j in (0..n1).rev() { cswap(b, a_f, r[j], s[j]); }
     for j in (0..n).rev() { cswap(b, a_f, u[j], v_w[j]); }
 
-    // ── Reverse STEP 8 (Solinas fold) ───────────────────────────────────
+    // ── Reverse STEP 8 (Solinas fold) with fast Cuccaro ────────────────
     {
         let c = U256::MAX.wrapping_sub(p).wrapping_add(U256::from(1));
         let flag = b.alloc_qubit();
         b.cx(r[0], flag);
         b.cx(flag, r[n1 - 1]);
         b.x(flag);
-        cadd_nbit_const(b, r, c, flag);
+        // cadd_nbit_const with fast Cuccaro
+        {
+            let ca = b.alloc_qubits(n1);
+            for i in 0..n1 { if bit(c, i) { b.cx(flag, ca[i]); } }
+            add_nbit_qq_fast(b, &ca, r);
+            for i in 0..n1 { if bit(c, i) { b.cx(flag, ca[i]); } }
+            b.free_vec(&ca);
+        }
         b.x(flag);
         b.cx(r[n1 - 1], flag);
         b.free(flag);
-        sub_nbit_const(b, r, c);
+        // sub_nbit_const with fast Cuccaro
+        {
+            let ca = load_const(b, n1, c);
+            sub_nbit_qq_fast(b, &ca, r);
+            unload_const(b, &ca, c);
+        }
     }
 
     // ── Reverse STEP 7 ─────────────────────────────────────────────────
