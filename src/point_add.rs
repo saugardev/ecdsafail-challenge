@@ -1056,6 +1056,54 @@ fn mod_mul_add_qq(
     b.free_vec(&tmp);
 }
 
+/// Horner-method multiplication: acc += x * y mod p.
+/// REQUIRES acc = 0 on entry. Doubles the accumulator (MSB-first),
+/// avoiding the tmp register and 255 halvings entirely.
+fn mod_mul_horner_add_qq(
+    b: &mut B,
+    acc: &[QubitId],
+    x: &[QubitId],
+    y: &[QubitId],
+    p: U256,
+) {
+    let n = acc.len();
+    for i in (0..n).rev() {
+        if i < n - 1 { mod_double_inplace_fast(b, acc, p); }
+        cmod_add_qq(b, acc, x, y[i], p);
+    }
+}
+
+/// Horner-method multiplication: acc -= x * y mod p (= acc += (p-x)*y).
+/// REQUIRES acc = 0 on entry.
+fn mod_mul_horner_sub_qq(
+    b: &mut B,
+    acc: &[QubitId],
+    x: &[QubitId],
+    y: &[QubitId],
+    p: U256,
+) {
+    let n = acc.len();
+    let is_squaring = x[0] == y[0];
+    // Negate x, then Horner-add. For squaring: x=y, negating x also
+    // negates y, giving (-x)*(-x)=x² (ADDITION, not subtraction).
+    // So squaring can't use 2-neg trick.
+    if is_squaring {
+        mod_neg_inplace_fast(b, x, p);
+        for i in (0..n).rev() {
+            if i < n - 1 { mod_double_inplace_fast(b, acc, p); }
+            cmod_add_qq(b, acc, x, y[i], p);
+        }
+        mod_neg_inplace_fast(b, x, p);
+    } else {
+        mod_neg_inplace_fast(b, x, p);
+        for i in (0..n).rev() {
+            if i < n - 1 { mod_double_inplace_fast(b, acc, p); }
+            cmod_add_qq(b, acc, x, y[i], p);
+        }
+        mod_neg_inplace_fast(b, x, p);
+    }
+}
+
 fn mod_mul_sub_qq(
     b: &mut B,
     acc: &[QubitId],
@@ -2268,7 +2316,7 @@ pub fn build() -> Vec<Op> {
     // Pair 1: with inv = -dx^{-1} (kaliski's native form, neg skipped),
     // `mod_mul_sub` on lam gives +λ: lam -= ty*inv = dy*dx^{-1} = λ.
     with_kal_inv(b, &tx, p, |b, inv| {
-        mod_mul_sub_qq(b, &lam, &ty, inv, p);        // lam -= dy·(-dx^{-1}) = λ
+        mod_mul_horner_sub_qq(b, &lam, &ty, inv, p); // lam -= dy·(-dx^{-1}) = λ (Horner: lam=0)
         mod_mul_sub_qq(b, &ty, &lam, &tx, p);        // Py -= λ·dx = 0
     });
 
@@ -2286,7 +2334,7 @@ pub fn build() -> Vec<Op> {
         let dxr = b.alloc_qubits(N);
         for i in 0..N { b.x_if(dxr[i], ox[i]); }     // dxr = Qx
         mod_sub_qq_fast(b, &dxr, &tx, p);              // dxr = Qx − Rx
-        mod_mul_add_qq(b, &ty, &lam, &dxr, p);        // ty += λ·(Qx − Rx)
+        mod_mul_horner_add_qq(b, &ty, &lam, &dxr, p);  // ty += λ·(Qx − Rx) (Horner: ty=0)
         mod_add_qq_fast(b, &dxr, &tx, p);              // dxr += Rx → Qx
         for i in 0..N { b.x_if(dxr[i], ox[i]); }     // dxr = 0
         b.free_vec(&dxr);
