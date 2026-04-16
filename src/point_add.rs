@@ -2309,11 +2309,13 @@ pub fn build() -> Vec<Op> {
     with_kal_inv_raw(b, &tx, p, |b, inv_raw| {
         mod_mul_horner_add_qq(b, &lam, &ty, inv_raw, p); // lam = (-λ) * 2^(2N-1)
         for _ in 0..(2 * N - 1) { mod_halve_inplace_fast(b, &lam, p); }
-        // ty = dy = λ·dx. Flip lam to +λ, run the reverse-Horner unadd,
-        // then restore lam to the negative convention used below.
-        mod_neg_inplace_fast(b, &lam, p);
-        mod_mul_horner_unadd_qq(b, &ty, &lam, &tx, p);
-        mod_neg_inplace_fast(b, &lam, p);
+        // ty = dy = λ·dx, lam = -λ. Run the reverse-Horner unadd directly
+        // with lam in negated form: cmod_add(ty, lam=-λ, tx[i]); halve(ty).
+        // End ty = (dy + (-λ)·dx)/2^(n-1) = 0. Drops 2 outer + 2 inner negs.
+        for i in 0..N {
+            cmod_add_qq(b, &ty, &lam, tx[i], p);
+            if i < N - 1 { mod_halve_inplace_fast(b, &ty, p); }
+        }
     });
 
     // Px := λ² - Px_orig - Qx. Rearranged: tx = dx - λ². Add 2Qx, then
