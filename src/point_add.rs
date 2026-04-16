@@ -663,8 +663,13 @@ fn cmod_add_qq(b: &mut B, acc: &[QubitId], a: &[QubitId], ctrl: QubitId, p: U256
         b.ccx(ctrl, a[i], f[i]);
     }
     mod_add_qq(b, acc, &f, p);
+    // Gidney measurement-based AND uncomputation: f[i] = ctrl AND a[i],
+    // which is unchanged by mod_add_qq (Cuccaro restores the addend).
+    // HMR + classically-conditioned CZ costs 0 Toffoli vs 256 CCX.
     for i in 0..n {
-        b.ccx(ctrl, a[i], f[i]);
+        let m = b.alloc_bit();
+        b.hmr(f[i], m);
+        b.cz_if(ctrl, a[i], m);
     }
     b.free_vec(&f);
 }
@@ -677,7 +682,9 @@ fn cmod_sub_qq(b: &mut B, acc: &[QubitId], a: &[QubitId], ctrl: QubitId, p: U256
     }
     mod_sub_qq(b, acc, &f, p);
     for i in 0..n {
-        b.ccx(ctrl, a[i], f[i]);
+        let m = b.alloc_bit();
+        b.hmr(f[i], m);
+        b.cz_if(ctrl, a[i], m);
     }
     b.free_vec(&f);
 }
