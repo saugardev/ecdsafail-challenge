@@ -2205,7 +2205,7 @@ fn kaliski_backward(b: &mut B, v_in: &[QubitId], st: &KaliskiState, p: U256) {
 /// `kaliski_forward` ONCE (and its emit_inverse once), instead of the
 /// 4-call structure of the previous Bennett-cleaned `kal_compute_into`.
 /// Halves the dominant kaliski cost.
-fn with_kal_inv<F: FnOnce(&mut B, &[QubitId])>(
+fn with_kal_inv_raw<F: FnOnce(&mut B, &[QubitId])>(
     b: &mut B,
     v_in: &[QubitId],
     p: U256,
@@ -2217,23 +2217,29 @@ fn with_kal_inv<F: FnOnce(&mut B, &[QubitId])>(
     // Forward kaliski. st.r[..n] holds raw = v_in^{-1} * 2^(2n) mod p.
     kaliski_forward(b, v_in, &st, p);
 
-    // Halve st.r[..n] 2n times in place to apply the 2^(-2n) correction:
-    // st.r[..n] := v_in^{-1}. This aliases the body's `inv` slice onto
-    // the existing kaliski r-register, saving the n-qubit `inv` alloc
-    // and its CX-copy/cancel pair. We restore st.r[..n] after the body
-    // so emit_inverse(kaliski_forward) sees its expected post-forward state.
     let r_low: Vec<QubitId> = st.r[..n].to_vec();
-    for _ in 0..(2 * n - 1) { mod_halve_inplace_fast(b, &r_low, p); }
-
     body(b, &r_low);
-
-    // Un-halve st.r[..n] back to raw form.
-    for _ in 0..(2 * n - 1) { mod_double_inplace_fast(b, &r_low, p); }
     // Explicit backward pass (uses measurement-based uncompute, saves
     // ~511 CCX per iteration vs the emit_inverse version).
     kaliski_backward(b, v_in, &st, p);
 
     free_kaliski_state(b, st);
+}
+
+fn with_kal_inv<F: FnOnce(&mut B, &[QubitId])>(
+    b: &mut B,
+    v_in: &[QubitId],
+    p: U256,
+    body: F,
+) {
+    let n = v_in.len();
+    with_kal_inv_raw(b, v_in, p, |b, inv_raw| {
+        // Kaliski's raw output carries a 2^(2n-1) factor. Apply the
+        // correction in place when callers need the exact inverse.
+        for _ in 0..(2 * n - 1) { mod_halve_inplace_fast(b, inv_raw, p); }
+        body(b, inv_raw);
+        for _ in 0..(2 * n - 1) { mod_double_inplace_fast(b, inv_raw, p); }
+    });
 }
 
 fn kaliski_inv_inplace(b: &mut B, v_in: &[QubitId], p: U256) {
@@ -2324,11 +2330,12 @@ pub fn build() -> Vec<Op> {
 
     let lam = b.alloc_qubits(N);
 
-    // Pair 1: keep lam in the NEGATIVE slope form lam = -λ. This lets the
-    // zeroing multiply use plain add instead of sub, avoiding two modular
-    // negations on the multiplicand.
-    with_kal_inv(b, &tx, p, |b, inv| {
-        mod_mul_horner_add_qq(b, &lam, &ty, inv, p); // lam += dy·(-dx^{-1}) = -λ (Horner: lam=0)
+    // Pair 1: Kaliski's raw inverse carries a 2^(2N-1) factor. Fold that
+    // scale onto lam itself, then halve lam down once. This avoids the
+    // inverse-register restore pass entirely.
+    with_kal_inv_raw(b, &tx, p, |b, inv_raw| {
+        mod_mul_horner_add_qq(b, &lam, &ty, inv_raw, p); // lam = (-λ) * 2^(2N-1)
+        for _ in 0..(2 * N - 1) { mod_halve_inplace_fast(b, &lam, p); }
         mod_mul_add_qq(b, &ty, &lam, &tx, p);        // Py += (-λ)·dx = 0
     });
 
@@ -2355,8 +2362,12 @@ pub fn build() -> Vec<Op> {
     // Uncompute lam. Use (Rx - Qx) as kaliski input; inv = -(Rx-Qx)^{-1}
     // = (Qx-Rx)^{-1}, so inv·ty = -λ and the same `mod_mul_sub_qq` zeroes lam.
     mod_sub_qb(b, &tx, &ox, p);                   // tx = Rx - Qx
-    with_kal_inv(b, &tx, p, |b, inv| {
-        mod_mul_sub_qq(b, &lam, inv, &ty, p);         // lam -= inv·(-(Ry + Qy)) = 0
+    with_kal_inv_raw(b, &tx, p, |b, inv_raw| {
+        // Scale lam up to match Kaliski's raw 2^(2N-1)-scaled inverse.
+        // The product then zeroes lam directly, so no down-scaling restore
+        // is needed afterward.
+        for _ in 0..(2 * N - 1) { mod_double_inplace_fast(b, &lam, p); }
+        mod_mul_sub_qq(b, &lam, inv_raw, &ty, p);     // lam -= inv_raw·(-(Ry + Qy)) = 0
         mod_add_qb(b, &ty, &oy, p);                   // ty = -Ry
         mod_neg_inplace_fast(b, &ty, p);              // ty = Ry
     });
