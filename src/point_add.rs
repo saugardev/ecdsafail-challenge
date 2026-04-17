@@ -2034,7 +2034,13 @@ fn kaliski_iteration(
         for i in 0..n { b.ccx(add_f, u[i], tmp[i]); }
         for i in 0..n { b.cx(r[i], u[i]); }
         // Cuccaro add on the live coefficient width.
-        add_nbit_qq_fast(b, &tmp, s);
+        // For iter_idx < 254, max(r,s) ≤ 2^iter_idx, so tmp (= add_f AND r)
+        // has high bits 0 and s has high bits 0. Sum ≤ 2^{iter_idx+1} fits
+        // in iter_idx+2 bits. Use truncated add — saves (n - iter_idx - 2) CCX.
+        let add_width = if iter_idx + 2 < n { iter_idx + 2 } else { n };
+        let tmp_slice: Vec<QubitId> = tmp[0..add_width].to_vec();
+        let s_slice: Vec<QubitId> = s[0..add_width].to_vec();
+        add_nbit_qq_fast(b, &tmp_slice, &s_slice);
         // Unload tmp via measurement-based AND uncompute (0 Toffoli).
         // tmp[i] = add_f AND r[i], unchanged by Cuccaro add (addend preserved).
         for i in 0..n {
@@ -2348,8 +2354,12 @@ fn kaliski_iteration_backward(
         let tmp = b.alloc_qubits(n);
         // Load tmp = AND(add_f, r) for the reversed add
         for i in 0..n { b.ccx(add_f, r[i], tmp[i]); }
-        // Reversed (F): sub_nbit_qq_fast(tmp, s)
-        sub_nbit_qq_fast(b, &tmp, s);
+        // Reversed (F): sub_nbit_qq_fast(tmp, s) — truncated for small iter.
+        // Symmetric to forward's truncated add.
+        let sub_width = if iter_idx + 2 < n { iter_idx + 2 } else { n };
+        let tmp_slice: Vec<QubitId> = tmp[0..sub_width].to_vec();
+        let s_slice: Vec<QubitId> = s[0..sub_width].to_vec();
+        sub_nbit_qq_fast(b, &tmp_slice, &s_slice);
         // Reversed (E): transform tmp from AND(add_f,r) → AND(add_f,u)
         for i in 0..n { b.cx(r[i], u[i]); }
         for i in 0..n { b.ccx(add_f, u[i], tmp[i]); }
