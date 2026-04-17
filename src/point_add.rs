@@ -792,6 +792,20 @@ fn cadd_nbit_const_fast(b: &mut B, acc: &[QubitId], c: U256, ctrl: QubitId) {
     b.free_vec(&a);
 }
 
+fn add_nbit_const_fast(b: &mut B, acc: &[QubitId], c: U256) {
+    let n = acc.len();
+    let a = load_const(b, n, c);
+    add_nbit_qq_fast(b, &a, acc);
+    unload_const(b, &a, c);
+}
+
+fn sub_nbit_const_fast(b: &mut B, acc: &[QubitId], c: U256) {
+    let n = acc.len();
+    let a = load_const(b, n, c);
+    sub_nbit_qq_fast(b, &a, acc);
+    unload_const(b, &a, c);
+}
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  Modular multiplication
@@ -932,22 +946,18 @@ fn mod_shift_left_by_k(b: &mut B, v: &[QubitId], p: U256, k: usize) -> (Vec<Qubi
     cuccaro_op(b, 10, false);  // +spill·2^10
     cuccaro_op(b, 32, false);  // +spill·2^32
 
-    // Step 3: flag_inv = (v_ext < p_padded).
-    {
-        let p_padded = load_const(b, n+1, p);
-        cmp_lt_into_fast(b, &v_ext, &p_padded, flag_inv);
-        unload_const(b, &p_padded, p);
-    }
+    // Step 3: value is guaranteed < 2p, so secp256k1 reduction can use the
+    // sparse pseudo-Mersenne correction directly: add c, inspect the top bit.
+    add_nbit_const_fast(b, &v_ext, c);
+    b.x(ovf);
+    b.cx(ovf, flag_inv); // flag_inv = NOT(top_bit_after_add) = (value < p)
+    b.x(ovf);
 
-    // Step 4: if NOT flag_inv (= v_ext >= p), subtract p.
+    // Step 4: if the add did not overflow, undo it; otherwise keep it and
+    // clear the top bit, which drops the extra 2^256 = p + c.
+    csub_nbit_const_fast(b, &v_ext, c, flag_inv);
     b.x(flag_inv);
-    {
-        let p_loaded = b.alloc_qubits(n+1);
-        for i in 0..(n+1) { if bit(p, i) { b.cx(flag_inv, p_loaded[i]); } }
-        sub_nbit_qq_fast(b, &p_loaded, &v_ext);
-        for i in 0..(n+1) { if bit(p, i) { b.cx(flag_inv, p_loaded[i]); } }
-        b.free_vec(&p_loaded);
-    }
+    b.cx(flag_inv, ovf);
     b.x(flag_inv);
 
     (spill, flag_inv, ovf)
@@ -962,23 +972,17 @@ fn mod_shift_right_by_k(b: &mut B, v: &[QubitId], p: U256, k: usize, spill: Vec<
     let mut v_ext = v.to_vec();
     v_ext.push(ovf);
 
-    // Reverse step 4: re-add p if NOT flag_inv.
+    // Reverse step 4.
     b.x(flag_inv);
-    {
-        let p_loaded = b.alloc_qubits(n+1);
-        for i in 0..(n+1) { if bit(p, i) { b.cx(flag_inv, p_loaded[i]); } }
-        add_nbit_qq_fast(b, &p_loaded, &v_ext);
-        for i in 0..(n+1) { if bit(p, i) { b.cx(flag_inv, p_loaded[i]); } }
-        b.free_vec(&p_loaded);
-    }
+    b.cx(flag_inv, ovf);
     b.x(flag_inv);
+    cadd_nbit_const_fast(b, &v_ext, c, flag_inv);
 
-    // Reverse step 3: cmp_lt is its own inverse on flag_inv.
-    {
-        let p_padded = load_const(b, n+1, p);
-        cmp_lt_into_fast(b, &v_ext, &p_padded, flag_inv);
-        unload_const(b, &p_padded, p);
-    }
+    // Reverse step 3.
+    b.x(ovf);
+    b.cx(ovf, flag_inv);
+    b.x(ovf);
+    sub_nbit_const_fast(b, &v_ext, c);
     b.free(flag_inv);
 
     // Reverse step 2: inverse of the consolidated op list (5 ops, in reverse order, flipped signs).
