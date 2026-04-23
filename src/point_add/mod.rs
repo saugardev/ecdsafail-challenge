@@ -3147,7 +3147,8 @@ fn kaliski_iteration_bulk_prefix3(
     // the call entirely on both forward and backward is consistent.
     let _ = iter_idx;
     b.set_phase("kal_bulk_step1");
-    // Specialized STEP 1 for f=1, plus the generic z HMR history.
+    // Specialized STEP 1 for f=1; the generic z HMR scaffold is a self-
+    // cancelling noop (alloc-0 + ccx + hmr + matching cz_if) so we skip it.
     b.x(a_f);
     b.cx(u[0], a_f); // a_f = !u0
     b.x(v_w[0]);
@@ -3155,14 +3156,6 @@ fn kaliski_iteration_bulk_prefix3(
     b.x(v_w[0]);
     b.cx(a_f, b_f);
     b.cx(m_i, b_f); // b_f = a_f xor m_i
-    let z = b.alloc_qubit();
-    b.ccx(f1, u[0], z);
-    {
-        let zm = b.alloc_bit();
-        b.hmr(z, zm);
-        b.cz_if(f1, u[0], zm);
-    }
-    b.free(z);
 
     b.set_phase("kal_bulk_step2");
     let l_gt = b.alloc_qubit();
@@ -3178,14 +3171,7 @@ fn kaliski_iteration_bulk_prefix3(
             b.cz_if(l_gt, b_f, tm);
         }
         b.free(t);
-        let add_dummy = b.alloc_qubit();
-        b.ccx(f1, l_gt, add_dummy);
-        {
-            let am = b.alloc_bit();
-            b.hmr(add_dummy, am);
-            b.cz_if(f1, l_gt, am);
-        }
-        b.free(add_dummy);
+        // add_dummy scaffold (self-cancelling noop) skipped.
         b.x(b_f);
     });
     b.free(l_gt);
