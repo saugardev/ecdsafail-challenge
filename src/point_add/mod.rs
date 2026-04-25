@@ -72,7 +72,6 @@ pub mod kaliski_jump;
 pub mod microbench;
 #[cfg(test)]
 pub mod primitive_costs;
-#[cfg(test)]
 pub mod venting;
 #[cfg(test)]
 pub mod kim_inv_circuit;
@@ -1377,15 +1376,54 @@ fn mod_shift_right_by_k(
 /// Fast `v := v/2 mod p`. Explicit reverse of `mod_double_inplace` with
 /// measurement-based Cuccaro (not emit_inverse).
 fn mod_halve_inplace_fast(b: &mut B, v: &[QubitId], p: U256) {
+    mod_halve_inplace_fast_with_dirty(b, v, p, None)
+}
+
+/// Variant of `mod_halve_inplace_fast` that optionally borrows `dirty_src`
+/// qubits for the controlled-sub step, using Gidney's venting
+/// `cisub_dirty_2clean_classical`. Saves n transient qubits at the peak
+/// when dirty qubits are available from the caller.
+fn mod_halve_inplace_fast_with_dirty(
+    b: &mut B,
+    v: &[QubitId],
+    p: U256,
+    dirty_src: Option<&[QubitId]>,
+) {
     let n = v.len();
     let ovf = b.alloc_qubit();
     debug_assert_eq!(n, 256);
-    // If v is odd, then v = low + c for some even `low`; subtract c before
-    // shifting and reinsert the parity bit at the top. If v is even, this is
-    // just an ordinary right shift.
     let c = U256::MAX.wrapping_sub(p).wrapping_add(U256::from(1));
     b.cx(v[0], ovf);
-    csub_nbit_const_fast(b, v, c, ovf);
+    // If caller provided enough dirty qubits AND c fits in u64 (it does
+    // for secp256k1: c = 2^32 + 977), use the venting variant.
+    let use_venting = std::env::var("KAL_VENT_HALVE").ok().as_deref() == Some("1")
+        && dirty_src.map_or(false, |d| d.len() >= n - 2);
+    if use_venting {
+        // c as u64 (it fits: c = 0x1000003D1).
+        // For n=256, we still need to pass the full 256-bit constant via u64.
+        // Since c only has 33 bits, u64 is fine.
+        let c_u64: u64 = c.as_limbs()[0] | (c.as_limbs()[1] << 32); // hack for U256
+        // Actually, U256 limbs are u64[4]. Bit 32 of U256 is limbs[0] bit 32.
+        // limbs[0] holds bits 0..64. So just take limbs[0] for bits < 64.
+        let c_low = c.as_limbs()[0];
+        let dirty = dirty_src.unwrap();
+        let dirty_slice = &dirty[..n - 2];
+        // We need 2 clean ancilla. Alloc them fresh.
+        let q_clean2: [QubitId; 2] = [b.alloc_qubit(), b.alloc_qubit()];
+        venting::cisub_dirty_2clean_classical(
+            b,
+            v,
+            dirty_slice,
+            &q_clean2,
+            c_low,
+            ovf,
+        );
+        b.free(q_clean2[0]);
+        b.free(q_clean2[1]);
+        let _ = c_u64; // unused, c_low is the right value
+    } else {
+        csub_nbit_const_fast(b, v, c, ovf);
+    }
     for i in 0..n - 1 {
         b.swap(v[i], v[i + 1]);
     }

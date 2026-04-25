@@ -146,6 +146,23 @@ pub fn add_vented_2clean_classical(
     carry_in: bool,
     vent_keys: &[BitId],
 ) {
+    add_vented_2clean_classical_cxt(b, q_target, q_clean2, offset_bits, carry_in, vent_keys, None);
+}
+
+/// Extended vented adder supporting optional `carry_xor_target`: during the
+/// k-th ripple step, if `carry_xor_target[k]` is Some(q), emit
+/// `cx(carries[k], q)` — XORing the computed carry into a target qubit
+/// before it gets vented. This is used by `iadd_dirty_2clean` to merge
+/// the Gidney Figure 4 carry-xor pass into the vented add itself.
+pub fn add_vented_2clean_classical_cxt(
+    b: &mut B,
+    q_target: &[QubitId],
+    q_clean2: &[QubitId; 2],
+    offset_bits: u64,
+    carry_in: bool,
+    vent_keys: &[BitId],
+    carry_xor_target: Option<&[Option<QubitId>]>,
+) {
     let n = q_target.len();
     if n == 0 {
         return;
@@ -237,6 +254,23 @@ pub fn add_vented_2clean_classical(
         } else {
             let carry_q = get_carry_qubit(k).expect("non-boundary carry");
             b.cx(carry_q, q_target[k]);
+        }
+
+        // Optional: cx(carries[k], carry_xor_target[k]) if provided.
+        // (Python reference: `out.cx(carries[k], carry_xor_target[k])`)
+        if let Some(cxt) = carry_xor_target {
+            if k < cxt.len() {
+                if let Some(dst) = cxt[k] {
+                    if k == 0 {
+                        if carry_in {
+                            b.x(dst);
+                        }
+                    } else {
+                        let carry_q = get_carry_qubit(k).expect("non-boundary carry");
+                        b.cx(carry_q, dst);
+                    }
+                }
+            }
         }
 
         // mx(carries[k], out=vent_keys[k]) for k > 0
@@ -482,55 +516,40 @@ pub fn iadd_dirty_2clean_classical(
     // Vent_keys: n classical bits.
     let vent_keys: Vec<BitId> = (0..n).map(|_| b.alloc_bit()).collect();
 
-    // Run the vented 2-clean adder. In Python, carry_xor_target=[None]+Q_dirty.
-    // This means during the vented add, carries are XORed into Q_dirty[k-1]
-    // (for k>=1). Our add_vented_2clean_classical doesn't support this
-    // optimization yet, so we'll do it as a separate step.
-    add_vented_2clean_classical(
+    // carry_xor_target matches Python's [None] + Q_dirty (length n). At step
+    // k (for k >= 1), XOR carries[k] into q_dirty[k-1].
+    let cxt: Vec<Option<QubitId>> = (0..n)
+        .map(|k| if k == 0 { None } else { q_dirty.get(k - 1).copied() })
+        .collect();
+
+    // Run the vented 2-clean adder WITH carry_xor_target merged.
+    add_vented_2clean_classical_cxt(
         b,
         q_target,
         q_clean2,
         offset_bits,
         carry_in,
         &vent_keys,
-    );
-    // Apply the separate carry-xor into Q_dirty as in the Python code.
-    // Python's version merges this INTO the vented add; we do it after.
-    // The python does: carry_xor_target = [None] + Q_dirty, meaning at
-    // vented add step k (k in 1..n-1), cx(carries[k], Q_dirty[k-1]).
-    // To do this separately, we need to compute "carries" again ... that's
-    // the carry_xor primitive.
-    // But we need Q_dirty ^= carry(Q_target_orig, offset, cin) >> 1.
-    // Since q_target now has been MODIFIED by the add, we use the RESULT
-    // (q_target_new) in the carry_xor using the identity that
-    // carry(q_new, offset, cin) = carry(q_orig, offset, cin) after venting.
-    // Actually from Gidney paper eq (8): `carry(~x', d, c_in) = carry(x, d, c_in)`.
-    // So carry(~q_target, offset, cin) = carry(q_target_orig, offset, cin).
-    // Python: Q_src=Q_target[:-1] (n-1 bits). Our dst is q_dirty (n-2 qubits).
-    // xor_rsh_carries requires dst <= src <= dst+1. So src = n-1, dst = n-2 OK.
-    xor_right_shifted_carries_into_classical_bitinverted(
-        b,
-        &q_target[..n - 1],
-        offset_bits,
-        q_dirty,
-        carry_in,
+        Some(&cxt),
     );
 
-    // Broadcast_x on q_target (NOT operation on each bit).
+    // Broadcast_x on q_target (NOT each bit).
     for k in 0..n {
         b.x(q_target[k]);
     }
-    // Broadcast_cz(q_dirty, vent_keys[1:]): for k in 0..n-2, cz_if(q_dirty[k], vent_keys[k+1]).
-    // cz_if on a single qubit with classical bit means z_if(qubit, cond).
+    // Broadcast_cz(q_dirty, vent_keys[1:]): for k in 0..n-2, z_if(q_dirty[k], vent_keys[k+1]).
     for k in 0..n - 2 {
-        // z_if(q_dirty[k], vent_keys[k+1])
         let mut op = Op::empty();
         op.kind = OperationType::Z;
         op.q_target = q_dirty[k];
         op.c_condition = vent_keys[k + 1];
         b.ops.push(op);
     }
-    xor_right_shifted_carries_into_classical_bitinverted(
+    // carry_xor into q_dirty (src is now the bit-inverted q_target, which by
+    // Gidney eq. 8 produces the same carries as the original pre-add target).
+    // Python: Q_src=Q_target[:-1] (n-1 bits), after broadcast_x. We're
+    // already in the broadcast-x sandwich, so use q_target directly.
+    xor_right_shifted_carries_into_classical(
         b,
         &q_target[..n - 1],
         offset_bits,
@@ -549,25 +568,516 @@ pub fn iadd_dirty_2clean_classical(
     }
 }
 
-/// Helper: apply xor_right_shifted_carries_into with q_src interpreted as
-/// the bit-inverted version. I.e., compute `carry(~q_src, offset, cin) >> 1`
-/// and xor into q_dst. By Gidney's Eq 8, this equals `carry(q_src_orig, offset, cin) >> 1`
-/// when q_src_orig was the pre-addition target.
-fn xor_right_shifted_carries_into_classical_bitinverted(
+
+/// Controlled variant of `iadd_dirty_2clean_classical`: performs
+/// `if ctrl: q_target += offset + carry_in` using the Gidney replacement
+/// rule "replace every offset bit that's 1 with the control qubit".
+///
+/// # Note
+/// carry_in is assumed classical (not controlled). If you need the
+/// carry_in to be conditional on ctrl too, pre-process it.
+pub fn ciadd_dirty_2clean_classical(
+    b: &mut B,
+    q_target: &[QubitId],
+    q_dirty: &[QubitId],
+    q_clean2: &[QubitId; 2],
+    offset_bits: u64,
+    ctrl: QubitId,
+    carry_in: bool,
+) {
+    // When ctrl=0, we want NO add at all. Classical carry_in is only
+    // actually applied when ctrl=1. Effective carry_in = ctrl AND
+    // classical_carry_in. Since classical_carry_in is a compile-time bool,
+    // when it's true we need carry_in = ctrl (quantum); when false, 0.
+    // The rest of ciadd_dirty_2clean passes `carry_in: bool` = classical.
+    // Work around by transforming: if carry_in=true, we effectively want
+    // the adder to add (offset + 1) when ctrl=1. But offset+1 might change
+    // many bits of offset (carry chain). Simpler: if carry_in=true, we
+    // temporarily set q_target[0] ^= ctrl, then run the add with cin=false,
+    // then... hmm this changes the add's trajectory.
+    //
+    // Cleanest fix: support `carry_in_q: Option<QubitId>` where Some(ctrl)
+    // means the carry-in is a qubit. For now, require caller to pass
+    // carry_in=false when using the controlled variant.
+    assert!(!carry_in, "ciadd_dirty_2clean_classical requires carry_in=false; pre-process if needed");
+    let n = q_target.len();
+    if n == 0 {
+        return;
+    }
+    if n <= 4 {
+        // Fallback: use HRS variant. For simplicity, apply X gates controlled
+        // on ctrl to simulate controlled-add by CX-loading `offset` into a
+        // temp n-bit register (this defeats the ancilla-saving purpose for
+        // small n but is correct).
+        let a: Vec<QubitId> = (0..n).map(|_| b.alloc_qubit()).collect();
+        for i in 0..n {
+            if (offset_bits >> i) & 1 != 0 {
+                b.cx(ctrl, a[i]);
+            }
+        }
+        // Use HRS linear-clean with a and q_target; treat a as the offset via
+        // a CX-loaded classical constant. But HRS takes CLASSICAL offset.
+        // So we'd need to do a quantum-quantum add here. Simpler: just do it
+        // as we already do (via ccx to load f).
+        // Actually our q_clean2 has 2 clean. For n<=4 we need n-2<=2 clean
+        // which HRS supports. But HRS needs CLASSICAL offset; here offset is
+        // quantum (a). Different primitive needed.
+        //
+        // For now: just bail out and use the caller's existing code path.
+        // We'll skip this branch by asserting n>4.
+        for i in 0..n {
+            if (offset_bits >> i) & 1 != 0 {
+                b.cx(ctrl, a[i]);
+            }
+        }
+        for q in a {
+            b.free(q);
+        }
+        panic!("ciadd_dirty_2clean: n<=4 fallback not implemented; use uncontrolled path");
+    }
+    assert!(q_dirty.len() >= n - 2, "need n-2 dirty qubits");
+    let q_dirty = &q_dirty[..n - 2];
+
+    // Vent_keys: n classical bits.
+    let vent_keys: Vec<BitId> = (0..n).map(|_| b.alloc_bit()).collect();
+
+    // carry_xor_target (Python's [None] + Q_dirty).
+    let cxt: Vec<Option<QubitId>> = (0..n)
+        .map(|k| if k == 0 { None } else { q_dirty.get(k - 1).copied() })
+        .collect();
+
+    // Controlled vented add. When offset_bits[k] = 1, the operations that
+    // would have unconditionally used `1` now use ctrl.
+    // The add_vented_2clean_classical_cxt takes a classical offset, so we
+    // can't directly use it here. Write an inline controlled version.
+    c_add_vented_2clean_inline(
+        b,
+        q_target,
+        q_clean2,
+        offset_bits,
+        ctrl,
+        carry_in,
+        &vent_keys,
+        &cxt,
+    );
+
+    for k in 0..n {
+        // Replace broadcast_x with controlled X.
+        b.cx(ctrl, q_target[k]);
+    }
+    for k in 0..n - 2 {
+        // Z on q_dirty[k] conditional on vent_keys[k+1].
+        // But Gidney's controlled variant: Z should also be controlled by ctrl.
+        // Actually no: the phase fix is wrt the ACTUAL vent measurements,
+        // which already include ctrl via the vented add. So Z is just
+        // applied iff vent_keys[k+1]=1 (classical).
+        let mut op = Op::empty();
+        op.kind = OperationType::Z;
+        op.q_target = q_dirty[k];
+        op.c_condition = vent_keys[k + 1];
+        b.ops.push(op);
+    }
+    // The carry_xor should also be controlled. For simplicity, fall back:
+    // use a controlled version of xor_right_shifted_carries_into.
+    c_xor_right_shifted_carries_into_classical(
+        b,
+        &q_target[..n - 1],
+        offset_bits,
+        ctrl,
+        q_dirty,
+        carry_in,
+    );
+    for k in 0..n - 2 {
+        let mut op = Op::empty();
+        op.kind = OperationType::Z;
+        op.q_target = q_dirty[k];
+        op.c_condition = vent_keys[k + 1];
+        b.ops.push(op);
+    }
+    for k in 0..n {
+        b.cx(ctrl, q_target[k]);
+    }
+}
+
+/// Controlled vented add (inline). Matches `add_vented_2clean_classical_cxt`
+/// but with each offset_bits[k]=1 behaving as if controlled by `ctrl`.
+fn c_add_vented_2clean_inline(
+    b: &mut B,
+    q_target: &[QubitId],
+    q_clean2: &[QubitId; 2],
+    offset_bits: u64,
+    ctrl: QubitId,
+    carry_in: bool,
+    vent_keys: &[BitId],
+    carry_xor_target: &[Option<QubitId>],
+) {
+    let n = q_target.len();
+    if n < 2 {
+        // Degenerate case: for n=1, just do CCX(ctrl, offset[0] == 1, q_target[0]).
+        if n == 1 {
+            if carry_in {
+                b.cx(ctrl, q_target[0]);
+            }
+            if (offset_bits & 1) != 0 {
+                b.cx(ctrl, q_target[0]);
+            }
+        }
+        return;
+    }
+
+    let bit = |k: usize| -> bool { (offset_bits >> k) & 1 != 0 };
+    // broadcast_cx(offset, q_target) becomes: for k, if offset[k]=1: CX(ctrl, q_target[k]).
+    for k in 0..n {
+        if bit(k) {
+            b.cx(ctrl, q_target[k]);
+        }
+    }
+    // Helpers
+    let get_carry_qubit = |k: usize| -> Option<QubitId> {
+        if k == 0 {
+            None
+        } else if k == n - 1 {
+            Some(q_target[n - 1])
+        } else {
+            Some(q_clean2[k % 2])
+        }
+    };
+
+    for k in 0..n - 1 {
+        // Reset next carry (if it's a clean ancilla).
+        if k < n - 2 {
+            if let Some(q) = get_carry_qubit(k + 1) {
+                let mut op = Op::empty();
+                op.kind = OperationType::R;
+                op.q_target = q;
+                b.ops.push(op);
+            }
+        }
+
+        // CCX(q_target[k], carries[k] XOR (ctrl * offset[k]), carries[k+1])
+        // For k=0: carries[0] = cin (classical).
+        //   carries[0] XOR (ctrl * offset[0]) = cin XOR (ctrl AND bit(0)).
+        //   If bit(0)=1: = cin XOR ctrl (= ~cin if ctrl=1, cin if ctrl=0).
+        //   If bit(0)=0: = cin (classical).
+        // The CCX's three inputs: q_target[k], the above, carries[k+1].
+        // Use classical carry_in -> either trivial or becomes a CCX with ctrl.
+        if k == 0 {
+            let next = get_carry_qubit(1);
+            if let Some(next_q) = next {
+                if bit(0) {
+                    // CCX(q_target[0], cin XOR ctrl, next_q). Use CX if cin=1
+                    // (inverts ctrl control) and CCX otherwise.
+                    if carry_in {
+                        // cin XOR ctrl = NOT ctrl.
+                        b.x(ctrl);
+                        b.ccx(q_target[0], ctrl, next_q);
+                        b.x(ctrl);
+                    } else {
+                        b.ccx(q_target[0], ctrl, next_q);
+                    }
+                } else if carry_in {
+                    // CCX(q_target[0], 1, next_q) = CX(q_target[0], next_q).
+                    b.cx(q_target[0], next_q);
+                }
+                // else: both inputs 0, no op.
+            }
+        } else {
+            let cur = get_carry_qubit(k).expect("non-boundary carry");
+            let next = get_carry_qubit(k + 1).expect("non-boundary next carry");
+            if bit(k) {
+                // carries[k] XOR ctrl. Use CCCX-style decomp: flip cur via CX(ctrl, cur),
+                // then CCX(q_target[k], cur, next), then flip back.
+                b.cx(ctrl, cur);
+                b.ccx(q_target[k], cur, next);
+                b.cx(ctrl, cur);
+            } else {
+                b.ccx(q_target[k], cur, next);
+            }
+        }
+
+        // CX(carries[k], q_target[k]).
+        if k == 0 {
+            if carry_in {
+                b.x(q_target[0]);
+            }
+        } else {
+            let cur = get_carry_qubit(k).expect("non-boundary carry");
+            b.cx(cur, q_target[k]);
+        }
+
+        // Optional carry_xor_target.
+        if k < carry_xor_target.len() {
+            if let Some(dst) = carry_xor_target[k] {
+                if k == 0 {
+                    if carry_in {
+                        b.x(dst);
+                    }
+                } else {
+                    let cur = get_carry_qubit(k).expect("non-boundary carry");
+                    b.cx(cur, dst);
+                }
+            }
+        }
+
+        // Measure vent.
+        if k > 0 {
+            let cur = get_carry_qubit(k).expect("non-boundary carry");
+            b.hmr(cur, vent_keys[k]);
+        }
+
+        // CX(offset[k], carries[k+1]) becomes CX(ctrl, carries[k+1]) if offset[k]=1.
+        if bit(k) {
+            if let Some(q) = get_carry_qubit(k + 1) {
+                b.cx(ctrl, q);
+            }
+        }
+    }
+}
+
+/// Controlled variant of xor_right_shifted_carries_into.
+fn c_xor_right_shifted_carries_into_classical(
     b: &mut B,
     q_src: &[QubitId],
     offset_bits: u64,
+    ctrl: QubitId,
     q_dst: &[QubitId],
     carry_in: bool,
 ) {
-    let n = q_src.len();
-    for k in 0..n {
-        b.x(q_src[k]);
+    let n = q_dst.len();
+    assert!(n <= q_src.len() && q_src.len() <= n + 1);
+    if n == 0 {
+        return;
     }
-    xor_right_shifted_carries_into_classical(b, q_src, offset_bits, q_dst, carry_in);
-    for k in 0..n {
-        b.x(q_src[k]);
+    let bit = |k: usize| -> bool { (offset_bits >> k) & 1 != 0 };
+
+    // Helper for CCX where both controls may be "inverted" by XOR with ctrl.
+    // The original has `Q_src[k] ^ offset[k]`; controlled version: if offset[k]=1,
+    // the effective control is (Q_src[k] XOR ctrl); if offset[k]=0, it's just Q_src[k].
+    let ccx_ctrl_mix =
+        |b: &mut B, ctrl_a: QubitId, a_xor_ctrl: bool, ctrl_b: QubitId, b_xor_ctrl: bool,
+         target: QubitId| {
+            if a_xor_ctrl {
+                b.cx(ctrl, ctrl_a);
+            }
+            if b_xor_ctrl {
+                b.cx(ctrl, ctrl_b);
+            }
+            b.ccx(ctrl_a, ctrl_b, target);
+            if b_xor_ctrl {
+                b.cx(ctrl, ctrl_b);
+            }
+            if a_xor_ctrl {
+                b.cx(ctrl, ctrl_a);
+            }
+        };
+
+    for k in (1..n).rev() {
+        ccx_ctrl_mix(b, q_src[k], bit(k), q_dst[k - 1], false, q_dst[k]);
     }
+    // broadcast_cx(offset, q_dst): for k, if offset[k]: CX(ctrl, q_dst[k]).
+    for k in 0..n {
+        if bit(k) {
+            b.cx(ctrl, q_dst[k]);
+        }
+    }
+    // ccx(q_src[0] XOR offset[0], carry_in XOR offset[0], q_dst[0])
+    // carry_in XOR ctrl*offset[0]: if offset[0]=0 then just cin; if offset[0]=1 then cin XOR ctrl.
+    let cin_eff_uses_ctrl = bit(0);
+    let cin_classical_part = carry_in ^ false; // base carry_in, ctrl XOR handled separately
+    if cin_eff_uses_ctrl {
+        // Effective second control = ctrl XOR carry_in.
+        // CCX(q_src[0] XOR (ctrl*offset[0]=ctrl), ctrl XOR cin, q_dst[0]).
+        // We do this by: first adjusting q_src[0] based on ctrl (if bit(0)=1),
+        // then the effective control is q_src[0]_adj AND (ctrl_XOR_cin).
+        // Simpler: handle as CCX with cur=ctrl (since bit(0)=1) and
+        // effective 2nd = ctrl XOR cin = ~ctrl if cin=1, else ctrl.
+        // If cin=1: CCX(q_src[0] XOR ctrl, ~ctrl, q_dst[0]) = ...
+        //   = ccx with both controls on ctrl in some form.
+        // This is getting complex. Let's just compute the effective controls inline.
+        if carry_in {
+            // CCX(q_src[0] XOR ctrl, ~ctrl, q_dst[0]):
+            //   flip q_src[0] via CX(ctrl, q_src[0]); flip ctrl via X; CCX; flip back
+            b.cx(ctrl, q_src[0]);
+            b.x(ctrl);
+            b.ccx(q_src[0], ctrl, q_dst[0]);
+            b.x(ctrl);
+            b.cx(ctrl, q_src[0]);
+        } else {
+            // CCX(q_src[0] XOR ctrl, ctrl, q_dst[0]):
+            b.cx(ctrl, q_src[0]);
+            b.ccx(q_src[0], ctrl, q_dst[0]);
+            b.cx(ctrl, q_src[0]);
+        }
+    } else {
+        // offset[0]=0. CCX(q_src[0], cin, q_dst[0]).
+        if cin_classical_part {
+            // CCX(q_src[0], 1, q_dst[0]) = CX(q_src[0], q_dst[0]).
+            b.cx(q_src[0], q_dst[0]);
+        }
+        // else both classical 0, no-op.
+    }
+    for k in 1..n {
+        ccx_ctrl_mix(b, q_src[k], bit(k), q_dst[k - 1], bit(k), q_dst[k]);
+    }
+}
+
+/// Controlled sub by classical constant: `if ctrl: q_target -= c` using
+/// the identity `x - c = ~(~x + c)` and the venting `ciadd_dirty_2clean`.
+///
+/// Requires 2 clean + n-2 dirty ancilla. Cost: ~3n CCX + 2n CX.
+pub fn cisub_dirty_2clean_classical(
+    b: &mut B,
+    q_target: &[QubitId],
+    q_dirty: &[QubitId],
+    q_clean2: &[QubitId; 2],
+    c_bits: u64,
+    ctrl: QubitId,
+) {
+    let n = q_target.len();
+    // if ctrl: x = ~x
+    for k in 0..n {
+        b.cx(ctrl, q_target[k]);
+    }
+    ciadd_dirty_2clean_classical(
+        b,
+        q_target,
+        q_dirty,
+        q_clean2,
+        c_bits,
+        ctrl,
+        false, // carry_in=false (controlled variant requires this)
+    );
+    for k in 0..n {
+        b.cx(ctrl, q_target[k]);
+    }
+}
+
+/// Gidney 2025 3-clean-ancilla full adder (Figure 5). Composes
+/// add_vented_2clean + iadd_dirty_2clean with inter-half carry routing.
+///
+/// **NOT YET IMPLEMENTED**: requires a quantum-carry-in variant of the
+/// adder primitives. Left as skeleton for future work.
+#[allow(dead_code)]
+fn iadd_3clean_classical_TODO(
+    b: &mut B,
+    q_target: &[QubitId],
+    q_clean3: &[QubitId; 3],
+    offset_bits: u64,
+    carry_in: bool,
+) {
+    let n = q_target.len();
+    if n == 0 {
+        return;
+    }
+    // Fall back to HRS linear-clean for small n.
+    if n <= 4 {
+        iadd_linear_clean_classical(b, q_target, q_clean3, offset_bits, carry_in);
+        return;
+    }
+
+    let h = (n - 1) >> 1;
+    let bit = |k: usize| -> bool { (offset_bits >> k) & 1 != 0 };
+    let offset_low = offset_bits & ((1u64 << h) - 1);
+    let offset_high = offset_bits >> h;
+    let _ = offset_high; // computed inline below
+
+    // Q_carry_mid starts at q_clean3[0], then swaps with q_target[h] for the low-half add.
+    let q_carry_mid = q_clean3[0];
+    // Reset q_carry_mid to |0>.
+    {
+        let mut op = Op::empty();
+        op.kind = OperationType::R;
+        op.q_target = q_carry_mid;
+        b.ops.push(op);
+    }
+
+    // Vent keys for low half.
+    let vent: Vec<BitId> = (0..=h).map(|_| b.alloc_bit()).collect();
+
+    // Build local q_target view with q_target[h] swapped for q_carry_mid.
+    let mut q_target_mod: Vec<QubitId> = q_target.to_vec();
+    q_target_mod[h] = q_carry_mid;
+
+    // Low half: add into q_target[..h] || q_carry_mid (h+1 qubits).
+    // If h <= 2, fall back to linear-clean; else use vented.
+    let q_clean2_rest: [QubitId; 2] = [q_clean3[1], q_clean3[2]];
+    if h + 1 <= 4 {
+        // Use linear-clean fallback.
+        iadd_linear_clean_classical(
+            b,
+            &q_target_mod[..h + 1],
+            &q_clean2_rest,
+            offset_low,
+            carry_in,
+        );
+        // No vent phase-fix needed since HRS is fully clean.
+        // Re-swap q_carry_mid back to q_target[h] slot.
+        let _ = bit;
+        // Skip vent correction.
+    } else {
+        // Run vented 2-clean on low half, leaving phase tasks.
+        add_vented_2clean_classical(
+            b,
+            &q_target_mod[..h + 1],
+            &q_clean2_rest,
+            offset_low,
+            carry_in,
+            &vent,
+        );
+    }
+
+    // High half: add offset_high + q_carry_mid_as_carry_in into q_target[h..].
+    // q_carry_mid is now a QUBIT holding the carry from the low half.
+    // But we can't pass a qubit as carry_in to our classical-only primitives.
+    //
+    // Workaround: XOR q_carry_mid into the LSB of the high half BEFORE the
+    // add (reconstructing what a carry-in would do), then perform the add
+    // with carry_in=false. This works because carry_in propagates into bit 0
+    // the same way a pre-XOR does (for first bit: sum bit = x[0] XOR cin,
+    // carry-out = x[0] AND cin. Pre-xor: sum[0] = x[0] XOR cin. Carry-out
+    // of add step 0 = (x[0] XOR cin) AND offset[0], which differs from
+    // x[0] AND offset[0] + cin_propagated... actually NO, this doesn't work
+    // in general).
+    //
+    // For full correctness with a QUANTUM carry-in, we'd need an adder
+    // variant that accepts a qubit as carry-in. For now, fall back to HRS
+    // for the high-half (which has 2 clean + can accept quantum carry-in
+    // if we pad it in).
+    //
+    // Simpler: use iadd_dirty_2clean with Q_dirty = low half of q_target
+    // (now dirty after the low-half add). This matches Python's approach.
+    let n_high = n - h;
+    let q_dirty_hi: Vec<QubitId> = q_target_mod[..h].to_vec();
+    let q_target_hi: Vec<QubitId> = q_target_mod[h..].to_vec();
+    // q_target_hi[0] = q_carry_mid (holding the carry bit from low-half add).
+    // This is effectively: "add offset_high into q_target_hi, with LSB already
+    // holding a carry-in bit". Proper handling requires an adder that takes
+    // q_carry_mid as the carry-in of the high add.
+    //
+    // Gidney's code does exactly that by slicing: Q_target_high = Q_target[h:]
+    // and passing carry_in=Q_carry_mid (qubit). Our primitives don't take
+    // qubit carry-in yet. For now, use the following trick: set the LSB of
+    // q_target_hi to XOR with q_carry_mid (making LSB encode target_hi[0] XOR cin),
+    // then do the add with carry_in=0. This is WRONG in general (carry
+    // propagation differs), so instead let's just NOT split and fall back
+    // to HRS linear-clean for the whole thing when we have enough clean.
+
+    // Simpler approach for this session: if we have n clean ancilla total,
+    // just use HRS. The 3-clean path requires a qubit-carry-in adder which
+    // we haven't ported.
+    //
+    // Since iadd_3clean is supposed to use ONLY 3 clean, we would need
+    // iadd_dirty_2clean to accept a quantum carry-in. To sidestep this,
+    // we'll declare iadd_3clean AS-IF it falls through to HRS whenever
+    // possible, and leave the actual 3-clean decomposition for future work.
+    let _ = q_dirty_hi;
+    let _ = q_target_hi;
+    let _ = n_high;
+
+    // For now (INCOMPLETE): uncompute vent phases from low half and return.
+    // This means iadd_3clean is equivalent to add_vented_2clean for now.
+    // Caller must have sufficient workspace.
+    panic!("iadd_3clean: quantum-carry-in path not yet implemented");
 }
 
 #[cfg(test)]
@@ -959,10 +1469,220 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "iadd_dirty_2clean port incomplete: leaks phase and perturbs dirty. See venting.rs docstring."]
     fn test_iadd_dirty_2clean_small() {
         for n in 2..=8 {
             let (ok, bad) = run_iadd_dirty_2clean(n, 10);
+            assert_eq!(bad, 0, "n={n}: {ok}/{} passed", ok + bad);
+        }
+    }
+
+    fn run_ciadd_dirty_2clean(n: usize, trials: usize) -> (usize, usize) {
+        let mut hasher = Shake256::default();
+        hasher.update(&[n as u8, trials as u8, 113]);
+        use sha3::digest::XofReader;
+        let mut xof =
+            <sha3::Shake256 as sha3::digest::ExtendableOutput>::finalize_xof(hasher);
+        let mut ok = 0;
+        let mut bad = 0;
+        for _trial in 0..trials {
+            let mut buf = [0u8; 40];
+            xof.read(&mut buf);
+            let target_raw = u64::from_le_bytes(buf[0..8].try_into().unwrap());
+            let offset_raw = u64::from_le_bytes(buf[8..16].try_into().unwrap());
+            let dirty_raw = u64::from_le_bytes(buf[16..24].try_into().unwrap());
+            let cin_raw = buf[24];
+            let ctrl_raw = buf[25];
+            let mask = if n < 64 { (1u64 << n) - 1 } else { u64::MAX };
+            let target = target_raw & mask;
+            let offset = offset_raw & mask;
+            let dirty_init = dirty_raw & mask;
+            let cin = false; // controlled variant requires classical cin=false
+            let _ = cin_raw;
+            let ctrl_val = (ctrl_raw & 1) != 0;
+
+            let mut bb = B::new();
+            let q_target: Vec<QubitId> = bb.alloc_qubits(n);
+            let q_dirty: Vec<QubitId> = bb.alloc_qubits(n.saturating_sub(2).max(1));
+            let q_clean2: [QubitId; 2] = [bb.alloc_qubit(), bb.alloc_qubit()];
+            let q_ctrl = bb.alloc_qubit();
+
+            ciadd_dirty_2clean_classical(
+                &mut bb,
+                &q_target,
+                &q_dirty,
+                &q_clean2,
+                offset,
+                q_ctrl,
+                cin,
+            );
+
+            let ops = bb.ops.clone();
+            let num_qubits = bb.next_qubit as usize;
+            let num_bits = bb.next_bit as usize;
+            let mut inner_hasher = Shake256::default();
+            inner_hasher.update(&[211u8]);
+            let mut inner_xof =
+                <sha3::Shake256 as sha3::digest::ExtendableOutput>::finalize_xof(inner_hasher);
+            let mut sim = Simulator::new(num_qubits, num_bits, &mut inner_xof);
+            sim.clear_for_shot();
+            for k in 0..n {
+                if (target >> k) & 1 != 0 {
+                    *sim.qubit_mut(q_target[k]) = 1;
+                }
+            }
+            for (k, &q) in q_dirty.iter().enumerate() {
+                if (dirty_init >> k) & 1 != 0 {
+                    *sim.qubit_mut(q) = 1;
+                }
+            }
+            if ctrl_val {
+                *sim.qubit_mut(q_ctrl) = 1;
+            }
+            sim.apply(&ops);
+
+            let expected_sum = if ctrl_val {
+                (target.wrapping_add(offset).wrapping_add(cin as u64)) & mask
+            } else {
+                target
+            };
+            let mut got: u64 = 0;
+            for k in 0..n {
+                if sim.qubit(q_target[k]) & 1 != 0 {
+                    got |= 1 << k;
+                }
+            }
+            let mut got_dirty: u64 = 0;
+            for (k, &q) in q_dirty.iter().enumerate() {
+                if sim.qubit(q) & 1 != 0 {
+                    got_dirty |= 1 << k;
+                }
+            }
+            let dirty_ok = got_dirty == (dirty_init & ((1u64 << q_dirty.len()) - 1).min(mask));
+            let phase = sim.global_phase() & 1;
+            let ctrl_preserved = sim.qubit(q_ctrl) & 1 == (ctrl_val as u64);
+
+            if got == expected_sum && dirty_ok && phase == 0 && ctrl_preserved {
+                ok += 1;
+            } else {
+                bad += 1;
+                if bad < 3 {
+                    eprintln!(
+                        "ciadd_dirty FAIL n={} t={:#x} o={:#x} d={:#x} cin={} ctrl={} got={:#x} exp={:#x} d_ok={} phase={} ctrl_preserved={}",
+                        n, target, offset, dirty_init, cin, ctrl_val, got, expected_sum, dirty_ok, phase, ctrl_preserved
+                    );
+                }
+            }
+        }
+        (ok, bad)
+    }
+
+    #[test]
+    fn test_ciadd_dirty_2clean_small() {
+        for n in 5..=10 {
+            let (ok, bad) = run_ciadd_dirty_2clean(n, 10);
+            assert_eq!(bad, 0, "n={n}: {ok}/{} passed", ok + bad);
+        }
+    }
+
+    fn run_cisub_dirty(n: usize, trials: usize) -> (usize, usize) {
+        let mut hasher = Shake256::default();
+        hasher.update(&[n as u8, trials as u8, 179]);
+        use sha3::digest::XofReader;
+        let mut xof =
+            <sha3::Shake256 as sha3::digest::ExtendableOutput>::finalize_xof(hasher);
+        let mut ok = 0;
+        let mut bad = 0;
+        for _trial in 0..trials {
+            let mut buf = [0u8; 40];
+            xof.read(&mut buf);
+            let target_raw = u64::from_le_bytes(buf[0..8].try_into().unwrap());
+            let c_raw = u64::from_le_bytes(buf[8..16].try_into().unwrap());
+            let dirty_raw = u64::from_le_bytes(buf[16..24].try_into().unwrap());
+            let ctrl_raw = buf[25];
+            let mask = if n < 64 { (1u64 << n) - 1 } else { u64::MAX };
+            let target = target_raw & mask;
+            let c = c_raw & mask;
+            let dirty_init = dirty_raw & mask;
+            let ctrl_val = (ctrl_raw & 1) != 0;
+
+            let mut bb = B::new();
+            let q_target: Vec<QubitId> = bb.alloc_qubits(n);
+            let q_dirty: Vec<QubitId> = bb.alloc_qubits(n.saturating_sub(2).max(1));
+            let q_clean2: [QubitId; 2] = [bb.alloc_qubit(), bb.alloc_qubit()];
+            let q_ctrl = bb.alloc_qubit();
+
+            cisub_dirty_2clean_classical(
+                &mut bb,
+                &q_target,
+                &q_dirty,
+                &q_clean2,
+                c,
+                q_ctrl,
+            );
+
+            let ops = bb.ops.clone();
+            let num_qubits = bb.next_qubit as usize;
+            let num_bits = bb.next_bit as usize;
+            let mut inner_hasher = Shake256::default();
+            inner_hasher.update(&[221u8]);
+            let mut inner_xof =
+                <sha3::Shake256 as sha3::digest::ExtendableOutput>::finalize_xof(inner_hasher);
+            let mut sim = Simulator::new(num_qubits, num_bits, &mut inner_xof);
+            sim.clear_for_shot();
+            for k in 0..n {
+                if (target >> k) & 1 != 0 {
+                    *sim.qubit_mut(q_target[k]) = 1;
+                }
+            }
+            for (k, &q) in q_dirty.iter().enumerate() {
+                if (dirty_init >> k) & 1 != 0 {
+                    *sim.qubit_mut(q) = 1;
+                }
+            }
+            if ctrl_val {
+                *sim.qubit_mut(q_ctrl) = 1;
+            }
+            sim.apply(&ops);
+
+            let expected = if ctrl_val {
+                target.wrapping_sub(c) & mask
+            } else {
+                target
+            };
+            let mut got: u64 = 0;
+            for k in 0..n {
+                if sim.qubit(q_target[k]) & 1 != 0 {
+                    got |= 1 << k;
+                }
+            }
+            let mut got_dirty: u64 = 0;
+            for (k, &q) in q_dirty.iter().enumerate() {
+                if sim.qubit(q) & 1 != 0 {
+                    got_dirty |= 1 << k;
+                }
+            }
+            let dirty_ok = got_dirty == (dirty_init & ((1u64 << q_dirty.len()) - 1).min(mask));
+            let phase = sim.global_phase() & 1;
+
+            if got == expected && dirty_ok && phase == 0 {
+                ok += 1;
+            } else {
+                bad += 1;
+                if bad < 3 {
+                    eprintln!(
+                        "cisub FAIL n={} t={:#x} c={:#x} ctrl={} got={:#x} exp={:#x} d_ok={} phase={}",
+                        n, target, c, ctrl_val, got, expected, dirty_ok, phase
+                    );
+                }
+            }
+        }
+        (ok, bad)
+    }
+
+    #[test]
+    fn test_cisub_dirty_small() {
+        for n in 5..=10 {
+            let (ok, bad) = run_cisub_dirty(n, 10);
             assert_eq!(bad, 0, "n={n}: {ok}/{} passed", ok + bad);
         }
     }
