@@ -12,6 +12,7 @@
 - **600-scratch reframing**: the needed primitive is not `x^-1` into ancilla; it is clean in-place **DIV**: `(x,y)->(x,y/x)`. If DIV fits in ~600 scratch and ~1 Kaliski invocation, point-add is ~2.4-2.8M.
 - **New coefficient-transform probe** (`kaliski_linear_transform.rs`, 3 tests pass): canonical Kaliski coefficient update has `T(dx)=[[a,k],[dx,0]]` with `k*dx=-2^407`; seeding `s=dy` gives `(r,s)=(k*dy,0)` (scaled slope, y consumed). This is the first low-qubit-looking route.
 - **Coefficient-transform obstruction is crisp**: before backward to output `Ry`, need `(k*Ry,0)` but have `(k*dy,0)`, so missing update is `k*(Ry-dy)` without raw `k`. Affine shifted-Y conventions do **not** solve it; they leave a `/dx` term.
+- **Two-channel affine coefficient search reduced/mostly killed**: with transform `T=[[a,k],[dx,0]]`, target delta is `a(rF-r0)+k(sF-s0)`. If scratch `r` must end as known/freeable and we avoid unknown `a`, then `r0=rF=constant`, reducing exactly to the shifted-Y case. Remaining hope requires making `r` itself an output register or finding a different triangular DIV transform.
 - **Strategy C re-estimate at current 407/403 iters is not a win**: extra q×q/q×const muls and Bennett cleanup cost ~2.5M around the single Kaliski; total estimated **~4.2M**, roughly current baseline. It was only attractive against old 511-iter baselines.
 - **m_hist formula correction**: iter-START fingerprint gives `m_i`, but iter-END+available flags does not; direct persistent `m_hist` removal is blocked without a new self-cleaning Kaliski body or pebble recomputation.
 - **Remaining SOTA route**: either (a) derive clean DIV / coefficient-transform cleanup, or (b) novel jumped/windowed Kaliski reducing per-invocation cost by ~45%. Local arithmetic swaps are now <10% levers.
@@ -59,27 +60,15 @@ an actionable Toffoli-savings lever right now.
 is preserved in OTHER persistent state (e.g. fold m_j into a_f's history,
 or encode it into a phase of u/v). This is novel-research territory.
 
-**Consequences**:
-- 407 qubits of persistent m_hist can be replaced with per-iter recomputation.
-- Overhead: ~7 CCX/iter × 407 iters × 2 passes = ~5,700 CCX ≈ 0.14% of budget.
-- Combined with single-inversion scaffold + r-into-multiplier fusion,
-  projected peak ≈ **1156q** (see `src/point_add/kaliski_1200q_feasibility.md`).
-
-**Next-priority implementation**: port `m_i = f AND u[0] AND (NOT v_w[0] OR gt)`
-into `kaliski_iteration`:
-1. Replace m_hist[i] write with a fresh iter-local ancilla.
-2. At iter end, uncompute via the mirrored formula.
-3. In backward, recompute m_i at each iter from live state (same formula).
-4. Remove m_hist field from KaliskiState.
-
-**Expected gains**: peak 2716 → ~2309 qubits (-407). Toffoli: negligible change
-(+5.7k, -407q of alloc/free overhead = roughly neutral).
-
-**Blockers to study**: phase-correction protocol for measurement-uncomputed
-iter-local m_i (standard Gidney MBU pattern should apply, but the HMR
-call sequence interacts subtly with the backward replay — same failure
-mode seen with venting integration in prior sessions; needs careful
-derivation, not blind porting).
+**Corrected consequence**:
+- The start-state formula is useful only as a diagnostic for designing a new
+  self-cleaning Kaliski/DIV body.
+- It is **not** an implementation recipe for deleting `m_hist` in the current
+  circuit. Direct porting would require iter-start shadows or a fake forward
+  replay and is net worse.
+- Keep this line of work only if it is tied to the 600-scratch DIV goal:
+  make the iteration branch recoverable from the end-state/output transform,
+  not from a stored history register.
 
 
 ## Dead-ends proven in 2026-04-26 session (avoid re-exploring)

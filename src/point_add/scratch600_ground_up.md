@@ -285,19 +285,66 @@ which still requires division by `dx`, i.e. raw `k` or a second inverse. Thus
 **affine shifts of Y do not solve the coefficient-transform obstruction**.
 They move the missing term from `k*Qy` to `k*λ*(...)`.
 
-## 9. Fast invalidation tasks still open
+## 9. Two-channel coefficient search: partial reduction
 
-1. **Two-channel coefficient search**: allow initial `(r0,s0)` to be affine
-   functions of `{dy, Qy, 1}` and final `(r1,s1)` to be affine functions of
-   `{Ry, Qy, 1}` with `r1` freeable. Symbolically determine if the required
-   final pair can be computed from the forward pair using <=2 q×q muls and no
-   new inverse.
+Let initial and desired post-backward coefficient pairs be:
+
+```text
+initial:       (r0, s0)
+desired final: (rF, sF)
+```
+
+Kaliski's coefficient transform gives:
+
+```text
+current before body = T(dx)(r0, s0)
+target before back  = T(dx)(rF, sF)
+```
+
+Difference to implement inside the body:
+
+```text
+Δr = a(dx)*(rF-r0) + k(dx)*(sF-s0)
+Δs = dx*(rF-r0)
+```
+
+The unknown coefficient `a(dx)` is just as hard to expose as `k(dx)`. Therefore:
+
+- If the scratch `r` register must be freeable at the end, `rF` must be a known
+  constant (usually 0).
+- To avoid an `a(dx)` term, we need `rF = r0`.
+- Combining these forces `r0 = rF = constant`.
+
+Under those conditions the two-channel problem collapses exactly to the
+shifted-Y search in §8, which is already invalidated.
+
+If `r0` is data-dependent, then either:
+
+1. `rF=r0` and the scratch `r` register exits with data-dependent garbage, or
+2. `rF` is constant and the body must cancel `a(dx)*(rF-r0)`, requiring access
+   to the other unknown transform coefficient `a(dx)` in addition to `k(dx)`.
+
+So the simple two-channel affine family does **not** rescue coefficient-
+transform Kaliski. A viable design must be more radical: make `r` itself one
+of the final output registers, or use a different Euclidean transform whose
+matrix has a triangular form better suited to DIV.
+
+## 10. Fast invalidation tasks still open
+
+1. **Output-register use of `r`**: allow Kaliski's coefficient `r` scratch to
+   become final `tx` or `ty`, with old data cleaned by the denominator state.
+   This is the remaining way to avoid requiring `rF` constant.
 
 2. **Direct DIV synthesis**: ignore current Kaliski structure and design a
    reversible Euclidean map for `(x,y)->(x,y/x)` where `y` is the coefficient
-   register throughout. This is probably what a 600-scratch solution needs.
+   register throughout and no independent quotient copy is made. This is
+   probably what a 600-scratch solution needs.
 
-3. **Cost if successful**:
+3. **Alternative Euclidean transform search**: seek an update convention whose
+   coefficient matrix has form `[[*, k],[0, 1]]` or similar, so that backward
+   naturally preserves the quotient rather than requiring another division.
+
+4. **Cost if successful**:
    - one DIV/Kaliski-like invocation: target ~1.6M or less
    - delete `pair1_mul1`, `pair1_mul2`, second Kaliski: save ~1.7M
    - add coefficient modularity overhead in step4: likely +200-400k
