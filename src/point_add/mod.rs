@@ -4090,6 +4090,56 @@ fn coeff_channel_double(b: &mut B, p: U256, cr: &[QubitId]) {
     mod_double_inplace_fast(b, cr, p);
 }
 
+fn by_cmod_neg_inplace_fast(b: &mut B, v: &[QubitId], ctrl: QubitId, p: U256) {
+    // ctrl ? (p-v) : v.  Like the BY structural tests, this maps v=0 to the
+    // noncanonical representative p when ctrl=1; the benchmark scaffold below
+    // keeps controls at zero and uses this only to exercise the actual gate
+    // body/cost inside the point-add harness.
+    for &q in v {
+        b.cx(ctrl, q);
+    }
+    cadd_nbit_const_fast(b, v, p.wrapping_add(U256::from(1u64)), ctrl);
+}
+
+fn scaled_by_controlled_microstep(b: &mut B, r: &[QubitId], s: &[QubitId], odd: QubitId, a: QubitId, p: U256) {
+    // Direct scaled Bernstein-Yang tagged-DIV microstep:
+    //   C: (r,s) -> (r, s/2)
+    //   B: (r,s) -> (r, (s+r)/2)
+    //   A: (r,s) -> (s, (s-r)/2)
+    // A is emitted as swap, neg(second row), selected add, halve.
+    for i in 0..r.len() {
+        cswap(b, a, r[i], s[i]);
+    }
+    by_cmod_neg_inplace_fast(b, s, a, p);
+    cmod_add_qq(b, s, r, odd, p);
+    mod_halve_inplace_fast(b, s, p);
+}
+
+fn emit_scaled_by_pattern_replay_benchmark_scaffold(b: &mut B, p: U256) {
+    // Benchmark-path integration smoke test for the scaled-BY thesis.  This is
+    // deliberately a clean no-op (all controls/data start at zero), appended
+    // after the exact point-add output is already computed.  It lets the main
+    // harness, alternate-seed check, qubit analyzer, and free-clean checks see a
+    // real 560-step scaled-BY replay with the intended raw-pattern qubit shape:
+    // 560 persistent odd-pattern bits plus one 16-bit A-control scratch window.
+    // It is not the SOTA replacement path; it is a correctness/width/cost hook
+    // that proves the replay body can live inside the benchmark circuit.
+    b.set_phase("by_pattern_replay_bench_alloc");
+    let odd_pattern = b.alloc_qubits(560);
+    let a_window = b.alloc_qubits(16);
+    let r = b.alloc_qubits(N);
+    let s = b.alloc_qubits(N);
+    b.set_phase("by_pattern_replay_bench_560");
+    for i in 0..560 {
+        scaled_by_controlled_microstep(b, &r, &s, odd_pattern[i], a_window[i & 15], p);
+    }
+    b.set_phase("by_pattern_replay_bench_free");
+    b.free_vec(&s);
+    b.free_vec(&r);
+    b.free_vec(&a_window);
+    b.free_vec(&odd_pattern);
+}
+
 /// Specialized real forward primitive for the first few guaranteed-bulk
 /// Kaliski iterations where `f = 1` and `v_w != 0` are known a priori.
 ///
@@ -6934,6 +6984,10 @@ pub fn build() -> Vec<Op> {
         build_compact_point_add(b, &tx, &ty, &ox, &oy, p);
     } else {
         build_standard_point_add(b, &tx, &ty, &ox, &oy, p);
+    }
+
+    if std::env::var("BY_REPLAY_BENCH_SCAFFOLD").ok().as_deref() == Some("1") {
+        emit_scaled_by_pattern_replay_benchmark_scaffold(b, p);
     }
 
     if std::env::var("BY_TEST").is_ok() {
