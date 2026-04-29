@@ -767,11 +767,38 @@ max observed magnitude bits = 255  (< p)
 parity_mean                 ≈ 264.9 / 560
 ```
 
-This is below the fixed-control replay target, but the parity bits are dense.
+The centered circuit version has now also been synthesized. A single
+centered signed microstep costs `1,560 CCX`, and a full 560-step tagged-DIV
+scaffold with raw odd/A controls and dirty parity history is exact and phase
+clean:
+
+```text
+centered signed live-parity microstep = 1,560 CCX
+560-step centered scaffold            = 873,600 CCX
+peak                                  = 2,723q
+```
+
+The parity bits are dense, but they are not information-theoretically
+irrecoverable. `centered_parity_is_recoverable_from_poststate_range_for_add_cases`
+shows in a small exact model that, with centered inputs, parity is recovered by
+testing whether the even preimage is centered:
+
+```text
+B: parity = !(2*s_out - r_out is centered)
+A: parity = !(r_out - 2*s_out is centered)
+C: parity = !(2*s_out is centered)
+```
+
+Naively synthesizing that range test is too expensive:
+`naive_centered_parity_recovery_cost_would_erase_redundant_replay_win` measures
+about `1,296 CCX/flag`, or `≈725,760` CCX just to clean 560 parity bits. So the
+parity problem is now precise: **fold this centered-range recovery into the
+inverse/window arithmetic instead of doing it as a separate post-hoc cleanup**.
+
 The moonshot replay problem has therefore split into two concrete options:
-clean/absorb 560 red flags at ~1.00M replay, or move to redundant signed /
-centered representatives and solve an even denser but structurally simpler
-parity-clean problem at ~0.73M replay.
+clean/absorb 560 red flags at ~1.00M replay, or move to centered signed
+representatives and solve centered-range parity cleanup around an `873,600` CCX
+replay body.
 A production replay therefore needs either (a) keep A controls/live flags until
 the end and clean them globally, or (b) fuse the modular average so the same
 flag is recoverable from later state.

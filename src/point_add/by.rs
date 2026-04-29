@@ -3976,6 +3976,39 @@ mod tests {
         emit_arithmetic_shift_right_even_for_test(b, v);
     }
 
+    fn emit_signed_redundant_halve_centered_live_parity_for_test(
+        b: &mut super::super::B,
+        v: &[super::super::QubitId],
+        parity_hist: super::super::QubitId,
+        p: U256,
+    ) {
+        // Centered no-reduction halve: if signed pre-halve T is odd, add p for
+        // T<0 and subtract p for T>=0, then arithmetic shift. The copied old
+        // sign is cleared after the shift using old_sign = new_sign XOR parity
+        // on the promised centered range.
+        let sign_hist = b.alloc_qubit();
+        let add_ctrl = b.alloc_qubit();
+        let sub_ctrl = b.alloc_qubit();
+        b.cx(v[0], parity_hist);
+        b.cx(v[v.len() - 1], sign_hist);
+        b.ccx(parity_hist, sign_hist, add_ctrl);
+        b.x(sign_hist);
+        b.ccx(parity_hist, sign_hist, sub_ctrl);
+        b.x(sign_hist);
+        super::super::cadd_nbit_const_fast(b, v, p, add_ctrl);
+        super::super::csub_nbit_const_fast(b, v, p, sub_ctrl);
+        b.x(sign_hist);
+        b.ccx(parity_hist, sign_hist, sub_ctrl);
+        b.x(sign_hist);
+        b.ccx(parity_hist, sign_hist, add_ctrl);
+        b.free(sub_ctrl);
+        b.free(add_ctrl);
+        emit_arithmetic_shift_right_even_for_test(b, v);
+        b.cx(v[v.len() - 1], sign_hist);
+        b.cx(parity_hist, sign_hist);
+        b.free(sign_hist);
+    }
+
     fn emit_scaled_by_redundant_signed_microstep_live_parity_for_test(
         b: &mut super::super::B,
         r: &[super::super::QubitId],
@@ -3991,6 +4024,23 @@ mod tests {
         emit_twos_complement_cneg_for_test(b, s, a_ctrl);
         emit_signed_controlled_add_for_test(b, s, r, odd_ctrl);
         emit_signed_redundant_halve_live_parity_for_test(b, s, parity_hist, p);
+    }
+
+    fn emit_scaled_by_centered_signed_microstep_live_parity_for_test(
+        b: &mut super::super::B,
+        r: &[super::super::QubitId],
+        s: &[super::super::QubitId],
+        odd_ctrl: super::super::QubitId,
+        a_ctrl: super::super::QubitId,
+        parity_hist: super::super::QubitId,
+        p: U256,
+    ) {
+        for i in 0..r.len() {
+            super::super::cswap(b, a_ctrl, r[i], s[i]);
+        }
+        emit_twos_complement_cneg_for_test(b, s, a_ctrl);
+        emit_signed_controlled_add_for_test(b, s, r, odd_ctrl);
+        emit_signed_redundant_halve_centered_live_parity_for_test(b, s, parity_hist, p);
     }
 
     fn emit_scaled_by_controlled_microstep_for_test(
@@ -5970,6 +6020,236 @@ mod tests {
         );
         assert!(ccx < 1_400, "redundant signed microstep lost the no-reduction payoff");
         assert!(replay560 < 800_000, "redundant signed replay would not beat fixed-control target even if cleaned");
+    }
+
+    #[test]
+    fn centered_parity_is_recoverable_from_poststate_range_for_add_cases() {
+        // Small exact model of the centered redundant step.  Surprise/good
+        // news: with both input registers promised centered, the pre-halve
+        // parity is recoverable from poststate+case by testing whether the
+        // even preimage is centered.  For B, parity=0 iff (2*s_out - r_out) is
+        // centered; for A, parity=0 iff (r_out - 2*s_out) is centered.  C has
+        // the analogous test on 2*s_out.  This turns parity cleanup from an
+        // information-theoretic blocker into a range-test synthesis problem.
+        use std::collections::BTreeMap;
+        let p = 31i64;
+        let centered = |x: i64| (-p / 2..=p / 2).contains(&x);
+        let vals: Vec<i64> = (-(p / 2)..=(p / 2)).collect();
+        let centered_halve = |mut t: i64| -> (i64, bool) {
+            let parity = (t & 1) != 0;
+            if parity {
+                if t < 0 { t += p; } else { t -= p; }
+            }
+            assert_eq!(t & 1, 0);
+            (t / 2, parity)
+        };
+        let mut b_map: BTreeMap<(i64, i64), bool> = BTreeMap::new();
+        let mut a_map: BTreeMap<(i64, i64), bool> = BTreeMap::new();
+        let mut c_map: BTreeMap<i64, bool> = BTreeMap::new();
+        let mut mismatches = 0usize;
+        for &r_old in &vals {
+            for &s_old in &vals {
+                let (c_s, c_par) = centered_halve(s_old);
+                let c_rec = !centered(2 * c_s);
+                mismatches += (c_rec != c_par) as usize;
+                c_map.insert(c_s, c_par);
+
+                let (b_s, b_par) = centered_halve(s_old + r_old);
+                let b_rec = !centered(2 * b_s - r_old);
+                mismatches += (b_rec != b_par) as usize;
+                if let Some(prev) = b_map.insert((r_old, b_s), b_par) {
+                    assert_eq!(prev, b_par, "B parity collision for r={r_old}, s_out={b_s}");
+                }
+
+                let (a_s, a_par) = centered_halve(s_old - r_old);
+                let a_rec = !centered(s_old - 2 * a_s);
+                mismatches += (a_rec != a_par) as usize;
+                if let Some(prev) = a_map.insert((s_old, a_s), a_par) {
+                    assert_eq!(prev, a_par, "A parity collision for r_out={s_old}, s_out={a_s}");
+                }
+            }
+        }
+        eprintln!(
+            "BY centered parity recovery by range: states={}, B_keys={}, A_keys={}, C_keys={}, mismatches={mismatches}",
+            vals.len() * vals.len(), b_map.len(), a_map.len(), c_map.len()
+        );
+        assert_eq!(mismatches, 0, "centered range parity recovery formula failed");
+    }
+
+    fn emit_centered_b_parity_recovery_for_cost(
+        b: &mut super::super::B,
+        r_out: &[super::super::QubitId],
+        s_out: &[super::super::QubitId],
+        flag: super::super::QubitId,
+        p: U256,
+    ) {
+        // Recover B-case parity by testing whether the even preimage
+        // s_old = 2*s_out - r_out is centered.  This intentionally ignores
+        // shift gates in the cost (they are Clifford/swaps); it includes the
+        // full-width add/sub and comparator stack a naive cleanup would pay.
+        let n = s_out.len();
+        let tmp = b.alloc_qubits(n);
+        for i in 0..n { b.cx(s_out[i], tmp[i]); }
+        // Conceptual tmp <- 2*tmp by wire permutation (0 Toffoli).
+        super::super::sub_nbit_qq_fast(b, r_out, &tmp);
+        let bias = p >> 1usize;
+        super::super::add_nbit_const_fast(b, &tmp, bias);
+        let p_reg = super::super::load_const(b, n, p);
+        super::super::cmp_lt_into_fast(b, &tmp, &p_reg, flag); // flag ^= centered
+        super::super::unload_const(b, &p_reg, p);
+        super::super::sub_nbit_const_fast(b, &tmp, bias);
+        super::super::add_nbit_qq_fast(b, r_out, &tmp);
+        for i in 0..n { b.cx(s_out[i], tmp[i]); }
+        b.free_vec(&tmp);
+        b.x(flag); // parity = !centered(even preimage)
+    }
+
+    #[test]
+    fn naive_centered_parity_recovery_cost_would_erase_redundant_replay_win() {
+        const WIDE: usize = 260;
+        let p = SECP256K1_P;
+        let mut b = super::super::B::new();
+        let r = b.alloc_qubits(WIDE);
+        let s = b.alloc_qubits(WIDE);
+        let flag = b.alloc_qubit();
+        let start = b.ops.len();
+        emit_centered_b_parity_recovery_for_cost(&mut b, &r, &s, flag, p);
+        let ccx = count_ccx(&b.ops[start..]);
+        let replay_cleanup = ccx as f64 * 560.0;
+        eprintln!(
+            "BY naive centered parity recovery: ccx_per_flag={ccx}, cleanup560≈{replay_cleanup:.0}, peak={}q",
+            b.peak_qubits
+        );
+        assert!(ccx > 900, "naive range recovery unexpectedly cheap; synthesize it for real");
+        assert!(replay_cleanup > 500_000.0, "naive parity cleanup would preserve redundant replay win");
+    }
+
+    #[test]
+    fn centered_signed_microstep_keeps_narrow_reps_at_submillion_cost() {
+        const WIDE: usize = 260;
+        let p = SECP256K1_P;
+        let p512 = u256_to_u512_for_by_tests(p);
+        let mut b = super::super::B::new();
+        let odd = b.alloc_qubit();
+        let a_ctrl = b.alloc_qubit();
+        let parity = b.alloc_qubit();
+        let r = b.alloc_qubits(WIDE);
+        let s = b.alloc_qubits(WIDE);
+        emit_scaled_by_centered_signed_microstep_live_parity_for_test(&mut b, &r, &s, odd, a_ctrl, parity, p);
+        let ccx = count_ccx(&b.ops);
+        let peak = b.peak_qubits;
+        let num_qubits = b.next_qubit as usize;
+        let num_bits = b.next_bit as usize;
+        let ops = b.ops;
+        let cases = [(false, false, "C"), (true, false, "B"), (true, true, "A")];
+        let mut sx = Sampler::new(b"by-centered-step-r-v1", p);
+        let mut sy = Sampler::new(b"by-centered-step-s-v1", p);
+        for &(odd_v, a_v, name) in &cases {
+            for _ in 0..12 {
+                let rv = sw_centered_from_u256_for_test(sx.next(), p);
+                let sv = sw_centered_from_u256_for_test(sy.next(), p);
+                let (exp_r, exp_s) = match name {
+                    "A" => (sv, sw_half_modp_centered_for_test(sw_sub_for_test(sv, rv), p512)),
+                    "B" => (rv, sw_half_modp_centered_for_test(sw_add_for_test(sv, rv), p512)),
+                    "C" => (rv, sw_half_modp_centered_for_test(sv, p512)),
+                    _ => unreachable!(),
+                };
+                let mut hasher = sha3::Shake128::default();
+                hasher.update(b"by-centered-step-sim-v1");
+                let mut xof = hasher.finalize_xof();
+                let mut sim = crate::sim::Simulator::new(num_qubits, num_bits, &mut xof);
+                if odd_v { *sim.qubit_mut(odd) |= 1; }
+                if a_v { *sim.qubit_mut(a_ctrl) |= 1; }
+                set_slice_u512_by(&mut sim, &r, sw_twos_for_width_for_test(rv, WIDE));
+                set_slice_u512_by(&mut sim, &s, sw_twos_for_width_for_test(sv, WIDE));
+                sim.apply(&ops);
+                assert_eq!(get_slice_u512_by(&sim, &r), sw_twos_for_width_for_test(exp_r, WIDE), "r mismatch {name}");
+                assert_eq!(get_slice_u512_by(&sim, &s), sw_twos_for_width_for_test(exp_s, WIDE), "s mismatch {name}");
+            }
+        }
+        let replay560 = ccx * 560;
+        eprintln!(
+            "BY centered signed live-parity microstep: ccx={ccx}, replay560≈{replay560}, peak={peak}q, width={WIDE}"
+        );
+        assert!(ccx < 1_700, "centered signed microstep too costly to stay SOTA-shaped");
+        assert!(replay560 < 1_000_000, "centered signed replay loses the sub-1M target");
+    }
+
+    #[test]
+    fn centered_signed_560_scaffold_hits_submillion_replay_with_live_parity() {
+        const WIDE: usize = 260;
+        let p = SECP256K1_P;
+        let p512 = u256_to_u512_for_by_tests(p);
+        let mut sx = Sampler::new(b"by-centered-560-x-v1", p);
+        let mut sy = Sampler::new(b"by-centered-560-y-v1", p);
+        let (x, y, controls, f_final, exp_r, exp_s) = loop {
+            let x = sx.next();
+            let y = sy.next();
+            let mut delta = 1i64;
+            let mut f = SInt::from_u(p);
+            let mut g = SInt::from_u(x);
+            let mut controls = Vec::with_capacity(560);
+            let mut r = sw_zero_for_test();
+            let mut s = sw_centered_from_u256_for_test(addm(y, x, p), p);
+            for _ in 0..560 {
+                let odd = g.bit0();
+                let a = delta > 0 && odd;
+                controls.push((odd, a));
+                if a {
+                    let nr = s;
+                    s = sw_half_modp_centered_for_test(sw_sub_for_test(s, r), p512);
+                    r = nr;
+                } else if odd {
+                    s = sw_half_modp_centered_for_test(sw_add_for_test(s, r), p512);
+                } else {
+                    s = sw_half_modp_centered_for_test(s, p512);
+                }
+                divstep_sint_state(&mut delta, &mut f, &mut g);
+            }
+            if g.is_zero() && (f.is_one_pos() || f.is_one_neg()) {
+                break (x, y, controls, f, r, s);
+            }
+        };
+        let mut b = super::super::B::new();
+        let odd = b.alloc_qubits(560);
+        let a_ctrl = b.alloc_qubits(560);
+        let parity = b.alloc_qubits(560);
+        let r = b.alloc_qubits(WIDE);
+        let s = b.alloc_qubits(WIDE);
+        for i in 0..560 {
+            emit_scaled_by_centered_signed_microstep_live_parity_for_test(&mut b, &r, &s, odd[i], a_ctrl[i], parity[i], p);
+        }
+        let ccx = count_ccx(&b.ops);
+        let peak = b.peak_qubits;
+        let num_qubits = b.next_qubit as usize;
+        let num_bits = b.next_bit as usize;
+        let ops = b.ops;
+        let mut hasher = sha3::Shake128::default();
+        hasher.update(b"by-centered-560-sim-v1");
+        let mut xof = hasher.finalize_xof();
+        let mut sim = crate::sim::Simulator::new(num_qubits, num_bits, &mut xof);
+        for (i, &(odd_v, a_v)) in controls.iter().enumerate() {
+            if odd_v { *sim.qubit_mut(odd[i]) |= 1; }
+            if a_v { *sim.qubit_mut(a_ctrl[i]) |= 1; }
+        }
+        set_slice_u512_by(&mut sim, &r, U512::ZERO);
+        set_slice_u512_by(&mut sim, &s, sw_twos_for_width_for_test(sw_centered_from_u256_for_test(addm(y, x, p), p), WIDE));
+        sim.apply(&ops);
+        assert_eq!(get_slice_u512_by(&sim, &r), sw_twos_for_width_for_test(exp_r, WIDE), "centered r mismatch");
+        assert_eq!(get_slice_u512_by(&sim, &s), sw_twos_for_width_for_test(exp_s, WIDE), "centered s mismatch");
+        assert_eq!(sw_mod_p_for_test(exp_s, p), U256::ZERO, "bottom channel not zero mod p");
+        let r_mod = sw_mod_p_for_test(exp_r, p);
+        let plus_one = if f_final.is_one_pos() { r_mod } else { negm(r_mod, p) };
+        let quotient = subm(plus_one, U256::from(1u64), p);
+        assert_eq!(quotient, mulm(y, fermat_modinv(x, p), p), "centered scaffold quotient mismatch");
+        let parity_nonzero = parity.iter().any(|&q| (sim.qubit(q) & 1) != 0);
+        eprintln!(
+            "BY centered signed 560 scaffold: ccx={ccx}, peak={peak}q, parity_nonzero={parity_nonzero}"
+        );
+        assert!(parity_nonzero, "centered parity history unexpectedly clean");
+        assert!(ccx < 900_000, "centered signed scaffold lost sub-million replay target");
+        assert!(peak < 2_800, "centered signed scaffold exceeds current cap");
+        assert_eq!(sim.global_phase() & 1, 0, "centered signed scaffold phase garbage");
     }
 
     #[test]
