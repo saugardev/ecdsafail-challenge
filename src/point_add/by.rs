@@ -1717,6 +1717,19 @@ mod tests {
         }
     }
 
+    fn inv_odd_u512_pow2_for_streaming_test(a: U512, bits: usize) -> U512 {
+        let modulus = U512::from(1u64) << bits;
+        let mask = modulus - U512::from(1u64);
+        let mut x = U512::from(1u64);
+        // Newton iteration doubles the number of correct low bits each round.
+        for _ in 0..10 {
+            let ax = (a * x) & mask;
+            let two_minus_ax = (U512::from(2u64) + modulus - ax) & mask;
+            x = (x * two_minus_ax) & mask;
+        }
+        x
+    }
+
     fn sign_extend_u512_for_streaming_test(x: U512, from_bits: usize, to_bits: usize) -> U512 {
         debug_assert!(from_bits <= to_bits);
         let mut y = x & mask_u512_bits_for_streaming_test(from_bits);
@@ -1911,6 +1924,79 @@ mod tests {
         assert!(state_bits > 600, "streaming selector would already fit the low-scratch target");
     }
 
+    fn streaming_selector_projective_normalized_matches_for_test(x: U256, state_limbs: usize) -> bool {
+        const W: usize = 16;
+        const WINDOWS: usize = 35;
+        let bits = state_limbs * W;
+        let prod_bits = bits + W;
+        let p = SECP256K1_P;
+        let inv_p = inv_odd_u512_pow2_for_streaming_test(U512::from(p), bits);
+        // Scaled state: f = 1 + b0*x_tail, g = c1 + b1*x_tail.
+        // The missing common odd scale is intentionally not stored.
+        let mut b0 = U512::ZERO;
+        let mut b1 = inv_p;
+        let mut c1 = U512::ZERO;
+        let mut delta = 1i64;
+        let mut actual_delta = 1i64;
+        let mut f = SInt::from_u(p);
+        let mut g = SInt::from_u(x);
+        for win in 0..WINDOWS {
+            let limb_x = U512::from(u256_limb16_for_streaming_test(x, win));
+            let v0_bits = (U512::from(1u64) + b0 * limb_x) & mask_u512_bits_for_streaming_test(bits);
+            let v1_bits = (c1 + b1 * limb_x) & mask_u512_bits_for_streaming_test(bits);
+            let low0 = low_i16_from_residue_for_streaming_test(v0_bits);
+            let low1 = low_i16_from_residue_for_streaming_test(v1_bits);
+            let predicted_bits = branch_bits_for_lowword_window(W, delta, low0, low1);
+
+            let mut d_check = actual_delta;
+            let mut f_check = f;
+            let mut g_check = g;
+            for &pred_odd in &predicted_bits {
+                if pred_odd != g_check.bit0() {
+                    return false;
+                }
+                divstep_sint_state(&mut d_check, &mut f_check, &mut g_check);
+            }
+            let m = matrix_from_branch_bits(delta, &predicted_bits);
+
+            let v0_ext = sign_extend_u512_for_streaming_test(v0_bits, bits, prod_bits);
+            let v1_ext = sign_extend_u512_for_streaming_test(v1_bits, bits, prod_bits);
+            let mut n0 = U512::ZERO;
+            n0 = add_i128_term_mod_width_for_streaming_test(n0, v0_ext, m.m00, prod_bits);
+            n0 = add_i128_term_mod_width_for_streaming_test(n0, v1_ext, m.m01, prod_bits);
+            let mut n1 = U512::ZERO;
+            n1 = add_i128_term_mod_width_for_streaming_test(n1, v0_ext, m.m10, prod_bits);
+            n1 = add_i128_term_mod_width_for_streaming_test(n1, v1_ext, m.m11, prod_bits);
+            if (n0.as_limbs()[0] & 0xffff) != 0 || (n1.as_limbs()[0] & 0xffff) != 0 {
+                return false;
+            }
+            let cc0 = sign_extend_u512_for_streaming_test(n0 >> W, bits, bits);
+            let cc1 = sign_extend_u512_for_streaming_test(n1 >> W, bits, bits);
+            if !cc0.bit(0) {
+                return false;
+            }
+            let mut nb0 = U512::ZERO;
+            nb0 = add_i128_term_mod_width_for_streaming_test(nb0, b0, m.m00, bits);
+            nb0 = add_i128_term_mod_width_for_streaming_test(nb0, b1, m.m01, bits);
+            let mut nb1 = U512::ZERO;
+            nb1 = add_i128_term_mod_width_for_streaming_test(nb1, b0, m.m10, bits);
+            nb1 = add_i128_term_mod_width_for_streaming_test(nb1, b1, m.m11, bits);
+            let inv_cc0 = inv_odd_u512_pow2_for_streaming_test(cc0, bits);
+            b0 = (nb0 * inv_cc0) & mask_u512_bits_for_streaming_test(bits);
+            b1 = (nb1 * inv_cc0) & mask_u512_bits_for_streaming_test(bits);
+            c1 = (cc1 * inv_cc0) & mask_u512_bits_for_streaming_test(bits);
+            delta = m.delta_final;
+
+            for _ in 0..W {
+                divstep_sint_state(&mut actual_delta, &mut f, &mut g);
+            }
+            if actual_delta != delta {
+                return false;
+            }
+        }
+        true
+    }
+
     #[test]
     fn streaming_limb_selector_folds_constant_p_column_but_still_too_large() {
         // First compression of the streaming selector: the first denominator
@@ -1939,6 +2025,32 @@ mod tests {
         assert!(k16_failures > 0, "16-limb folded selector unexpectedly exact on all samples");
         assert!(state_bits < 1152, "constant-p fold did not improve the naive A/c state");
         assert!(state_bits > 600, "folded selector would already fit the low-scratch target");
+    }
+
+    #[test]
+    fn projective_normalized_streaming_selector_loses_high_bits() {
+        // Tempting compression: since BY branch choices are invariant under a
+        // common odd scale, normalize the folded selector so c0=1 and keep only
+        // three entries `(b0,b1,c1)`.  This would be 3*17*16=816 bits, much
+        // closer to the target.  It fails because repeated normalization throws
+        // away high 2-adic information needed by later windows; this is the
+        // same obstruction as the earlier h-only state, now in affine-streaming
+        // coordinates.
+        let samples = 64usize;
+        let mut sampler = Sampler::new(b"by-projective-streaming-selector-v1", SECP256K1_P);
+        let mut failures = 0usize;
+        for _ in 0..samples {
+            let x = sampler.next();
+            if !streaming_selector_projective_normalized_matches_for_test(x, 17) {
+                failures += 1;
+            }
+        }
+        let projected_state_bits = 3 * 17 * 16;
+        eprintln!(
+            "BY projective-normalized streaming selector: samples={samples}, failures={failures}, projected_state_bits={projected_state_bits}"
+        );
+        assert!(failures > 0, "projective normalized selector unexpectedly exact on all samples");
+        assert!(projected_state_bits < 1088, "projective normalization would not reduce state");
     }
 
     #[test]

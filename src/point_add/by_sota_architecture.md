@@ -76,6 +76,18 @@ This is constructive but not yet SOTA-shaped.  It replaces a full 560-bit
 shows the state can move in the right direction, but 1088 selector bits is still
 too large for the ~600 extra-qubit target.
 
+A tempting projective normalization sets the folded carry `c0=1`, because BY
+branch choices are invariant under a common odd scale.  That would reduce the
+selector to three entries:
+
+```text
+projective normalized state = 3 * 17 * 16 = 816 bits
+```
+
+but `projective_normalized_streaming_selector_loses_high_bits` fails on all 64
+sampled denominators.  Repeated normalization discards high 2-adic information
+needed by later windows.  This kills the simplest 816-bit state.
+
 ## Next architecture work
 
 Do not spend more time on local Kaliski thresholds.  The next useful work is to
