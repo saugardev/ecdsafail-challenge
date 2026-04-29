@@ -766,6 +766,156 @@ mod tests {
         (degree, density)
     }
 
+    fn montgomery_q_history_xy(n: usize, p: u16, x: u16, y: u16) -> (u16, u16) {
+        let mut t = 0u32;
+        let mut q_hist = 0u16;
+        for i in 0..n {
+            if ((y >> i) & 1) != 0 {
+                t += x as u32;
+            }
+            let q = (t & 1) as u16;
+            q_hist |= q << i;
+            if q != 0 {
+                t += p as u32;
+            }
+            t >>= 1;
+        }
+        ((t % p as u32) as u16, q_hist)
+    }
+
+    fn montgomery_q_history_phase_anf_stats(n: usize, p: u16, mask: u16) -> (usize, usize) {
+        let vars = 2 * n;
+        let size = 1usize << vars;
+        let limb_mask = (1u16 << n) - 1;
+        let mut anf = vec![0u8; size];
+        for idx in 0..size {
+            let x = (idx as u16) & limb_mask;
+            let y = ((idx >> n) as u16) & limb_mask;
+            let q_hist = if x != 0 && x < p && y < p {
+                montgomery_q_history_xy(n, p, x, y).1
+            } else {
+                0
+            };
+            anf[idx] = ((q_hist & mask).count_ones() & 1) as u8;
+        }
+        for bit in 0..vars {
+            for idx in 0..size {
+                if (idx & (1usize << bit)) != 0 {
+                    anf[idx] ^= anf[idx ^ (1usize << bit)];
+                }
+            }
+        }
+        let density = anf.iter().filter(|&&c| c != 0).count();
+        let degree = anf
+            .iter()
+            .enumerate()
+            .filter_map(|(i, &c)| if c != 0 { Some(i.count_ones() as usize) } else { None })
+            .max()
+            .unwrap_or(0);
+        (degree, density)
+    }
+
+    #[test]
+    fn montgomery_q_history_mbuc_phase_is_high_degree_but_structured() {
+        // Primitive-level rescue attempt for Strategy E: compute an in-place
+        // product with the bit-serial Montgomery loop, MBUC-measure the
+        // quotient/history q_i bits, and phase-correct those q_i instead of
+        // dividing by the product source.  Unlike the final quotient z/x phase,
+        // q-history is not dense on the n=8 toy field, but it still reaches
+        // maximal algebraic degree.  This keeps it as a narrow research lead,
+        // not an implementation target: we need a closed-form sparse phase
+        // circuit before touching point-add wiring.
+        let (degree, density) = montgomery_q_history_phase_anf_stats(8, 251, 0b1010_0101);
+        eprintln!("Montgomery q-history phase ANF: degree={degree}, density={density}/65536");
+        assert!(degree >= 15);
+        assert!(density > 2_000);
+    }
+
+    fn montgomery_q_history_phase_anf_stats_xz(n: usize, p: u16, mask: u16) -> (usize, usize) {
+        let vars = 2 * n;
+        let size = 1usize << vars;
+        let limb_mask = (1u16 << n) - 1;
+        let r_mod = ((1u32 << n) % p as u32) as u16;
+        let mut inv = vec![0u16; p as usize];
+        for x in 1..p {
+            for y in 1..p {
+                if ((x as u32) * (y as u32)) % (p as u32) == 1 {
+                    inv[x as usize] = y;
+                    break;
+                }
+            }
+        }
+        let mut anf = vec![0u8; size];
+        for idx in 0..size {
+            let x = (idx as u16) & limb_mask;
+            let z = ((idx >> n) as u16) & limb_mask;
+            let q_hist = if x != 0 && x < p && z < p {
+                // Montgomery output z = x*y*R^-1, so y = z*R*x^-1.
+                let y = (((z as u32) * (r_mod as u32) * (inv[x as usize] as u32)) % p as u32) as u16;
+                let (check_z, q) = montgomery_q_history_xy(n, p, x, y);
+                assert_eq!(check_z, z);
+                q
+            } else {
+                0
+            };
+            anf[idx] = ((q_hist & mask).count_ones() & 1) as u8;
+        }
+        for bit in 0..vars {
+            for idx in 0..size {
+                if (idx & (1usize << bit)) != 0 {
+                    anf[idx] ^= anf[idx ^ (1usize << bit)];
+                }
+            }
+        }
+        let density = anf.iter().filter(|&&c| c != 0).count();
+        let degree = anf
+            .iter()
+            .enumerate()
+            .filter_map(|(i, &c)| if c != 0 { Some(i.count_ones() as usize) } else { None })
+            .max()
+            .unwrap_or(0);
+        (degree, density)
+    }
+
+    #[test]
+    fn montgomery_q_history_phase_in_output_frame_is_dense_dead() {
+        // The promising sparse q-history phase above is in the (x, old-y)
+        // frame.  For an in-place multiplier after old y has been replaced by
+        // product z, MBUC phase correction must be a function of (x,z).  In that
+        // output frame it collapses back to quotient-like dense inversion.
+        let (degree, density) = montgomery_q_history_phase_anf_stats_xz(8, 251, 0b1010_0101);
+        eprintln!("Montgomery q-history output-frame ANF: degree={degree}, density={density}/65536");
+        assert!(degree >= 14);
+        assert!(density > 20_000);
+    }
+
+    #[test]
+    fn montgomery_q_history_phase_growth_is_not_obviously_exponential_dense() {
+        // Scaling probe for the q-history MBUC lead.  The full truth table is
+        // still exponential, so this is only for n<=10.  The useful signal is
+        // that densities stay far below half the table, unlike z/x quotient
+        // cleanup.  The bad signal is that degree reaches the maximum each
+        // time.  Treat this as "structured but not solved".
+        let cases = [
+            (4usize, 13u16, 0b1010u16),
+            (6usize, 61u16, 0b10_1010u16),
+            (8usize, 251u16, 0b1010_0101u16),
+            (10usize, 1021u16, 0b10_1001_0101u16),
+        ];
+        let mut last_density = 0usize;
+        for &(n, p, mask) in &cases {
+            let (degree, density) = montgomery_q_history_phase_anf_stats(n, p, mask);
+            let table = 1usize << (2 * n);
+            eprintln!(
+                "Montgomery q-history phase growth: n={n}, degree={degree}, density={density}/{table}"
+            );
+            assert!(degree >= 2 * n - 1);
+            assert!(density < table / 4, "q-history became quotient-like dense at n={n}");
+            assert!(density >= last_density);
+            last_density = density;
+        }
+    }
+
     #[test]
     fn mbuc_product_cleanup_phase_oracle_is_not_low_degree_on_toy_field() {
         // Another possible rescue for Strategy E: compute product into a clean

@@ -680,6 +680,30 @@ This does not prove every possible phase-oracle implementation is expensive,
 but it rules out the hoped-for sparse/low-degree correction.  The phase-only
 cleanup is just the quotient problem in disguise.
 
+### Attempt E3: MBUC Montgomery quotient-history cleanup
+
+A more structured variant keeps the Montgomery loop's internal quotient bits
+`q_i` as the measured history instead of measuring the old multiplier directly.
+In the `(x, old_y)` frame, this history is surprisingly sparse on small fields:
+
+```text
+n=8, p=251: degree=16, density=2440 / 65536
+n=10, p=1021: degree=20, density=31684 / 1048576
+```
+
+But MBUC phase correction for an in-place multiply must be expressed in the
+**output** frame `(x,z)`, because `old_y` has been replaced by the product.  The
+test `montgomery_q_history_phase_in_output_frame_is_dense_dead` computes exactly
+that frame transformation (`z = x*y*R^-1`) and gets:
+
+```text
+n=8, p=251: degree=16, density=31032 / 65536
+```
+
+So the structured q-history collapses back to a quotient-like dense phase when
+viewed from the surviving registers.  This invalidates the Montgomery-history
+MBUC rescue for Strategy E with current primitives.
+
 ## 12. Attempt F: absorb Kaliski's scale by pre-scaling the denominator
 
 Kaliski exposes a raw coefficient of the form

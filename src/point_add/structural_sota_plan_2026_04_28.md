@@ -1589,6 +1589,14 @@ correction is a known-mask bit of `z/x mod p`.  The toy-field ANF test
 15/16 and 32518/65536 monomial density for `p=251`.  This kills the cheap
 sparse/low-degree phase-correction hope; MBUC cleanup still hides a quotient.
 
+Third primitive attempt: MBUC the Montgomery loop's internal quotient/history
+bits instead of the old multiplier.  In the `(x,old_y)` frame this history is
+structured (`n=8` density 2440/65536; `n=10` density 31684/1048576), but an
+actual in-place multiply must phase-correct in the surviving `(x,z)` frame.
+`montgomery_q_history_phase_in_output_frame_is_dense_dead` gets degree 16/16 and
+31032/65536 density for `p=251`, so the structured history becomes quotient-like
+again after old-y is gone.  Kill this primitive too.
+
 ## 7. Post-E attempt: Kaliski scale absorption by denominator pre-scaling
 
 This is a smaller structural lever than deleting an inversion, but it attacks a
