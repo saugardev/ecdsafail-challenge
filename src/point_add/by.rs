@@ -2560,12 +2560,58 @@ mod tests {
     }
 
     #[test]
-    fn denominator_pair_plus_49_sidecar_can_hold_raw_history_on_samples() {
+    fn denominator_pair_fixed_slack_schedule_50_sidecar_on_samples() {
+        // A fixed allocator is much easier than a data-dependent compactor: at
+        // step k reserve enough low bits for the worst sampled |f|,|g| sizes and
+        // use only the predeclared high-zone as history storage.  This test
+        // checks that the same 49-bit sidecar works with per-step worst-case
+        // sampled bitlengths, not just per-trace adaptive slack.  The fixed
+        // schedule needs 50 bits on an independent seed because some traces
+        // reach the full 560-step endpoint.
+        let samples = 8192usize;
+        let mut max_used_by_step = vec![0usize; 35 * 16 + 1];
+        let mut sampler = Sampler::new(b"by-pair-fixed-slack-v1", SECP256K1_P);
+        for _ in 0..samples {
+            let x = sampler.next();
+            let mut delta = 1i64;
+            let mut f = SInt::from_u(SECP256K1_P);
+            let mut g = SInt::from_u(x);
+            for step in 0..=35 * 16 {
+                let used = bitlen_sint_for_compact_pair_test(f) + bitlen_sint_for_compact_pair_test(g);
+                max_used_by_step[step] = max_used_by_step[step].max(used);
+                if step == 35 * 16 || g.is_zero() {
+                    break;
+                }
+                divstep_sint_state(&mut delta, &mut f, &mut g);
+            }
+        }
+        let mut worst_deficit = 0isize;
+        let mut worst_step = 0usize;
+        for (step, &used) in max_used_by_step.iter().enumerate() {
+            if used == 0 && step != 0 {
+                continue;
+            }
+            let slack = 512isize - used as isize;
+            let deficit = step as isize - slack;
+            if deficit > worst_deficit {
+                worst_deficit = deficit;
+                worst_step = step;
+            }
+        }
+        eprintln!(
+            "BY fixed slack schedule: samples={samples}, worst_step={worst_step}, worst_sidecar={worst_deficit} bits"
+        );
+        assert!(worst_deficit <= 50, "fixed slack schedule exceeded 50-bit sidecar");
+    }
+
+    #[test]
+    fn denominator_pair_plus_50_sidecar_can_hold_raw_history_on_samples() {
         // Better low-qubit idea than the scalar ratio: keep the 256-bit f/g
         // denominator pair and stash consumed branch bits into high zero slack
         // as the pair shrinks, with a tiny sidecar for the initial lag.  Real
-        // traces need at most 49 extra raw-history bits over the pair slack in
-        // this sampled check, matching the 560-step vs 511-slack intuition.
+        // traces need at most 50 extra raw-history bits over the pair slack in
+        // sampled checks, matching the 560-step vs 510-slack fixed-schedule
+        // endpoint intuition.
         let samples = 8192usize;
         let mut sampler = Sampler::new(b"by-pair-slack-history-v1", SECP256K1_P);
         let mut worst_deficit = 0isize;
@@ -2594,7 +2640,7 @@ mod tests {
             "BY denominator-pair slack+sidecar history: samples={samples}, max_converge={max_converge}, worst_raw_history_deficit={worst_deficit} bits"
         );
         assert!(worst_deficit > 0, "pair slack unexpectedly stores all raw branch bits");
-        assert!(worst_deficit <= 49, "sidecar exceeded the 49-bit target");
+        assert!(worst_deficit <= 50, "sidecar exceeded the 50-bit target");
     }
 
     #[test]

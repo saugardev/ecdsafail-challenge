@@ -126,17 +126,20 @@ inverse.  A better state/gate compromise is to keep the ordinary 256-bit BY
 integer denominator pair `(f,g)` and store consumed raw branch bits in the high
 zero slack that appears as the pair shrinks.
 
-`denominator_pair_plus_49_sidecar_can_hold_raw_history_on_samples` checks 8192
-sampled secp256k1 denominators over the 560-step schedule:
+`denominator_pair_plus_50_sidecar_can_hold_raw_history_on_samples` and
+`denominator_pair_fixed_slack_schedule_50_sidecar_on_samples` check 8192 sampled
+secp256k1 denominators over the 560-step schedule:
 
 ```text
-max convergence step observed      = 558
-worst raw-history deficit vs slack = 49 bits
+adaptive per-trace max convergence observed = 558
+adaptive worst raw-history deficit          = 49 bits
+fixed per-step slack schedule worst deficit = 50 bits
 ```
 
-So a `512-bit` magnitude pair plus a `49-bit` sidecar can carry all raw branch
-history in the sampled traces.  With two sign bits this is roughly
-`512 + 2 + 49 = 563` selector/history bits, inside the low-qubit ~600-bit target
+So a `512-bit` magnitude pair plus a `50-bit` sidecar can carry all raw branch
+history in the sampled traces, even with a fixed schedule based on per-step
+worst observed bitlengths.  With two sign bits this is roughly
+`512 + 2 + 50 = 564` selector/history bits, inside the low-qubit ~600-bit target
 and with only linear shift/add divstep updates (no ratio inverse).  This is now
 the most promising selector architecture.
 
