@@ -2194,6 +2194,59 @@ mod tests {
     }
 
     #[test]
+    fn euclid_quotient_stream_entropy_also_exceeds_scratch600() {
+        // Follow-up to the raw-payload quotient-stream DIV test.  The tempting
+        // objection is that a clever prefix/arithmetic code could pack the
+        // quotients near the raw bitlength.  But the quotient values themselves
+        // have Gauss-Kuzmin-like entropy; on secp-sized samples an idealized
+        // empirical arithmetic code is already ~513 bits.  With the mandatory
+        // 256-bit data partner for coefficient replay, this is far beyond the
+        // 600-scratch model before decoder cost, pointer state, or exact
+        // worst-case tails are charged.
+        use std::collections::BTreeMap;
+        let p = SECP256K1_P;
+        let mut rng = 0xface_feed_dead_beefu64;
+        let samples = 8192usize;
+        let mut seqs: Vec<Vec<U256>> = Vec::with_capacity(samples);
+        let mut freq: BTreeMap<U256, usize> = BTreeMap::new();
+        let mut total = 0usize;
+        for _ in 0..samples {
+            let mut x = rand_u256(&mut rng);
+            if x.is_zero() { x = U256::from(1u64); }
+            let qs = euclid_quotients_for_divisor(x, p);
+            for &q in &qs {
+                *freq.entry(q).or_insert(0) += 1;
+                total += 1;
+            }
+            seqs.push(qs);
+        }
+        let log_total = (total as f64).log2();
+        let mut ideal_lengths = Vec::with_capacity(samples);
+        for qs in &seqs {
+            let mut bits = 0.0f64;
+            for &q in qs {
+                let f = *freq.get(&q).unwrap() as f64;
+                bits += log_total - f.log2();
+            }
+            ideal_lengths.push(bits);
+        }
+        ideal_lengths.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let mean = ideal_lengths.iter().sum::<f64>() / samples as f64;
+        let p99 = ideal_lengths[samples * 99 / 100];
+        let max = *ideal_lengths.last().unwrap();
+        let scratch_p99 = 256.0 + p99;
+        eprintln!(
+            "Euclid quotient empirical entropy: mean={mean:.1}, p99={p99:.1}, max={max:.1}, scratch_p99={scratch_p99:.1}, alphabet={}",
+            freq.len()
+        );
+        println!("METRIC euclid_quotient_entropy_mean_bits={mean:.3}");
+        println!("METRIC euclid_quotient_entropy_p99_bits={p99:.3}");
+        println!("METRIC euclid_quotient_entropy_scratch_p99={scratch_p99:.3}");
+        assert!(mean > 500.0);
+        assert!(scratch_p99 > 770.0);
+    }
+
+    #[test]
     fn mbuc_product_cleanup_phase_oracle_is_not_low_degree_on_toy_field() {
         // Another possible rescue for Strategy E: compute product into a clean
         // accumulator, X-measure the old multiplier, and apply only the MBUC
