@@ -1089,6 +1089,66 @@ mod tests {
         assert!(union_ppm <= 10_000, "two-denominator union-bound failure exceeds 1%");
     }
 
+    #[test]
+    fn harness_scale_approx_cutoff_leaves_by_lowword_over_budget() {
+        // The real benchmark executes 9024 random point-add cases and expects
+        // zero wrong classical outputs.  Percent-level approximate failures are
+        // therefore unusable.  Use a harness-scale tail target and verify that
+        // the old lowword-selector BY near-miss no longer gets meaningful step
+        // savings once this stricter requirement is respected.
+        let p = SECP256K1_P;
+        let samples = 100_000usize;
+        let mut sampler = Sampler::new(b"by-harness-scale-cutoff-v1", p);
+        let mut iters = Vec::with_capacity(samples);
+        for _ in 0..samples {
+            let x = sampler.next();
+            let run = run_divsteps(x, p, safegcd_iters(256));
+            assert!(run.converged);
+            iters.push(run.iters_done);
+        }
+        iters.sort_unstable();
+        let fail_count = |cutoff: usize| -> usize { iters.iter().filter(|&&k| k > cutoff).count() };
+        let fail_ppm = |cutoff: usize| -> usize { fail_count(cutoff) * 1_000_000 / samples };
+        let pointadd_union_ppm = |cutoff: usize| -> usize { 2 * fail_ppm(cutoff) };
+        let mut cutoff_100ppm_pointadd = 576usize;
+        let mut cutoff_20ppm_pointadd = 576usize;
+        for cutoff in 540usize..=576 {
+            let union_ppm = pointadd_union_ppm(cutoff);
+            if union_ppm <= 100 && cutoff_100ppm_pointadd == 576 {
+                cutoff_100ppm_pointadd = cutoff;
+            }
+            if union_ppm <= 20 {
+                cutoff_20ppm_pointadd = cutoff;
+                break;
+            }
+        }
+        let scaffold_after_div = 642_716i64;
+        let replay_per_step = 3_308i64;
+        let decoder_per_step = 62_160i64 / 560;
+        let lowword_selector_per_step = 208_320i64 / 560;
+        let projected = |k: usize| -> i64 {
+            scaffold_after_div + (replay_per_step + decoder_per_step + lowword_selector_per_step) * k as i64
+        };
+        let gap_100ppm = projected(cutoff_100ppm_pointadd) - 2_700_000;
+        let gap_20ppm = projected(cutoff_20ppm_pointadd) - 2_700_000;
+        println!("METRIC by_approx_harness_100ppm_cutoff_steps={cutoff_100ppm_pointadd}");
+        println!("METRIC by_approx_harness_100ppm_union_fail_ppm={}", pointadd_union_ppm(cutoff_100ppm_pointadd));
+        println!("METRIC by_approx_harness_100ppm_projected_gap_ccx={gap_100ppm}");
+        println!("METRIC by_approx_harness_20ppm_cutoff_steps={cutoff_20ppm_pointadd}");
+        println!("METRIC by_approx_harness_20ppm_union_fail_ppm={}", pointadd_union_ppm(cutoff_20ppm_pointadd));
+        println!("METRIC by_approx_harness_projected_gap_ccx={gap_20ppm}");
+        println!("METRIC by_approx_harness_fail556_ppm={}", fail_ppm(556));
+        println!("METRIC by_approx_harness_fail560_ppm={}", fail_ppm(560));
+        println!("METRIC by_approx_harness_fail564_ppm={}", fail_ppm(564));
+        println!("METRIC by_approx_harness_fail568_ppm={}", fail_ppm(568));
+        eprintln!(
+            "BY harness-scale cutoff: cutoff100ppm={cutoff_100ppm_pointadd}, gap100ppm={gap_100ppm}, cutoff20ppm={cutoff_20ppm_pointadd}, gap20ppm={gap_20ppm}, fail560={}ppm, fail564={}ppm",
+            fail_ppm(560),
+            fail_ppm(564)
+        );
+        assert!(gap_20ppm > 0, "harness-scale approximate cutoff unexpectedly funds old lowword BY route");
+    }
+
     fn two_inv_pow(p: U256, iters: usize) -> U256 {
         let two_inv = (p.wrapping_add(U256::from(1))) >> 1;
         let mut acc = U256::from(1);
