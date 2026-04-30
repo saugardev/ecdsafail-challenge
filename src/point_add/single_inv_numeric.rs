@@ -2650,7 +2650,7 @@ mod tests {
         out
     }
 
-    fn plusminus_scaled_coeff_width_for_divisor(x: U256, p: U256) -> (usize, usize, usize, usize) {
+    fn plusminus_scaled_coeff_width_for_divisor(x: U256, p: U256) -> (usize, usize, usize, usize, SignedMagU512ForHalfGcdTest) {
         // Keep coefficients over the integers with a global denominator 2^S:
         //   value = coeff * x / 2^S (mod p).
         // A plus-minus step d=(u-v)/2^k updates cd=cu-cv while any retained
@@ -2696,7 +2696,7 @@ mod tests {
             }
         }
         assert_eq!(u, U512::from(1u64));
-        (max_bits, scale, steps, initial_twos)
+        (max_bits, scale, steps, initial_twos, cv)
     }
 
     fn plusminus_kseq_dirs_for_toy(x: u16, p: u16) -> (Vec<usize>, Vec<u8>) {
@@ -3347,7 +3347,7 @@ mod tests {
         for _ in 0..samples {
             let mut x = rand_u256(&mut rng);
             if x.is_zero() { x = U256::from(1u64); }
-            let (w, scale, steps, _initial_twos) = plusminus_scaled_coeff_width_for_divisor(x, p);
+            let (w, scale, steps, _initial_twos, _final_coeff) = plusminus_scaled_coeff_width_for_divisor(x, p);
             widths.push(w);
             scales.push(scale);
             steps_v.push(steps);
@@ -3377,6 +3377,55 @@ mod tests {
         println!("METRIC plusminus_scaled_coeff_two_coeff_scratch_max={two_coeff_scratch_max}");
         println!("METRIC plusminus_scaled_coeff_one_den_one_coeff_scratch_max={one_den_one_coeff_scratch_max}");
         assert!(width_max > 0, "scaled coefficient accounting should be nonzero");
+    }
+
+    fn smag_mod_u256_for_plusminus_test(x: SignedMagU512ForHalfGcdTest, p: U256) -> U256 {
+        let p512 = u512_from_u256_for_halfgcd_test(p);
+        let r512 = x.mag % p512;
+        let limbs = r512.as_limbs();
+        let r = U256::from_limbs([limbs[0], limbs[1], limbs[2], limbs[3]]);
+        if x.neg && !r.is_zero() { p - r } else { r }
+    }
+
+    fn two_inv_pow_u256_for_plusminus_test(p: U256, iters: usize) -> U256 {
+        let two_inv = (p.wrapping_add(U256::from(1u64))) >> 1;
+        let mut acc = U256::from(1u64);
+        let mut base = two_inv;
+        let mut e = iters as u64;
+        while e > 0 {
+            if (e & 1) != 0 { acc = acc.mul_mod(base, p); }
+            e >>= 1;
+            if e != 0 { base = base.mul_mod(base, p); }
+        }
+        acc
+    }
+
+    #[test]
+    fn plusminus_scaled_integer_coefficients_recover_inverse() {
+        // Algebra check for the cheap-shift representation: final coefficient c
+        // represents 1 = c*x/2^S, so c*2^-S is x^-1 mod p.  This must hold
+        // before any circuit cost model using scaled integer coefficients is
+        // meaningful.
+        let p = SECP256K1_P;
+        let samples = 2048usize;
+        let mut rng = 0x1eaf_6635_1eed_c0deu64;
+        let mut max_scale = 0usize;
+        let mut max_width = 0usize;
+        for _ in 0..samples {
+            let mut x = rand_u256(&mut rng);
+            if x.is_zero() { x = U256::from(1u64); }
+            let (width, scale, _steps, _initial_twos, coeff) = plusminus_scaled_coeff_width_for_divisor(x, p);
+            let c = smag_mod_u256_for_plusminus_test(coeff, p);
+            let inv_scale = two_inv_pow_u256_for_plusminus_test(p, scale);
+            let inv = c.mul_mod(inv_scale, p);
+            assert_eq!(x.mul_mod(inv, p), U256::from(1u64), "scaled plus-minus coefficient did not recover inverse");
+            max_scale = max_scale.max(scale);
+            max_width = max_width.max(width);
+        }
+        eprintln!("plus-minus scaled coefficient inverse recovery: samples={samples}, max_scale={max_scale}, max_width={max_width}");
+        println!("METRIC plusminus_scaled_coeff_inverse_samples={samples}");
+        println!("METRIC plusminus_scaled_coeff_inverse_max_scale={max_scale}");
+        println!("METRIC plusminus_scaled_coeff_inverse_max_width={max_width}");
     }
 
     #[test]
