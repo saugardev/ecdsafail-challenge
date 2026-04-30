@@ -2279,6 +2279,82 @@ mod tests {
         (degree, density)
     }
 
+    fn two_adic_inverse_correction_phase_anf_stats(n: usize, c: u16, mask: u16) -> (usize, usize) {
+        let p = ((1u32 << n) - c as u32) as u16;
+        let size = 1usize << n;
+        let modulus = 1u32 << n;
+        let mut anf = vec![0u8; size];
+        for x in 1..p {
+            let tz = x.trailing_zeros() as usize;
+            let odd = x >> tz;
+            let y0 = inv_mod_u16_for_power_two_odd(odd, n);
+            let mut chosen = None;
+            for rep in 0..4u32 {
+                let yy = y0 as u32 + rep * modulus;
+                let d = ((odd as u32) * yy % (p as u32)) as u16;
+                if d != 0 {
+                    let corr = inv_mod_u16_for_phase_test(d, p);
+                    chosen = Some(corr);
+                    break;
+                }
+            }
+            let corr = chosen.expect("one of a few 2-adic representatives should avoid d=0");
+            anf[x as usize] = ((corr & mask).count_ones() & 1) as u8;
+        }
+        for bit in 0..n {
+            for idx in 0..size {
+                if (idx & (1usize << bit)) != 0 {
+                    anf[idx] ^= anf[idx ^ (1usize << bit)];
+                }
+            }
+        }
+        let density = anf.iter().filter(|&&v| v != 0).count();
+        let degree = anf
+            .iter()
+            .enumerate()
+            .filter_map(|(i, &v)| if v != 0 { Some(i.count_ones() as usize) } else { None })
+            .max()
+            .unwrap_or(0);
+        (degree, density)
+    }
+
+    fn inv_mod_u16_for_power_two_odd(a: u16, n: usize) -> u16 {
+        debug_assert_eq!(a & 1, 1);
+        let modulus = 1u32 << n;
+        for y in (1u32..modulus).step_by(2) {
+            if ((a as u32) * y) % modulus == 1 { return y as u16; }
+        }
+        unreachable!()
+    }
+
+    #[test]
+    fn two_adic_inverse_still_needs_dense_field_correction() {
+        // Another tempting inversion primitive for the pseudo-Mersenne prime
+        // p=2^n-c: invert the odd part of x modulo 2^n by Hensel lifting, then
+        // correct from the 2-adic inverse to the mod-p inverse.  For odd a,
+        // a*y0 = 1 (mod 2^n), so over p we have a*y0 = d = 1+c*t and need a
+        // second inverse d^-1 mod p.  Factoring powers of two out of even x is
+        // only a known constant correction; the hard part is this dense d^-1.
+        let cases = [
+            (8usize, 5u16, 0b1010_0101u16),   // p=251
+            (10usize, 3u16, 0b10_1001_0101u16), // p=1021
+            (12usize, 3u16, 0b1010_0101_0101u16), // p=4093
+        ];
+        for &(n, c, mask) in &cases {
+            let (degree, density) = two_adic_inverse_correction_phase_anf_stats(n, c, mask);
+            let table = 1usize << n;
+            eprintln!(
+                "2-adic inverse correction phase: n={n}, c={c}, degree={degree}, density={density}/{table}"
+            );
+            if n == 12 {
+                println!("METRIC two_adic_inv_correction_degree_n12={degree}");
+                println!("METRIC two_adic_inv_correction_density_n12={density}");
+            }
+            assert!(degree + 1 >= n);
+            assert!(density > table / 4);
+        }
+    }
+
     #[test]
     fn live_x_recompute_of_euclid_quotients_is_gate_dead() {
         // The only remaining way for quotient-stream DIV to avoid storing a
