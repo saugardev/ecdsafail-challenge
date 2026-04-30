@@ -836,9 +836,15 @@ broadcasts as direct controlled toggles.  `streamed_mask_controlled_qoffset_fits
 is phase-clean, keeps `scratch_with_history≈510q`, measures `2542` CCX and
 `div560≈1,852,480`, and projects point-add≈2,645,196 with scaffold+branch margin.
 This is the first BY replay primitive that is simultaneously 600-scratch-shaped
-and below the Google 2.7M low-qubit Toffoli target on paper.  Remaining work is
-not the controlled adder itself, but reversible branch-pattern compression/
-cleanup and integration into the affine schedule.
+and below the Google 2.7M low-qubit Toffoli target on paper.  But it is **not**
+an integration plan by itself: `streamed_mask_qoffset_still_has_no_selector_margin_for_integration`
+charges the already-measured pattern decoder (62,160 CCX) against the 150k
+branch/decode allowance and leaves only 87,840 CCX for denominator-derived
+pattern production.  Even the cheap 16-step lowword pattern oracle costs
+208,320 CCX for one denominator and projects the point-add to ≈2,765,676; the
+known exact tapered generator projects to ≈4,565,516.  So do not hook this BY
+body into the affine path until the selector source itself is below ~88k or is
+algebraically folded into other work.
 
 ## 12. Fast invalidation tasks still open
 

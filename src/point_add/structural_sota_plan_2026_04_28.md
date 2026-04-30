@@ -1322,8 +1322,13 @@ direct controlled toggles instead of materializing the mask:
 one mask bit, passes basis/phase checks, fits scratch (`scratch_with_history≈510q`),
 and measures `2542` CCX with `div560≈1,852,480`, projecting point-add≈2,645,196.
 So the controlled-add scratch/gate blocker is no longer the main issue for the
-low-qubit BY route; branch-pattern compression/cleanup and real affine
-integration are now the production blockers.
+low-qubit BY route.  Early invalidation still prevents an integration attempt:
+`streamed_mask_qoffset_still_has_no_selector_margin_for_integration` leaves only
+87,840 CCX for denominator-derived pattern generation after the measured decoder,
+but the cheap lowword pattern oracle is already 208,320 CCX for one denominator
+(projected point-add≈2,765,676) and the known exact tapered generator projects
+≈4,565,516.  Branch-pattern production/cleanup must be solved below that ~88k
+margin before any affine hook-up is justified.
 
 This is the first coherent selected BY replay model in the right Toffoli band.
 It is not yet a complete DIV: branch-history compression/cleanup still need

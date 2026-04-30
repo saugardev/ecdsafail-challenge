@@ -4147,6 +4147,42 @@ mod tests {
     }
 
     #[test]
+    fn streamed_mask_qoffset_still_has_no_selector_margin_for_integration() {
+        // Early-invalidation guardrail after the scratch-good streamed-mask add:
+        // do not hook the BY replay into point-add unless the denominator
+        // branch-pattern source is also budgeted.  The 2.645M low-qubit model
+        // already spends a 150k selector/decode allowance.  The measured
+        // reversible pattern+delta decoder is ~62k, leaving <90k for producing
+        // the branch patterns from the quantum denominator.  Even the cheap
+        // 16-step lowword pattern oracle costs 5952/window ≈208k for one
+        // 560-step denominator before exact full-state plumbing; the known
+        // tapered exact generator is far worse.  Therefore the qoffset replay
+        // primitive is not, by itself, an integration plan.
+        let streamed_projected_with_allowance = 2_645_196usize;
+        let allowance = 150_000usize;
+        let decoder = 62_160usize;
+        let remaining_selector_margin = allowance - decoder;
+        let lowword_pattern_oracle_per_window = 5_952usize;
+        let windows = 35usize;
+        let lowword_one_denominator = lowword_pattern_oracle_per_window * windows;
+        let projected_with_lowword_one_denominator =
+            streamed_projected_with_allowance - allowance + decoder + lowword_one_denominator;
+        let tapered_exact_one_denominator = 2_008_160usize;
+        let projected_with_tapered_exact =
+            streamed_projected_with_allowance - allowance + decoder + tapered_exact_one_denominator;
+        eprintln!(
+            "streamed qoffset selector guardrail: remaining_margin={remaining_selector_margin}, lowword_one_den={lowword_one_denominator}, projected_lowword≈{projected_with_lowword_one_denominator}, projected_tapered≈{projected_with_tapered_exact}"
+        );
+        println!("METRIC streamed_qoffset_selector_margin={remaining_selector_margin}");
+        println!("METRIC streamed_qoffset_lowword_selector_ccx={lowword_one_denominator}");
+        println!("METRIC streamed_qoffset_projected_with_lowword_selector={projected_with_lowword_one_denominator}");
+        println!("METRIC streamed_qoffset_projected_with_tapered_selector={projected_with_tapered_exact}");
+        assert!(remaining_selector_margin < lowword_one_denominator, "cheap lowword selector now fits; revisit BY integration");
+        assert!(projected_with_lowword_one_denominator > 2_700_000, "lowword selector no longer invalidates integration");
+        assert!(projected_with_tapered_exact > 4_000_000, "tapered exact selector unexpectedly SOTA-shaped");
+    }
+
+    #[test]
     fn partial_mask_controlled_qoffset_linear_tradeoff_just_misses_600q_target() {
         // First-order model after the masked-borrow primitive: full mask gives
         // good gates but 766q scratch with compressed history; no mask gives
