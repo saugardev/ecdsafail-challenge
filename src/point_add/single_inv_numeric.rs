@@ -3202,6 +3202,86 @@ mod tests {
     }
 
     #[test]
+    fn plusminus_unary_controlled_parser_tax_with_existing_primitives() {
+        // Now charge the first obvious quantum-control tax for a unary-scan
+        // parser.  The stream bits are denominator-derived quantum history, not
+        // classical compile-time constants, so each delimiter-controlled add and
+        // each unary-controlled shift needs controlled modular arithmetic.  This
+        // uses the existing exact controlled add/double/halve primitives as a
+        // pessimistic but concrete baseline.  If this is too high, a plus-minus
+        // revival needs a Solinas/signed-representation controlled-shift
+        // breakthrough, not just the good state-size result above.
+        let p = SECP256K1_P;
+        let ccx_count = |ops: &[crate::circuit::Op]| -> usize {
+            ops.iter()
+                .filter(|o| matches!(o.kind, crate::circuit::OperationType::CCX | crate::circuit::OperationType::CCZ))
+                .count()
+        };
+
+        let mut b_add = super::super::B::new();
+        let acc = b_add.alloc_qubits(256);
+        let addend = b_add.alloc_qubits(256);
+        let ctrl = b_add.alloc_qubit();
+        let start = b_add.ops.len();
+        super::super::cmod_add_qq(&mut b_add, &acc, &addend, ctrl, p);
+        let cadd_ccx = ccx_count(&b_add.ops[start..]);
+
+        let mut b_dbl = super::super::B::new();
+        let v = b_dbl.alloc_qubits(256);
+        let ctrl_d = b_dbl.alloc_qubit();
+        let start = b_dbl.ops.len();
+        super::super::cmod_double_inplace(&mut b_dbl, &v, p, ctrl_d);
+        let cdouble_ccx = ccx_count(&b_dbl.ops[start..]);
+
+        let mut b_half = super::super::B::new();
+        let v = b_half.alloc_qubits(256);
+        let ctrl_h = b_half.alloc_qubit();
+        let start = b_half.ops.len();
+        super::super::cmod_halve_inplace(&mut b_half, &v, p, ctrl_h);
+        let chalve_ccx = ccx_count(&b_half.ops[start..]);
+        let cshift_ccx = cdouble_ccx.max(chalve_ccx);
+
+        let samples = 8192usize;
+        let mut rng = 0x6630_0ddc_c7a5_c0deu64;
+        let mut one_div = Vec::with_capacity(samples);
+        let mut scratches = Vec::with_capacity(samples);
+        for _ in 0..samples {
+            let mut x = rand_u256(&mut rng);
+            if x.is_zero() { x = U256::from(1u64); }
+            let ks = plusminus_k_sequence_for_divisor(x, p);
+            let unary: usize = ks.iter().sum();
+            let steps = ks.len();
+            scratches.push(256 + unary);
+            // Two channels: denominator-like and coefficient-like. Direction,
+            // sign, cleanup, and sidecar controls are still not included.
+            one_div.push(2 * (steps * cadd_ccx + unary * cshift_ccx));
+        }
+        one_div.sort_unstable();
+        scratches.sort_unstable();
+        let p99 = samples * 99 / 100;
+        let one_div_p99 = one_div[p99];
+        let one_div_max = *one_div.last().unwrap();
+        let two_div_p99 = 2 * one_div_p99;
+        let scaffold_after_div = 642_716usize;
+        let projected_p99 = scaffold_after_div + two_div_p99;
+        let gap_p99 = projected_p99 as isize - 2_700_000isize;
+        let scratch_max = *scratches.last().unwrap();
+        eprintln!(
+            "plus-minus unary controlled parser tax: cadd={cadd_ccx}, cdouble={cdouble_ccx}, chalve={chalve_ccx}, one_div_p99={one_div_p99}, projected_p99={projected_p99}, gap_p99={gap_p99}, scratch_max={scratch_max}"
+        );
+        println!("METRIC plusminus_unary_cadd_ccx={cadd_ccx}");
+        println!("METRIC plusminus_unary_cdouble_ccx={cdouble_ccx}");
+        println!("METRIC plusminus_unary_chalve_ccx={chalve_ccx}");
+        println!("METRIC plusminus_unary_controlled_one_div_p99_ccx={one_div_p99}");
+        println!("METRIC plusminus_unary_controlled_one_div_max_ccx={one_div_max}");
+        println!("METRIC plusminus_unary_controlled_two_div_p99_ccx={two_div_p99}");
+        println!("METRIC plusminus_unary_controlled_projected_p99_toffoli={projected_p99}");
+        println!("METRIC plusminus_unary_controlled_gap_p99_to_2700k={gap_p99}");
+        println!("METRIC plusminus_unary_controlled_scratch_max={scratch_max}");
+        assert!(cadd_ccx > 0 && cshift_ccx > 0, "controlled primitive accounting should be nonzero");
+    }
+
+    #[test]
     fn plusminus_raw_k_live_x_parser_recompute_is_gate_dead() {
         // Last live-parser objection for the plus-minus stream: if raw k bits
         // fit only without delimiters, maybe a parser recomputes the odd-GCD
