@@ -3717,6 +3717,40 @@ mod tests {
         }
     }
 
+    fn emit_barrel_left_shift_unsigned_exact_for_plusminus(
+        b: &mut super::super::B,
+        v: &[super::super::QubitId],
+        kbits: &[super::super::QubitId],
+        spill: &[super::super::QubitId],
+    ) {
+        assert!(spill.len() >= v.len());
+        for (j, &ctrl) in kbits.iter().enumerate() {
+            let s = 1usize << j;
+            if s >= v.len() { break; }
+            for i in (0..v.len()).rev() {
+                let lo = if i < s { spill[i] } else { v[i - s] };
+                local_cswap_for_plusminus_cost(b, ctrl, lo, v[i]);
+            }
+        }
+    }
+
+    fn emit_barrel_left_shift_unsigned_exact_inverse_for_plusminus(
+        b: &mut super::super::B,
+        v: &[super::super::QubitId],
+        kbits: &[super::super::QubitId],
+        spill: &[super::super::QubitId],
+    ) {
+        assert!(spill.len() >= v.len());
+        for (j, &ctrl) in kbits.iter().enumerate().rev() {
+            let s = 1usize << j;
+            if s >= v.len() { continue; }
+            for i in 0..v.len() {
+                let lo = if i < s { spill[i] } else { v[i - s] };
+                local_cswap_for_plusminus_cost(b, ctrl, lo, v[i]);
+            }
+        }
+    }
+
     fn controlled_left_shift_cost_for_plusminus(width: usize) -> usize {
         let mut b = super::super::B::new();
         let v = b.alloc_qubits(width);
@@ -4145,6 +4179,61 @@ mod tests {
             *cu = cd;
             *cv = cvs;
         }
+    }
+
+    #[test]
+    fn plusminus_barrel_shift_roundtrip_is_logwidth_not_quadratic() {
+        // Candidate replacement for the W^2 repeated-shift skeleton: store or
+        // compute k in binary and use a reversible barrel shift.  This validates
+        // the exact unsigned denominator shift primitive; binary-k generation
+        // and signed coefficient barrel shifts remain separate blockers.
+        use sha3::digest::{ExtendableOutput, Update};
+        const W: usize = 16;
+        const KB: usize = 4;
+        let mut b = super::super::B::new();
+        let v = b.alloc_qubits(W);
+        let kbits = b.alloc_qubits(KB);
+        let spill = b.alloc_qubits(W);
+        let start_left = b.ops.len();
+        emit_barrel_left_shift_unsigned_exact_for_plusminus(&mut b, &v, &kbits, &spill);
+        let left_ccx = local_count_ccx_for_plusminus_cost(&b.ops[start_left..]);
+        let start_inv = b.ops.len();
+        emit_barrel_left_shift_unsigned_exact_inverse_for_plusminus(&mut b, &v, &kbits, &spill);
+        let inv_ccx = local_count_ccx_for_plusminus_cost(&b.ops[start_inv..]);
+        let peak = b.peak_qubits;
+        let num_qubits = b.next_qubit as usize;
+        let num_bits = b.next_bit as usize;
+        let ops = b.ops;
+        for k in 0u64..8u64 {
+            for x in 0u64..(1u64 << (W - k as usize)).min(256) {
+                let mut hasher = sha3::Shake128::default();
+                hasher.update(b"plusminus-barrel-unsigned-shift-roundtrip-v1");
+                let mut xof = hasher.finalize_xof();
+                let mut sim = crate::sim::Simulator::new(num_qubits, num_bits, &mut xof);
+                set_slice_u512_pm(&mut sim, &v, U512::from(x));
+                set_slice_u512_pm(&mut sim, &kbits, U512::from(k));
+                sim.apply(&ops);
+                assert_eq!(get_slice_u512_pm(&sim, &v).as_limbs()[0] & ((1u64 << W) - 1), x, "v changed k={k} x={x}");
+                assert_eq!(get_slice_u512_pm(&sim, &kbits).as_limbs()[0], k, "k changed");
+                assert_eq!(get_slice_u512_pm(&sim, &spill), U512::ZERO, "spill dirty k={k} x={x}");
+                assert_eq!(sim.global_phase() & 1, 0, "unexpected phase k={k} x={x}");
+            }
+        }
+        let mut b64 = super::super::B::new();
+        let v64 = b64.alloc_qubits(64);
+        let k64 = b64.alloc_qubits(6);
+        let spill64 = b64.alloc_qubits(64);
+        let s64 = b64.ops.len();
+        emit_barrel_left_shift_unsigned_exact_for_plusminus(&mut b64, &v64, &k64, &spill64);
+        let w64_left_ccx = local_count_ccx_for_plusminus_cost(&b64.ops[s64..]);
+        let extrap257_left = ((w64_left_ccx as f64) * (257.0 / 64.0) * (8.0 / 6.0)).round() as usize;
+        eprintln!("plus-minus barrel unsigned shift: w16 left={left_ccx}, inv={inv_ccx}, peak={peak}, w64_left={w64_left_ccx}, extrap257_left={extrap257_left}");
+        println!("METRIC plusminus_barrel_shift_w16_left_ccx={left_ccx}");
+        println!("METRIC plusminus_barrel_shift_w16_inverse_ccx={inv_ccx}");
+        println!("METRIC plusminus_barrel_shift_w16_peak_q={peak}");
+        println!("METRIC plusminus_barrel_shift_w64_left_ccx={w64_left_ccx}");
+        println!("METRIC plusminus_barrel_shift_extrap257_left_ccx={extrap257_left}");
+        assert_eq!(left_ccx, W * KB, "barrel shift should be W*logW cswaps");
     }
 
     #[test]
