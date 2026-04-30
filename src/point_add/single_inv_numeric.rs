@@ -3865,6 +3865,67 @@ mod tests {
         assert_eq!(total_deficit_u, 0, "lane-specific public slack does not fit history");
     }
 
+    #[test]
+    fn plusminus_scaled_public_packing_map_moves_are_clifford_only() {
+        // Build a deterministic slot map from the lane envelope: at each public
+        // step, history bit j lives in the j-th available high slack slot across
+        // all lanes.  Changing this map between steps only requires SWAP/CX
+        // movement of already-classical-looking history qubits (Clifford cost),
+        // but the move count estimates scheduling complexity.
+        let p = SECP256K1_P;
+        let samples = 8192usize;
+        let mut rng = 0x5a10_6635_c11f_f00du64;
+        let mut max_lane_by_step: Vec<[usize; 4]> = Vec::new();
+        let mut max_hist_by_step: Vec<usize> = Vec::new();
+        for _ in 0..samples {
+            let mut x = rand_u256(&mut rng);
+            if x.is_zero() { x = U256::from(1u64); }
+            for (i, (lanes, hist)) in plusminus_scaled_lane_history_trace_for_divisor(x, p).into_iter().enumerate() {
+                if i == max_lane_by_step.len() {
+                    max_lane_by_step.push([0; 4]);
+                    max_hist_by_step.push(0);
+                }
+                for j in 0..4 {
+                    max_lane_by_step[i][j] = max_lane_by_step[i][j].max(lanes[j]);
+                }
+                max_hist_by_step[i] = max_hist_by_step[i].max(hist);
+            }
+        }
+        let slots_for = |lanes: [usize; 4], hist: usize| -> Vec<(usize, usize)> {
+            let mut slots = Vec::new();
+            for lane in 0..4 {
+                for bit in lanes[lane]..256 {
+                    slots.push((lane, bit));
+                }
+            }
+            assert!(slots.len() >= hist, "not enough slack slots for public packing map");
+            slots.truncate(hist);
+            slots
+        };
+        let mut prev: Vec<(usize, usize)> = Vec::new();
+        let mut total_moves = 0usize;
+        let mut max_step_moves = 0usize;
+        let mut max_hist = 0usize;
+        for i in 0..max_lane_by_step.len() {
+            let cur = slots_for(max_lane_by_step[i], max_hist_by_step[i]);
+            max_hist = max_hist.max(cur.len());
+            let common = prev.len().min(cur.len());
+            let moves = (0..common).filter(|&j| prev[j] != cur[j]).count();
+            total_moves += moves;
+            max_step_moves = max_step_moves.max(moves);
+            prev = cur;
+        }
+        eprintln!(
+            "plus-minus fixed public packing map: steps={}, max_hist={max_hist}, total_slot_moves={total_moves}, max_step_moves={max_step_moves}",
+            max_lane_by_step.len()
+        );
+        println!("METRIC plusminus_scaled_packmap_steps={}", max_lane_by_step.len());
+        println!("METRIC plusminus_scaled_packmap_max_history={max_hist}");
+        println!("METRIC plusminus_scaled_packmap_total_slot_moves={total_moves}");
+        println!("METRIC plusminus_scaled_packmap_max_step_moves={max_step_moves}");
+        assert!(max_hist <= 512, "history map unexpectedly exceeds two-lane scratch budget");
+    }
+
     fn smag_to_twos_for_plusminus_test(x: SignedMagU512ForHalfGcdTest, width: usize) -> U512 {
         let modulus = U512::from(1u64) << width;
         let mask = modulus - U512::from(1u64);
