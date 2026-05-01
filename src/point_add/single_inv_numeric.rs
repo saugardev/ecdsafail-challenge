@@ -7266,6 +7266,116 @@ mod tests {
     }
 
     #[test]
+    fn plusminus_scaled_public_lane_envelope_with_ambig_dir_and_scale_history_bits() {
+        // Best current SOTA shot: the odd-GCD plus-minus route with global
+        // scale `2^S`, public slack packing, and Solinas history-carry scale
+        // correction. The remaining hard-state question is whether the extra
+        // one-bit residual per scale chunk can coexist with unary history and
+        // ambiguous-direction bits inside the same public lane-slack envelope.
+        // Charge that piece explicitly before doing any circuit integration.
+        let p = SECP256K1_P;
+        let samples = 32_768usize;
+        let seed = 0x5ca1_6635_5ca1_2026u64;
+
+        let mut rng = seed;
+        let mut max_scale = 0usize;
+        let mut max_steps = 0usize;
+        for _ in 0..samples {
+            let mut x = rand_u256(&mut rng);
+            if x.is_zero() { x = U256::from(1u64); }
+            let trace = plusminus_scaled_lane_history_ambig_trace_for_divisor(x, p);
+            if let Some((_, hist, _)) = trace.last() {
+                max_scale = max_scale.max(*hist);
+                max_steps = max_steps.max(trace.len());
+            }
+        }
+        let (_scale_cost_dp, chunk_dp) = solinas_history_carry_scale_dp_for_plusminus(max_scale);
+
+        let mut rng = seed;
+        let mut max_lane_by_stage: Vec<[usize; 4]> = Vec::new();
+        let mut max_hist_by_stage: Vec<usize> = Vec::new();
+        let mut chunk_bits_samples = Vec::with_capacity(samples);
+        let mut final_hist_samples = Vec::with_capacity(samples);
+        let mut final_scratch_samples = Vec::with_capacity(samples);
+        for _ in 0..samples {
+            let mut x = rand_u256(&mut rng);
+            if x.is_zero() { x = U256::from(1u64); }
+            let trace = plusminus_scaled_lane_history_ambig_trace_for_divisor(x, p);
+            assert!(!trace.is_empty(), "unexpected empty plus-minus trace");
+            for (i, (lanes, hist, ambig)) in trace.iter().copied().enumerate() {
+                if i == max_lane_by_stage.len() {
+                    max_lane_by_stage.push([0; 4]);
+                    max_hist_by_stage.push(0);
+                }
+                for j in 0..4 {
+                    max_lane_by_stage[i][j] = max_lane_by_stage[i][j].max(lanes[j]);
+                }
+                max_hist_by_stage[i] = max_hist_by_stage[i].max(hist + ambig);
+            }
+            let (lanes_final, hist_final, ambig_final) = *trace.last().unwrap();
+            let chunk_bits = chunk_dp[hist_final];
+            let total_hist_final = hist_final + ambig_final + chunk_bits;
+            let final_stage = trace.len();
+            if final_stage == max_lane_by_stage.len() {
+                max_lane_by_stage.push([0; 4]);
+                max_hist_by_stage.push(0);
+            }
+            for j in 0..4 {
+                max_lane_by_stage[final_stage][j] = max_lane_by_stage[final_stage][j].max(lanes_final[j]);
+            }
+            max_hist_by_stage[final_stage] = max_hist_by_stage[final_stage].max(total_hist_final);
+
+            let final_slack_sum: usize = lanes_final.iter().map(|&w| 256usize - w).sum();
+            let final_deficit = total_hist_final.saturating_sub(final_slack_sum);
+            chunk_bits_samples.push(chunk_bits);
+            final_hist_samples.push(total_hist_final);
+            final_scratch_samples.push(512 + final_deficit);
+        }
+
+        let mut worst_deficit = 0isize;
+        let mut worst_stage = 0usize;
+        for i in 0..max_lane_by_stage.len() {
+            let slack_sum: isize = max_lane_by_stage[i]
+                .iter()
+                .map(|&w| 256isize - w as isize)
+                .sum();
+            let deficit = max_hist_by_stage[i] as isize - slack_sum;
+            if deficit > worst_deficit {
+                worst_deficit = deficit;
+                worst_stage = i;
+            }
+        }
+        chunk_bits_samples.sort_unstable();
+        final_hist_samples.sort_unstable();
+        final_scratch_samples.sort_unstable();
+        let p99 = samples * 99 / 100;
+        let chunk_bits_p99 = chunk_bits_samples[p99];
+        let chunk_bits_max = *chunk_bits_samples.last().unwrap();
+        let final_hist_p99 = final_hist_samples[p99];
+        let final_hist_max = *final_hist_samples.last().unwrap();
+        let final_scratch_p99 = final_scratch_samples[p99];
+        let final_scratch_max = *final_scratch_samples.last().unwrap();
+        let public_scratch = 512 + worst_deficit.max(0) as usize;
+        let over_google = public_scratch as isize - 663isize;
+        eprintln!(
+            "plus-minus scale-history slack gate: samples={samples}, max_scale={max_scale}, max_steps={max_steps}, chunk_bits_p99={chunk_bits_p99}, chunk_bits_max={chunk_bits_max}, final_hist_p99={final_hist_p99}, final_hist_max={final_hist_max}, final_scratch_p99={final_scratch_p99}, final_scratch_max={final_scratch_max}, public_scratch={public_scratch}, over_google={over_google}, worst_stage={worst_stage}"
+        );
+        println!("METRIC plusminus_scalehist_samples={samples}");
+        println!("METRIC plusminus_scalehist_max_scale={max_scale}");
+        println!("METRIC plusminus_scalehist_max_steps={max_steps}");
+        println!("METRIC plusminus_scalehist_chunk_bits_p99={chunk_bits_p99}");
+        println!("METRIC plusminus_scalehist_chunk_bits_max={chunk_bits_max}");
+        println!("METRIC plusminus_scalehist_final_hist_p99={final_hist_p99}");
+        println!("METRIC plusminus_scalehist_final_hist_max={final_hist_max}");
+        println!("METRIC plusminus_scalehist_final_scratch_p99={final_scratch_p99}");
+        println!("METRIC plusminus_scalehist_final_scratch_max={final_scratch_max}");
+        println!("METRIC plusminus_scalehist_public_scratch={public_scratch}");
+        println!("METRIC plusminus_scalehist_over_google_bits={over_google}");
+        println!("METRIC plusminus_scalehist_worst_stage={worst_stage}");
+        assert!(public_scratch <= 663, "scale-history bits overflow the public slack envelope");
+    }
+
+    #[test]
     fn plusminus_scaled_public_packing_map_moves_are_clifford_only() {
         // Build a deterministic slot map from the lane envelope: at each public
         // step, history bit j lives in the j-th available high slack slot across
