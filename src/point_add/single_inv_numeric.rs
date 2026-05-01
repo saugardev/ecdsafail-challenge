@@ -7868,6 +7868,77 @@ mod tests {
     }
 
     #[test]
+    fn euclid_stored_parser_needs_dynamic_longdivision_not_fixed_scan() {
+        // Adversarial follow-up to the relaxed-2800q quotient-stream ledger.
+        // The attractive 2.51M estimate used a bitlength-aware weighted-trial
+        // count (~45k p99).  A reversible circuit cannot literally run a
+        // data-dependent loop for free.  If quotient extraction scans all 256
+        // possible shifts for every Euclid quotient, the static comparator
+        // surface is count*256*256 bit-trials and the route is immediately
+        // dead even at one CCX per bit-trial.
+        let p = SECP256K1_P;
+        let samples = 4096usize;
+        let mut rng = 0x2800_f15c_5cae_0001u64;
+        let mut payload_bits = Vec::with_capacity(samples);
+        let mut counts = Vec::with_capacity(samples);
+        let mut weighted_trials = Vec::with_capacity(samples);
+        let mut fixed_scan_trials = Vec::with_capacity(samples);
+        for _ in 0..samples {
+            let mut x = rand_u256(&mut rng);
+            if x.is_zero() { x = U256::from(1u64); }
+            let mut u = p;
+            let mut v = x;
+            let mut payload = 0usize;
+            let mut count = 0usize;
+            let mut weighted = 0usize;
+            while !v.is_zero() {
+                let q = u / v;
+                let q_bits = u256_bit_len(q);
+                payload += q_bits;
+                count += 1;
+                weighted += q_bits * u256_bit_len(u);
+                let rem = u - q * v;
+                u = v;
+                v = rem;
+            }
+            payload_bits.push(payload);
+            counts.push(count);
+            weighted_trials.push(weighted);
+            fixed_scan_trials.push(count * 256usize * 256usize);
+        }
+        payload_bits.sort_unstable();
+        counts.sort_unstable();
+        weighted_trials.sort_unstable();
+        fixed_scan_trials.sort_unstable();
+        let p99 = samples * 99 / 100;
+        let payload_p99 = payload_bits[p99];
+        let count_p99 = counts[p99];
+        let weighted_p99 = weighted_trials[p99];
+        let fixed_scan_p99 = fixed_scan_trials[p99];
+        let per_qbit_replay_ccx = 587usize;
+        let coeff_replay_per_div = payload_p99 * per_qbit_replay_ccx;
+        let scaffold_after_div = 642_716isize;
+        let fixed_scan_one_ccx_pointadd = scaffold_after_div
+            + 2 * (coeff_replay_per_div as isize + 2 * fixed_scan_p99 as isize);
+        let fixed_scan_gap = fixed_scan_one_ccx_pointadd - 3_000_000isize;
+        let fixed_scan_unit_budget = (3_000_000isize - scaffold_after_div - 2 * coeff_replay_per_div as isize) as f64
+            / (4.0 * fixed_scan_p99 as f64);
+        let dynamic_vs_fixed_ratio = fixed_scan_p99 as f64 / weighted_p99 as f64;
+        println!("METRIC euclid_fixedscan_count_p99={count_p99}");
+        println!("METRIC euclid_fixedscan_payload_p99_bits={payload_p99}");
+        println!("METRIC euclid_fixedscan_weighted_trials_p99={weighted_p99}");
+        println!("METRIC euclid_fixedscan_static_trials_p99={fixed_scan_p99}");
+        println!("METRIC euclid_fixedscan_dynamic_vs_fixed_ratio={dynamic_vs_fixed_ratio:.3}");
+        println!("METRIC euclid_fixedscan_gap_to_3m_at_1ccx={fixed_scan_gap}");
+        println!("METRIC euclid_fixedscan_unit_budget_for_3m_ccx={fixed_scan_unit_budget:.6}");
+        eprintln!(
+            "Euclid fixed-scan risk: count_p99={count_p99}, weighted_p99={weighted_p99}, fixed_scan_p99={fixed_scan_p99}, ratio={dynamic_vs_fixed_ratio:.1}, gap_at_1ccx={fixed_scan_gap}, unit_budget={fixed_scan_unit_budget:.6}"
+        );
+        assert!(fixed_scan_gap > 20_000_000, "fixed-scan long division might fit; revisit quotient extractor");
+        assert!(fixed_scan_unit_budget < 0.1, "fixed-scan unit budget is not impossibly small; measure circuit");
+    }
+
+    #[test]
     fn euclid_quotient_stream_entropy_also_exceeds_scratch600() {
         // Follow-up to the raw-payload quotient-stream DIV test.  The tempting
         // objection is that a clever prefix/arithmetic code could pack the
