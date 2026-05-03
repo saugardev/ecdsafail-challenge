@@ -88,6 +88,18 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
             blocker: "raw stream fits only before parser/rank/live-recompute cost is charged",
         },
         Candidate {
+            name: "direct_centered_signnorm_raw_digits_only",
+            scratch_bits: 653,
+            charged_toffoli: None,
+            blocker: "raw sign-normalized digits fit, but phase-clean exact cneg p99 is 2792914 and normalization-sign history is uncharged",
+        },
+        Candidate {
+            name: "direct_centered_signnorm_rank_compressed_signs",
+            scratch_bits: 765,
+            charged_toffoli: None,
+            blocker: "even combinatorial/rank-compressed normalization signs need 765 p99 scratch bits, 102 over Google",
+        },
+        Candidate {
             name: "halfgcd_first_matrix_checkpoint_only",
             scratch_bits: 524,
             charged_toffoli: None,
@@ -130,6 +142,16 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let centered_raw_scratch = 592usize;
     let centered_boundary_scratch_p99 = 710usize;
     let centered_parser_over_strict = centered_boundary_scratch_p99 - STRICT_SCRATCH;
+    let direct_signnorm_raw_digit_scratch_p99 = 653usize;
+    let direct_signnorm_rank_scratch_p99 = 765usize;
+    let direct_signnorm_ambiguous_rank_scratch_p99 = 764usize;
+    let direct_signnorm_rank_over_google =
+        direct_signnorm_rank_scratch_p99 - GOOGLE_LOW_QUBIT_SCRATCH;
+    let direct_signnorm_ambiguous_rank_over_google =
+        direct_signnorm_ambiguous_rank_scratch_p99 - GOOGLE_LOW_QUBIT_SCRATCH;
+    let direct_signnorm_exact_split_p99 = 2_792_914usize;
+    let direct_signnorm_exact_split_gap =
+        direct_signnorm_exact_split_p99 as isize - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
     let plusminus_raw_scratch = 564usize;
     let plusminus_unary_scratch_p99 = 640usize;
     let plusminus_parser_over_strict = plusminus_unary_scratch_p99 - STRICT_SCRATCH;
@@ -174,6 +196,13 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     println!("METRIC scratch600_centered_raw_scratch_bits={centered_raw_scratch}");
     println!("METRIC scratch600_centered_boundary_scratch_p99={centered_boundary_scratch_p99}");
     println!("METRIC scratch600_centered_parser_over_strict_bits={centered_parser_over_strict}");
+    println!("METRIC scratch600_direct_signnorm_raw_digit_scratch_p99={direct_signnorm_raw_digit_scratch_p99}");
+    println!("METRIC scratch600_direct_signnorm_rank_scratch_p99={direct_signnorm_rank_scratch_p99}");
+    println!("METRIC scratch600_direct_signnorm_rank_over_google_bits={direct_signnorm_rank_over_google}");
+    println!("METRIC scratch600_direct_signnorm_ambiguous_rank_scratch_p99={direct_signnorm_ambiguous_rank_scratch_p99}");
+    println!("METRIC scratch600_direct_signnorm_ambiguous_rank_over_google_bits={direct_signnorm_ambiguous_rank_over_google}");
+    println!("METRIC scratch600_direct_signnorm_exact_split_p99={direct_signnorm_exact_split_p99}");
+    println!("METRIC scratch600_direct_signnorm_exact_split_gap_to_2700k={direct_signnorm_exact_split_gap}");
     println!("METRIC scratch600_plusminus_raw_scratch_bits={plusminus_raw_scratch}");
     println!("METRIC scratch600_plusminus_unary_scratch_p99={plusminus_unary_scratch_p99}");
     println!("METRIC scratch600_plusminus_parser_over_strict_bits={plusminus_parser_over_strict}");
@@ -188,5 +217,13 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     assert!(streamed_gap_to_google > 0, "no fully charged <=600-scratch row should be counted as solved yet");
     assert!(streamed_selector_shortfall > 0, "streamed-mask route still needs a selector breakthrough");
     assert!(centered_parser_over_strict > 0 && plusminus_parser_over_strict > 0, "raw streams must not be counted before parser cost");
+    assert!(
+        direct_signnorm_rank_over_google > 0 && direct_signnorm_ambiguous_rank_over_google > 0,
+        "sign-normalized direct route should stay blocked until normalization signs fit Google scratch"
+    );
+    assert!(
+        direct_signnorm_exact_split_gap > 0,
+        "phase-clean exact sign normalization should not be counted as p99 low-qubit solved"
+    );
     assert!(halfgcd_tail_over_google > 0, "half-GCD checkpoint must be fused before it fits");
 }
