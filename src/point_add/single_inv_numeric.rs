@@ -9371,6 +9371,91 @@ mod tests {
     }
 
     #[test]
+    fn direct_centered_public_width_taper_average_hits_lowqubit_metric() {
+        // The exact width-tapered ledger above was intentionally p99-shaped.
+        // The harness objective is average executed Toffoli over 64 shots, so
+        // compute the same exact-public-width model per sample and check
+        // whether the mean/64-shot metric is already in the 2.7M band while
+        // the p99 tail remains above it.
+        let p = SECP256K1_P;
+        let samples = 32_768usize;
+        let mut rng = 0x2800_d1ce_7a9e_a64u64;
+        let n = 256usize;
+        let mut pointadds = Vec::with_capacity(samples);
+        let mut first64_sum = 0isize;
+        for sample_idx in 0..samples {
+            let mut x = rand_u256(&mut rng);
+            if x.is_zero() { x = U256::from(1u64); }
+            let mut u = smag_for_halfgcd_test(false, u512_from_u256_for_halfgcd_test(p));
+            let mut v = smag_for_halfgcd_test(false, u512_from_u256_for_halfgcd_test(x));
+            let (mut digit_payload, mut digit_width_cost, mut count, mut final_count) =
+                (0usize, 0usize, 0usize, 0usize);
+            while !v.mag.is_zero() {
+                let public_bound = direct_centered_public_width_bound_for_step(n, count);
+                let adjusted = u.mag + (v.mag >> 1usize);
+                let q_direct = adjusted / v.mag;
+                let (digits, _rem, final_negative) =
+                    nonrestoring_floor_digits_for_centered_test(adjusted, v.mag);
+                digit_payload += digits;
+                digit_width_cost += digits * public_bound;
+                final_count += final_negative as usize;
+                count += 1;
+                let q_neg = u.neg ^ v.neg;
+                let qv = signed_mul_mag_for_halfgcd_test(v, q_neg, q_direct);
+                let r = signed_add_for_halfgcd_test(u, signed_neg_for_halfgcd_test(qv));
+                u = v;
+                v = r;
+            }
+            let public_width_sum = (0..count)
+                .map(|step| direct_centered_public_width_bound_for_step(n, step))
+                .sum::<usize>();
+            let replay_per_div = (digit_payload + final_count) * 587usize;
+            let final_fix_tapered = (0..count)
+                .map(|step| 2usize * direct_centered_public_width_bound_for_step(n, step) - 1usize)
+                .sum::<usize>();
+            let inactive_positions_tapered = public_width_sum - digit_payload;
+            let barrel_and_scan_tapered = public_width_sum * (8usize + 1usize);
+            let extraction_oneway = digit_width_cost
+                + barrel_and_scan_tapered
+                + final_fix_tapered
+                + inactive_positions_tapered;
+            let pointadd = 642_716isize
+                + 2 * (replay_per_div + 2 * extraction_oneway) as isize;
+            if sample_idx < 64 {
+                first64_sum += pointadd;
+            }
+            pointadds.push(pointadd);
+        }
+        pointadds.sort_unstable();
+        let sum = pointadds.iter().map(|&v| v as f64).sum::<f64>();
+        let mean = sum / samples as f64;
+        let first64_avg = first64_sum as f64 / 64.0;
+        let p50 = pointadds[samples / 2];
+        let p90 = pointadds[samples * 90 / 100];
+        let p99 = pointadds[samples * 99 / 100];
+        let max = *pointadds.last().unwrap();
+        let mean_gap = mean - 2_700_000.0;
+        let first64_gap = first64_avg - 2_700_000.0;
+        let p99_gap = p99 - 2_700_000isize;
+        println!("METRIC centered_direct_width_taper_avg_samples={samples}");
+        println!("METRIC centered_direct_width_taper_avg_pointadd_mean={mean:.3}");
+        println!("METRIC centered_direct_width_taper_avg_pointadd_first64={first64_avg:.3}");
+        println!("METRIC centered_direct_width_taper_avg_pointadd_p50={p50}");
+        println!("METRIC centered_direct_width_taper_avg_pointadd_p90={p90}");
+        println!("METRIC centered_direct_width_taper_avg_pointadd_p99={p99}");
+        println!("METRIC centered_direct_width_taper_avg_pointadd_max={max}");
+        println!("METRIC centered_direct_width_taper_avg_gap_to_2700k={mean_gap:.3}");
+        println!("METRIC centered_direct_width_taper_avg_first64_gap_to_2700k={first64_gap:.3}");
+        println!("METRIC centered_direct_width_taper_avg_p99_gap_to_2700k={p99_gap}");
+        eprintln!(
+            "Centered direct public width taper average: mean={mean:.1}, first64={first64_avg:.1}, p50={p50}, p90={p90}, p99={p99}, max={max}, mean_gap={mean_gap:.1}, first64_gap={first64_gap:.1}, p99_gap={p99_gap}"
+        );
+        assert!(mean < 2_700_000.0, "exact width-tapered average still misses the low-qubit metric");
+        assert!(first64_avg < 2_700_000.0, "64-shot-style exact width-tapered average misses the low-qubit metric");
+        assert!(p99_gap > 0, "p99 tail no longer explains why this is not a production implementation");
+    }
+
+    #[test]
     fn direct_centered_classical_alignment_metadata_would_remove_barrel_blocker() {
         // If the quotient parser can expose alignment metadata as phase-clean
         // classical bits, the variable barrel layers become classically

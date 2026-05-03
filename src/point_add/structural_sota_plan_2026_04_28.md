@@ -1814,6 +1814,19 @@ This revives an exact relaxed-3M direct-centered route without classical
 alignment metadata.  It is still not the low-qubit SOTA target: the remaining
 gap to 2.7M is about 33,648 one-way extraction CCX or 67,296 per-DIV replay CCX.
 
+Important metric correction: the p99 ledger is more conservative than the
+actual harness objective, which is average executed Toffoli over 64 shots.
+`direct_centered_public_width_taper_average_hits_lowqubit_metric` recomputes the
+same exact public-width model per sample.  It finds mean point-add
+`2,652,336.791`, first-64 average `2,653,659.625`, p50 `2,653,166`, p90
+`2,748,416`, p99 `2,825,654`, and max `2,981,348`.  So the exact public-width
+direct-centered route is now metric-shaped for the 2.7M low-qubit target if the
+packed extractor/replay can be implemented with data-dependent classical
+execution.  The p99/worst tail still blocks a static worst-case circuit and the
+production hard pieces are unchanged: packed active digit loop, exact boundary
+cleanup, signed final correction, phase-clean quotient controls, and
+denominator reverse.
+
 Follow-up: the barrel mechanics are not the blocker if the parser can expose
 alignment metadata as phase-clean classical bits.  `direct_centered_classical_alignment_metadata_would_remove_barrel_blocker`
 uses bit-controlled swaps and measures `0` barrel Toffoli in the toy shifter.
