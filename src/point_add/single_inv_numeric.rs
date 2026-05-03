@@ -10678,6 +10678,183 @@ mod tests {
     }
 
     #[test]
+    fn direct_centered_sign_normalized_logical_coeff_sign_budget_probe() {
+        // Refine the sign-normalized route by keeping coefficient row signs as
+        // two logical bits instead of physically cneg'ing the coefficient lane
+        // whenever the centered remainder is negative.  If
+        // Lu=(-1)^su*U and Lv=(-1)^sv*V, then a raw row update with sign
+        // su^sv computes U -/+ qV and the new logical sign starts at su.  A
+        // negative normalized remainder only flips that new sign bit.
+        let p = SECP256K1_P;
+        let samples = 32_768usize;
+        let mut rng = 0x2800_d1ce_5190_0001u64;
+        let n = 256usize;
+        let coeff_lane_width = 258usize;
+        let cneg_costs = (0..=coeff_lane_width)
+            .map(|w| if w == 0 { 0 } else { twos_cneg_direct_cost_for_centered_test(w) })
+            .collect::<Vec<_>>();
+        let cneg257 = cneg_costs[257];
+        let mut logical_split_static = Vec::with_capacity(samples);
+        let mut logical_once_static = Vec::with_capacity(samples);
+        let mut norm_counts = Vec::with_capacity(samples);
+        let mut norm_rem_costs = Vec::with_capacity(samples);
+        let mut coeff_width_costs = Vec::with_capacity(samples);
+        for _ in 0..samples {
+            let mut x = rand_u256(&mut rng);
+            if x.is_zero() {
+                x = U256::from(1u64);
+            }
+            let mut u = u512_from_u256_for_halfgcd_test(p);
+            let mut v = u512_from_u256_for_halfgcd_test(x);
+            let mut coeff_u = smag_for_halfgcd_test(false, U512::ZERO);
+            let mut coeff_v = smag_for_halfgcd_test(false, U512::from(1u64));
+            let mut coeff_u_sign = false;
+            let mut coeff_v_sign = false;
+            let (mut digit_payload, mut digit_width_cost, mut count) =
+                (0usize, 0usize, 0usize);
+            let mut coeff_width_cost = 0usize;
+            let mut norm_count = 0usize;
+            let mut norm_rem_cost = 0usize;
+            while !v.is_zero() {
+                let public_bound = direct_centered_public_width_bound_for_step(n, count);
+                let adjusted = u + (v >> 1usize);
+                let q_direct = adjusted / v;
+                let signed_digits =
+                    nonrestoring_floor_signed_digits_for_centered_test(adjusted, v);
+                digit_payload += signed_digits.len();
+                digit_width_cost += signed_digits.len() * public_bound;
+
+                let mut coeff_acc = coeff_u;
+                for &(digit_neg, sh) in &signed_digits {
+                    let term = signed_mul_mag_for_halfgcd_test(
+                        coeff_v,
+                        coeff_u_sign ^ coeff_v_sign ^ digit_neg,
+                        U512::from(1u64) << sh,
+                    );
+                    let before = coeff_acc;
+                    coeff_acc = signed_add_for_halfgcd_test(
+                        coeff_acc,
+                        signed_neg_for_halfgcd_test(term),
+                    );
+                    let op_mag_bits = u512_bit_len_for_halfgcd_test(before.mag)
+                        .max(u512_bit_len_for_halfgcd_test(term.mag))
+                        .max(u512_bit_len_for_halfgcd_test(coeff_acc.mag));
+                    coeff_width_cost += op_mag_bits.max(1) + 1;
+                }
+
+                let logical_u = if coeff_u_sign {
+                    signed_neg_for_halfgcd_test(coeff_u)
+                } else {
+                    coeff_u
+                };
+                let logical_v = if coeff_v_sign {
+                    signed_neg_for_halfgcd_test(coeff_v)
+                } else {
+                    coeff_v
+                };
+                let qv_coeff = signed_mul_mag_for_halfgcd_test(logical_v, false, q_direct);
+                let coeff_direct = signed_add_for_halfgcd_test(
+                    logical_u,
+                    signed_neg_for_halfgcd_test(qv_coeff),
+                );
+                let coeff_acc_logical = if coeff_u_sign {
+                    signed_neg_for_halfgcd_test(coeff_acc)
+                } else {
+                    coeff_acc
+                };
+                assert_eq!(
+                    coeff_acc_logical, coeff_direct,
+                    "logical-sign coefficient replay mismatch"
+                );
+
+                let qv = v * q_direct;
+                let r_signed = if u >= qv {
+                    smag_for_halfgcd_test(false, u - qv)
+                } else {
+                    smag_for_halfgcd_test(true, qv - u)
+                };
+                let r_neg = r_signed.neg && !r_signed.mag.is_zero();
+                if r_neg {
+                    norm_count += 1;
+                    norm_rem_cost += cneg_costs[public_bound];
+                }
+                let coeff_acc_sign = coeff_u_sign ^ r_neg;
+                coeff_u = coeff_v;
+                coeff_u_sign = coeff_v_sign;
+                coeff_v = coeff_acc;
+                coeff_v_sign = coeff_acc_sign;
+                u = v;
+                v = r_signed.mag;
+                count += 1;
+            }
+            assert_eq!(u, U512::from(1u64), "logical-sign trace ended at non-unit gcd");
+            let coeff_u_logical = if coeff_u_sign {
+                signed_neg_for_halfgcd_test(coeff_u)
+            } else {
+                coeff_u
+            };
+            let coeff_mod = signed_u512_mod_u256_for_centered_test(coeff_u_logical, p);
+            assert_eq!(
+                coeff_mod.mul_mod(x, p),
+                U256::from(1u64),
+                "logical-sign coefficient is not the denominator inverse"
+            );
+            let public_width_sum = (0..count)
+                .map(|step| direct_centered_public_width_bound_for_step(n, step))
+                .sum::<usize>();
+            let final_fix_tapered = (0..count)
+                .map(|step| 2usize * direct_centered_public_width_bound_for_step(n, step) - 1usize)
+                .sum::<usize>();
+            let inactive_positions_tapered = public_width_sum - digit_payload;
+            let barrel_and_scan_tapered = public_width_sum * (8usize + 1usize);
+            let extraction_oneway = digit_width_cost
+                + barrel_and_scan_tapered
+                + final_fix_tapered
+                + inactive_positions_tapered;
+            let logical_once = 642_716isize
+                + 2 * (3 * coeff_width_cost + norm_rem_cost + 2 * extraction_oneway) as isize;
+            let logical_split = 642_716isize
+                + 2 * (3 * coeff_width_cost + 2 * (extraction_oneway + norm_rem_cost)) as isize;
+            logical_once_static.push(logical_once);
+            logical_split_static.push(logical_split);
+            norm_counts.push(norm_count);
+            norm_rem_costs.push(norm_rem_cost);
+            coeff_width_costs.push(coeff_width_cost);
+        }
+        logical_once_static.sort_unstable();
+        logical_split_static.sort_unstable();
+        norm_counts.sort_unstable();
+        norm_rem_costs.sort_unstable();
+        coeff_width_costs.sort_unstable();
+        let p99 = samples * 99 / 100;
+        let logical_once_p99 = logical_once_static[p99];
+        let logical_split_p99 = logical_split_static[p99];
+        let norm_count_p99 = norm_counts[p99];
+        let norm_count_max = *norm_counts.last().unwrap();
+        let norm_rem_p99 = norm_rem_costs[p99];
+        let coeff_width_p99 = coeff_width_costs[p99];
+        let logical_once_gap = logical_once_p99 - 2_700_000isize;
+        let logical_split_gap = logical_split_p99 - 2_700_000isize;
+        println!("METRIC centered_direct_logsign_cneg257={cneg257}");
+        println!("METRIC centered_direct_logsign_coeff_width_p99={coeff_width_p99}");
+        println!("METRIC centered_direct_logsign_norm_count_p99={norm_count_p99}");
+        println!("METRIC centered_direct_logsign_norm_count_max={norm_count_max}");
+        println!("METRIC centered_direct_logsign_rem_cost_p99={norm_rem_p99}");
+        println!("METRIC centered_direct_logsign_once_p99={logical_once_p99}");
+        println!("METRIC centered_direct_logsign_split_p99={logical_split_p99}");
+        println!("METRIC centered_direct_logsign_once_gap_to_2700k={logical_once_gap}");
+        println!("METRIC centered_direct_logsign_split_gap_to_2700k={logical_split_gap}");
+        eprintln!(
+            "Direct-centered logical coeff-sign budget: cneg257={cneg257}, coeff_width_p99={coeff_width_p99}, norm_count_p99={norm_count_p99}, norm_count_max={norm_count_max}, rem_p99={norm_rem_p99}, once_p99={logical_once_p99}, split_p99={logical_split_p99}, once_gap={logical_once_gap}, split_gap={logical_split_gap}"
+        );
+        assert!(norm_count_p99 > 0, "logical-sign normalization never fired");
+        assert!(
+            logical_once_gap > 0 && logical_split_gap > 0,
+            "logical coefficient signs reach the low-qubit target; promote to implementation"
+        );
+    }
+
+    #[test]
     fn direct_centered_prefinal_signed_remainder_inline_coeff_budget_probe() {
         // Avoid the late final_negative coefficient correction entirely: keep the
         // pre-final non-restoring signed quotient digit stream and use the
