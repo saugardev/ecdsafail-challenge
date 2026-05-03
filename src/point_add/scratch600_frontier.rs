@@ -109,7 +109,7 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
             name: "halfgcd_det_compressed_matrix_tail_payload",
             scratch_bits: 564,
             charged_toffoli: None,
-            blocker: "determinant-compressed matrix+tail payload fits, but omitted-entry recovery is a 262x128-bit division and tail parser/cleanup are uncharged",
+            blocker: "determinant-compressed matrix+tail payload fits and toy raw-tail streams are self-delimiting with the matrix, but omitted-entry recovery is a 262x128-bit exact division and cleanup is uncharged",
         },
         Candidate {
             name: "folded_kaliski_one_pair_plus_required_sidecar",
@@ -172,6 +172,9 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
         halfgcd_det_compressed_tail as isize - GOOGLE_LOW_QUBIT_SCRATCH as isize;
     let halfgcd_det_recovery_num_bits_p99 = 262usize;
     let halfgcd_det_recovery_den_bits_p99 = 128usize;
+    let halfgcd_tail_raw_rank_max_mult_n14 = 1usize;
+    let halfgcd_tail_raw_rank_degree_n14 = 0usize;
+    let halfgcd_tail_raw_rank_density_n14 = 0usize;
 
     eprintln!("\nScratch-600 architecture frontier:");
     for c in candidates {
@@ -227,6 +230,9 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     println!("METRIC scratch600_halfgcd_det_compressed_tail_gap_google={halfgcd_det_compressed_tail_gap}");
     println!("METRIC scratch600_halfgcd_det_recovery_num_bits_p99={halfgcd_det_recovery_num_bits_p99}");
     println!("METRIC scratch600_halfgcd_det_recovery_den_bits_p99={halfgcd_det_recovery_den_bits_p99}");
+    println!("METRIC scratch600_halfgcd_tail_raw_rank_max_mult_n14={halfgcd_tail_raw_rank_max_mult_n14}");
+    println!("METRIC scratch600_halfgcd_tail_raw_rank_degree_n14={halfgcd_tail_raw_rank_degree_n14}");
+    println!("METRIC scratch600_halfgcd_tail_raw_rank_density_n14={halfgcd_tail_raw_rank_density_n14}");
 
     assert!(best_state <= STRICT_SCRATCH, "at least some state shapes fit");
     assert!(streamed_gap_to_google > 0, "no fully charged <=600-scratch row should be counted as solved yet");
@@ -243,6 +249,12 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     assert!(halfgcd_tail_over_google > 0, "half-GCD checkpoint must be fused before it fits");
     assert!(
         halfgcd_det_compressed_tail_gap < 0 && halfgcd_det_recovery_num_bits_p99 > 256,
-        "half-GCD determinant compression state changed; update recovery/parser blocker"
+        "half-GCD determinant compression state changed; update recovery blocker"
+    );
+    assert!(
+        halfgcd_tail_raw_rank_max_mult_n14 == 1
+            && halfgcd_tail_raw_rank_degree_n14 == 0
+            && halfgcd_tail_raw_rank_density_n14 == 0,
+        "half-GCD raw-tail parser toy result changed; update frontier blocker"
     );
 }
