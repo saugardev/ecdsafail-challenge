@@ -4053,6 +4053,51 @@ mod tests {
     }
 
     #[test]
+    fn half_gcd_second_column_coeff_decoder_scan_budget_is_tiny() {
+        // The coefficient decoder is close only if alignment is effectively
+        // free.  Split the same sampled rows into arithmetic floor and scan
+        // cost: the no-scan floor barely fits the previous one-way margin, but
+        // even a small generic alignment scan exhausts it.
+        const PREVIOUS_ONEWAY_BUDGET: usize = 345_059;
+        const PREVIOUS_EXACT_EXTRACTION_P99: usize = 315_122;
+
+        let samples = 4096usize;
+        let rows = half_gcd_second_column_prefix_coeff_decoder_costs_for_test(
+            samples,
+            0x5ec0_0001_dec0_de01u64,
+        );
+        let mut exact = Vec::with_capacity(samples);
+        let mut no_scan = Vec::with_capacity(samples);
+        let mut scan = Vec::with_capacity(samples);
+        for &(exact_cost, digit, final_fix, scan_cost, _, _, _) in &rows {
+            exact.push(exact_cost);
+            no_scan.push(digit + final_fix);
+            scan.push(scan_cost);
+        }
+        exact.sort_unstable();
+        no_scan.sort_unstable();
+        scan.sort_unstable();
+        let p99 = samples * 99 / 100;
+        let exact_p99 = exact[p99];
+        let no_scan_p99 = no_scan[p99];
+        let scan_p99 = scan[p99];
+        let prior_margin = PREVIOUS_ONEWAY_BUDGET - PREVIOUS_EXACT_EXTRACTION_P99;
+        let remaining_scan_budget = prior_margin.saturating_sub(no_scan_p99);
+        let scan_over_budget = scan_p99 as isize - remaining_scan_budget as isize;
+        println!("METRIC halfgcd_second_col_prefix_coeff_decoder_no_scan_p99={no_scan_p99}");
+        println!("METRIC halfgcd_second_col_prefix_coeff_decoder_scan_budget={remaining_scan_budget}");
+        println!("METRIC halfgcd_second_col_prefix_coeff_decoder_scan_over_budget={scan_over_budget}");
+        eprintln!(
+            "half-GCD second-column coeff decoder scan budget: exact_p99={exact_p99}, no_scan_p99={no_scan_p99}, scan_p99={scan_p99}, prior_margin={prior_margin}, remaining_scan_budget={remaining_scan_budget}, scan_over_budget={scan_over_budget}"
+        );
+        assert!(no_scan_p99 < prior_margin, "coefficient arithmetic floor no longer fits the old margin");
+        assert!(
+            scan_over_budget > 40_000,
+            "coefficient alignment scan may now fit; revisit half-GCD prefix cleanup"
+        );
+    }
+
+    #[test]
     fn half_gcd_second_column_schedule_removes_matrix_extraction_scratch_blocker() {
         // Unlike a determinant-compressed full matrix, the second column can be
         // generated and updated directly during the prefix loop.  Price the

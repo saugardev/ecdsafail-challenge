@@ -357,6 +357,9 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let halfgcd_second_col_prefix_exact_pointadd_p99 = 2_538_566usize;
     let halfgcd_second_col_prefix_exact_gap_to_2700k =
         halfgcd_second_col_prefix_exact_pointadd_p99 as isize - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+    let halfgcd_second_col_prefix_coeff_decoder_no_scan_p99 = 26_796usize;
+    let halfgcd_second_col_prefix_coeff_decoder_scan_budget = 3_141usize;
+    let halfgcd_second_col_prefix_coeff_decoder_scan_over_budget = 51_975isize;
 
     eprintln!("\nScratch-600 architecture frontier:");
     for c in candidates {
@@ -536,6 +539,9 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     println!("METRIC scratch600_halfgcd_second_col_prefix_coeff_decoder_steps_p99={halfgcd_second_col_prefix_coeff_decoder_steps_p99}");
     println!("METRIC scratch600_halfgcd_second_col_prefix_coeff_decoder_digits_p99={halfgcd_second_col_prefix_coeff_decoder_digits_p99}");
     println!("METRIC scratch600_halfgcd_second_col_prefix_coeff_decoder_final_negative_p99={halfgcd_second_col_prefix_coeff_decoder_final_negative_p99}");
+    println!("METRIC scratch600_halfgcd_second_col_prefix_coeff_decoder_no_scan_p99={halfgcd_second_col_prefix_coeff_decoder_no_scan_p99}");
+    println!("METRIC scratch600_halfgcd_second_col_prefix_coeff_decoder_scan_budget={halfgcd_second_col_prefix_coeff_decoder_scan_budget}");
+    println!("METRIC scratch600_halfgcd_second_col_prefix_coeff_decoder_scan_over_budget={halfgcd_second_col_prefix_coeff_decoder_scan_over_budget}");
     println!("METRIC scratch600_halfgcd_second_col_prefix_augmented_extraction_p99={halfgcd_second_col_prefix_augmented_extraction_p99}");
     println!("METRIC scratch600_halfgcd_second_col_prefix_augmented_pointadd_p99={halfgcd_second_col_prefix_augmented_pointadd_p99}");
     println!("METRIC scratch600_halfgcd_second_col_prefix_augmented_gap_to_2700k={halfgcd_second_col_prefix_augmented_gap_to_2700k}");
@@ -719,5 +725,13 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
             > halfgcd_second_col_prefix_oneway_budget_ccx
             && halfgcd_second_col_prefix_augmented_gap_to_2700k > 0,
         "half-GCD coefficient q-cleanup no longer blocks the exact-prefix route"
+    );
+    assert!(
+        halfgcd_second_col_prefix_coeff_decoder_no_scan_p99
+            < halfgcd_second_col_prefix_oneway_budget_ccx
+                - halfgcd_second_col_prefix_exact_extraction_p99
+            && halfgcd_second_col_prefix_coeff_decoder_scan_budget < 4_000
+            && halfgcd_second_col_prefix_coeff_decoder_scan_over_budget > 40_000,
+        "half-GCD coefficient decoder alignment budget changed; revisit q-cleanup route"
     );
 }
