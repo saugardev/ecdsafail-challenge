@@ -301,7 +301,7 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
             name: "halfgcd_second_column_full_block_endpoint_rank_decoder_opening",
             scratch_bits: 539,
             charged_toffoli: None,
-            blocker: "the outgoing endpoint value can be compressed to a two-bit branch rank per active b32 block: exact n10/n12/n14/n16/n17 toys have at most 4 compatible endpoint/pattern branches per local key, and each coefficient lane has at most two outgoing carry values. The secp rank-source projection is 2659620 (-40380). This improves the raw endpoint-state margin, but exact toys still have coupled non-cartesian endpoint sets (n17=216 keys, largest=227), so independent carry decoders are not enough; it still needs a phase-clean joint local rank decoder and branch cleanup",
+            blocker: "the outgoing endpoint value can be compressed to a two-bit branch rank per active b32 block: exact n10/n12/n14/n16/n17 toys have at most 4 compatible endpoint/pattern branches per local key, and each coefficient lane has at most two outgoing carry values. A local min-cost endpoint DP reproduces every traced active block in the 4096 secp sample and exact toys (16202 sample blocks, 299013 toy blocks, 0 mismatches), so this is an algorithmic decoder shape rather than pure support lookup. The secp rank-source projection is 2659620 (-40380), but exact toys still have coupled non-cartesian endpoint sets (n17=216 keys, largest=227), so independent carry decoders are not enough; it still needs a phase-clean joint local DP/rank decoder and cleanup",
         },
         Candidate {
             name: "halfgcd_second_column_zero_row_id_noactive_floor",
@@ -2205,6 +2205,16 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
         227usize;
     let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_split_n17_non_cartesian =
         216usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_local_dp_sample_checked =
+        16_202usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_local_dp_sample_mismatches =
+        0usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_local_dp_toy_checked_total =
+        299_013usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_local_dp_toy_mismatches_total =
+        0usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_local_dp_toy_n17_checked =
+        119_249usize;
     let halfgcd_second_col_joint_signed_binary_active_degree_n14 = 13usize;
     let halfgcd_second_col_joint_signed_binary_active_density_n14 = 8_194usize;
     let halfgcd_second_col_joint_signed_binary_active_positions_n14 = 15usize;
@@ -3717,6 +3727,11 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_split_largest_c1_variants={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_split_largest_c1_variants}");
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_split_largest_non_cartesian={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_split_largest_non_cartesian}");
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_split_n17_non_cartesian={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_split_n17_non_cartesian}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_local_dp_sample_checked={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_local_dp_sample_checked}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_local_dp_sample_mismatches={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_local_dp_sample_mismatches}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_local_dp_toy_checked_total={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_local_dp_toy_checked_total}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_local_dp_toy_mismatches_total={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_local_dp_toy_mismatches_total}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_local_dp_toy_n17_checked={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_local_dp_toy_n17_checked}");
     println!("METRIC scratch600_halfgcd_second_col_joint_signed_binary_active_degree_n14={halfgcd_second_col_joint_signed_binary_active_degree_n14}");
     println!("METRIC scratch600_halfgcd_second_col_joint_signed_binary_active_density_n14={halfgcd_second_col_joint_signed_binary_active_density_n14}");
     println!("METRIC scratch600_halfgcd_second_col_joint_signed_binary_active_positions_n14={halfgcd_second_col_joint_signed_binary_active_positions_n14}");
@@ -5309,7 +5324,17 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
             && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_split_largest_non_cartesian
                 == 227
             && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_split_n17_non_cartesian
-                == 216,
+                == 216
+            && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_local_dp_sample_checked
+                == 16_202
+            && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_local_dp_sample_mismatches
+                == 0
+            && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_local_dp_toy_checked_total
+                == 299_013
+            && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_local_dp_toy_mismatches_total
+                == 0
+            && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_local_dp_toy_n17_checked
+                == 119_249,
         "full block-pattern endpoint decoder opening changed; revisit half-GCD block parser"
     );
     assert!(

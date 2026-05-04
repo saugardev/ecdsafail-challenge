@@ -10757,6 +10757,343 @@ mod tests {
     }
 
     #[test]
+    fn half_gcd_full_block_endpoint_local_dp_replays_trace() {
+        // Endpoint injectivity is only useful if the block pattern can be
+        // recovered by a local algorithm.  Re-run the signed-binary min-cost
+        // DP inside each active block, with incoming and outgoing carry states
+        // fixed, and require it to reproduce the traced pattern exactly.
+        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+        struct Cost {
+            cost: usize,
+            digits: usize,
+            occupied: usize,
+        }
+
+        fn better(candidate: Cost, old: Option<Cost>) -> Option<Cost> {
+            match old {
+                Some(row)
+                    if (row.cost, row.digits, row.occupied)
+                        <= (candidate.cost, candidate.digits, candidate.occupied) =>
+                {
+                    Some(row)
+                }
+                _ => Some(candidate),
+            }
+        }
+
+        fn add_cost(a: Cost, b: Cost) -> Cost {
+            Cost {
+                cost: a.cost + b.cost,
+                digits: a.digits + b.digits,
+                occupied: a.occupied + b.occupied,
+            }
+        }
+
+        fn local_endpoint_dp_pattern(
+            x0: SignedMagU512ForHalfGcdTest,
+            x1: SignedMagU512ForHalfGcdTest,
+            block_idx: usize,
+            block: usize,
+            total_bits: usize,
+            start_state: u8,
+            end_state: u8,
+        ) -> Option<u128> {
+            const MOD_ADD_FAST_CCX: usize = 1024;
+            const FIELD_BITS: usize = 256;
+            const STATES: usize = 18;
+            let base = block_idx * block;
+            let len = block.min(total_bits.saturating_sub(base));
+            if len == 0 {
+                return None;
+            }
+            let state_idx = |c0i: usize, c1i: usize, seen: usize| -> usize {
+                ((c0i * 3) + c1i) * 2 + seen
+            };
+            let bit_at = |x: U512, bit: usize| -> i8 {
+                if bit >= 512 {
+                    0
+                } else {
+                    ((x >> bit).as_limbs()[0] & 1) as i8
+                }
+            };
+            let digit_code = |digit: i8| -> u128 {
+                match digit {
+                    -1 => 2,
+                    0 => 0,
+                    1 => 1,
+                    _ => unreachable!("signed-binary digit escaped ternary alphabet"),
+                }
+            };
+
+            let end_c0i = (end_state / 3) as usize;
+            let end_c1i = (end_state % 3) as usize;
+            let zero = Cost { cost: 0, digits: 0, occupied: 0 };
+            let mut dp = vec![[None::<Cost>; STATES]; len + 1];
+            dp[len][state_idx(end_c0i, end_c1i, 1)] = Some(zero);
+
+            for offset in (0..len).rev() {
+                let bit = base + offset;
+                let b0 = bit_at(x0.mag, bit);
+                let b1 = bit_at(x1.mag, bit);
+                for c0i in 0..3 {
+                    for c1i in 0..3 {
+                        for seen_idx in 0..2 {
+                            let seen = seen_idx != 0;
+                            let c0 = c0i as i8 - 1;
+                            let c1 = c1i as i8 - 1;
+                            let mut best = None::<Cost>;
+                            for d0 in -1i8..=1 {
+                                let s0 = b0 + c0 - d0;
+                                if s0.rem_euclid(2) != 0 {
+                                    continue;
+                                }
+                                let nc0 = s0 / 2;
+                                if !(-1..=1).contains(&nc0) {
+                                    continue;
+                                }
+                                for d1 in -1i8..=1 {
+                                    let s1 = b1 + c1 - d1;
+                                    if s1.rem_euclid(2) != 0 {
+                                        continue;
+                                    }
+                                    let nc1 = s1 / 2;
+                                    if !(-1..=1).contains(&nc1) {
+                                        continue;
+                                    }
+                                    let digit_count =
+                                        (d0 != 0) as usize + (d1 != 0) as usize;
+                                    let occupied = digit_count != 0;
+                                    let starts_block = occupied && !seen;
+                                    let next_seen = (seen || occupied) as usize;
+                                    let Some(suffix) = dp[offset + 1][state_idx(
+                                        (nc0 + 1) as usize,
+                                        (nc1 + 1) as usize,
+                                        next_seen,
+                                    )] else {
+                                        continue;
+                                    };
+                                    let delta = Cost {
+                                        cost: if occupied { MOD_ADD_FAST_CCX } else { 0 }
+                                            + 2 * FIELD_BITS * digit_count
+                                            + if starts_block { 2 * FIELD_BITS } else { 0 },
+                                        digits: digit_count,
+                                        occupied: occupied as usize,
+                                    };
+                                    best = better(add_cost(delta, suffix), best);
+                                }
+                            }
+                            dp[offset][state_idx(c0i, c1i, seen_idx)] = best;
+                        }
+                    }
+                }
+            }
+
+            let mut c0i = (start_state / 3) as usize;
+            let mut c1i = (start_state % 3) as usize;
+            let mut seen_idx = 0usize;
+            let mut pattern = 0u128;
+            for offset in 0..len {
+                let bit = base + offset;
+                let b0 = bit_at(x0.mag, bit);
+                let b1 = bit_at(x1.mag, bit);
+                let seen = seen_idx != 0;
+                let c0 = c0i as i8 - 1;
+                let c1 = c1i as i8 - 1;
+                let want = dp[offset][state_idx(c0i, c1i, seen_idx)]?;
+                let mut chosen = None::<(usize, usize, usize, i8, i8)>;
+                'digits: for d0 in -1i8..=1 {
+                    let s0 = b0 + c0 - d0;
+                    if s0.rem_euclid(2) != 0 {
+                        continue;
+                    }
+                    let nc0 = s0 / 2;
+                    if !(-1..=1).contains(&nc0) {
+                        continue;
+                    }
+                    for d1 in -1i8..=1 {
+                        let s1 = b1 + c1 - d1;
+                        if s1.rem_euclid(2) != 0 {
+                            continue;
+                        }
+                        let nc1 = s1 / 2;
+                        if !(-1..=1).contains(&nc1) {
+                            continue;
+                        }
+                        let digit_count = (d0 != 0) as usize + (d1 != 0) as usize;
+                        let occupied = digit_count != 0;
+                        let starts_block = occupied && !seen;
+                        let next_seen = (seen || occupied) as usize;
+                        let Some(suffix) = dp[offset + 1][state_idx(
+                            (nc0 + 1) as usize,
+                            (nc1 + 1) as usize,
+                            next_seen,
+                        )] else {
+                            continue;
+                        };
+                        let delta = Cost {
+                            cost: if occupied { MOD_ADD_FAST_CCX } else { 0 }
+                                + 2 * FIELD_BITS * digit_count
+                                + if starts_block { 2 * FIELD_BITS } else { 0 },
+                            digits: digit_count,
+                            occupied: occupied as usize,
+                        };
+                        if add_cost(delta, suffix) == want {
+                            chosen = Some((
+                                (nc0 + 1) as usize,
+                                (nc1 + 1) as usize,
+                                next_seen,
+                                d0,
+                                d1,
+                            ));
+                            break 'digits;
+                        }
+                    }
+                }
+                let (next_c0i, next_c1i, next_seen, d0, d1) = chosen?;
+                pattern |= digit_code(d0) << (4 * offset);
+                pattern |= digit_code(d1) << (4 * offset + 2);
+                c0i = next_c0i;
+                c1i = next_c1i;
+                seen_idx = next_seen;
+            }
+            Some(pattern)
+        }
+
+        let endpoint_state = |block_idx: usize, block_start_states: &[u8]| -> u8 {
+            block_start_states
+                .get(block_idx + 1)
+                .copied()
+                .unwrap_or(4)
+        };
+        let total_bits_for = |x0: SignedMagU512ForHalfGcdTest,
+                              x1: SignedMagU512ForHalfGcdTest|
+         -> usize {
+            u512_bit_len_for_halfgcd_test(x0.mag)
+                .max(u512_bit_len_for_halfgcd_test(x1.mag))
+                .max(1)
+                + 3
+        };
+
+        const DEPTH: usize = 64;
+        const BLOCK: usize = 32;
+        const SAMPLES: usize = 4096;
+        let mut rng = 0x10ca_1dec_0de5_ec3u64;
+        let mut sample_checked = 0usize;
+        let mut sample_mismatches = 0usize;
+        for _ in 0..SAMPLES {
+            let mut x = rand_u256(&mut rng);
+            if x.is_zero() {
+                x = U256::from(1u64);
+            }
+            let (b, d) =
+                halfgcd_second_column_after_fixed_depth_for_test(x, SECP256K1_P, DEPTH);
+            let (_, _, _, _, _, _, _, digit_patterns, block_start_states) =
+                halfgcd_signed_two_coeff_apply_block_active_trace_for_test(b, d, BLOCK);
+            let total_bits = total_bits_for(b, d);
+            for (block_idx, &pattern) in digit_patterns.iter().enumerate() {
+                if pattern == 0 {
+                    continue;
+                }
+                let decoded = local_endpoint_dp_pattern(
+                    b,
+                    d,
+                    block_idx,
+                    BLOCK,
+                    total_bits,
+                    block_start_states[block_idx],
+                    endpoint_state(block_idx, &block_start_states),
+                );
+                sample_checked += 1;
+                sample_mismatches += (decoded != Some(pattern)) as usize;
+            }
+        }
+
+        let cases = [
+            (10usize, 1_021u32, 2usize),
+            (12usize, 4_093u32, 3usize),
+            (14usize, 16_381u32, 4usize),
+            (16usize, 65_521u32, 4usize),
+            (17usize, 65_537u32, 5usize),
+        ];
+        let mut toy_checked_total = 0usize;
+        let mut toy_mismatches_total = 0usize;
+        let mut n17_checked = 0usize;
+        for &(toy_n, toy_p, toy_block) in &cases {
+            let toy_depth = (toy_n / 4).max(1);
+            let mut checked = 0usize;
+            let mut mismatches = 0usize;
+            for x in 1..toy_p {
+                let (b, d) = halfgcd_second_column_after_fixed_depth_for_test(
+                    U256::from(x as u64),
+                    U256::from(toy_p as u64),
+                    toy_depth,
+                );
+                let (_, _, _, _, _, _, _, digit_patterns, block_start_states) =
+                    halfgcd_signed_two_coeff_apply_block_active_trace_for_test(
+                        b, d, toy_block,
+                    );
+                let total_bits = total_bits_for(b, d);
+                for (block_idx, &pattern) in digit_patterns.iter().enumerate() {
+                    if pattern == 0 {
+                        continue;
+                    }
+                    let decoded = local_endpoint_dp_pattern(
+                        b,
+                        d,
+                        block_idx,
+                        toy_block,
+                        total_bits,
+                        block_start_states[block_idx],
+                        endpoint_state(block_idx, &block_start_states),
+                    );
+                    checked += 1;
+                    mismatches += (decoded != Some(pattern)) as usize;
+                }
+            }
+            println!(
+                "METRIC halfgcd_full_block_endpoint_local_dp_toy_n{toy_n}_checked={checked}"
+            );
+            println!(
+                "METRIC halfgcd_full_block_endpoint_local_dp_toy_n{toy_n}_mismatches={mismatches}"
+            );
+            eprintln!(
+                "half-GCD endpoint local DP toy n{toy_n}: checked={checked}, mismatches={mismatches}"
+            );
+            toy_checked_total += checked;
+            toy_mismatches_total += mismatches;
+            if toy_n == 17 {
+                n17_checked = checked;
+            }
+        }
+        println!("METRIC halfgcd_full_block_endpoint_local_dp_sample_checked={sample_checked}");
+        println!(
+            "METRIC halfgcd_full_block_endpoint_local_dp_sample_mismatches={sample_mismatches}"
+        );
+        println!(
+            "METRIC halfgcd_full_block_endpoint_local_dp_toy_checked_total={toy_checked_total}"
+        );
+        println!(
+            "METRIC halfgcd_full_block_endpoint_local_dp_toy_mismatches_total={toy_mismatches_total}"
+        );
+        eprintln!(
+            "half-GCD endpoint local DP replay: sample_checked={sample_checked}, sample_mismatches={sample_mismatches}, toy_checked={toy_checked_total}, toy_mismatches={toy_mismatches_total}"
+        );
+
+        assert_eq!(
+            sample_mismatches, 0,
+            "sample endpoint traces are not reproduced by local endpoint DP"
+        );
+        assert_eq!(
+            toy_mismatches_total, 0,
+            "exact toy endpoint traces are not reproduced by local endpoint DP"
+        );
+        assert_eq!(
+            n17_checked, 119_249,
+            "n17 local DP checked count changed; update endpoint decoder ledger"
+        );
+    }
+
+    #[test]
     fn half_gcd_full_block_endpoint_table_floor_needs_algorithmic_decoder() {
         // Endpoint state reopens the full-block code, but only barely.  A
         // generic coherent table over endpoint keys is already at the margin
