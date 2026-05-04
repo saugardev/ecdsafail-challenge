@@ -10134,6 +10134,268 @@ mod tests {
     }
 
     #[test]
+    fn half_gcd_full_block_pattern_endpoint_state_decoder_probe() {
+        // The previous local decoder gave each block its incoming carry state
+        // and local coefficient slices, but exact toys still collided.  The
+        // natural structural repair is to also provide the outgoing block
+        // carry state.  That is a small boundary side channel if it works; if
+        // collisions remain, the full-block pattern code needs genuinely
+        // nonlocal suffix information rather than just block endpoints.
+        use std::collections::{BTreeMap, BTreeSet};
+
+        fn local_bits(
+            x0: SignedMagU512ForHalfGcdTest,
+            x1: SignedMagU512ForHalfGcdTest,
+            block_idx: usize,
+            block: usize,
+        ) -> u128 {
+            let mut word = 0u128;
+            let base = block_idx * block;
+            for offset in 0..block {
+                let bit = base + offset;
+                let b0 = if bit >= 512 {
+                    0
+                } else {
+                    ((x0.mag >> bit).as_limbs()[0] & 1) as u128
+                };
+                let b1 = if bit >= 512 {
+                    0
+                } else {
+                    ((x1.mag >> bit).as_limbs()[0] & 1) as u128
+                };
+                word |= b0 << (2 * offset);
+                word |= b1 << (2 * offset + 1);
+            }
+            word
+        }
+        let stats = |rows: &BTreeMap<(usize, u8, u8, u128), BTreeSet<u128>>| {
+            let ambiguous = rows.values().filter(|patterns| patterns.len() > 1).count();
+            let max_mult = rows.values().map(BTreeSet::len).max().unwrap_or(0);
+            let total_patterns = rows.values().map(BTreeSet::len).sum::<usize>();
+            (ambiguous, max_mult, rows.len(), total_patterns)
+        };
+        let endpoint_state = |block_idx: usize, block_start_states: &[u8]| -> u8 {
+            block_start_states
+                .get(block_idx + 1)
+                .copied()
+                .unwrap_or(4)
+        };
+
+        const DEPTH: usize = 64;
+        const BLOCK: usize = 32;
+        const SAMPLES: usize = 4096;
+        const ENDPOINT_BITS_PER_ACTIVE_BLOCK: usize = 4;
+        const FIELD_BITS: usize = 256;
+        const FULL_BLOCK_PATTERN_MEAN: f64 = 2_651_525.0;
+        const TARGET: f64 = 2_700_000.0;
+
+        let p = SECP256K1_P;
+        let mut rng = 0x10ca_1dec_0de5_ec1u64;
+        let mut sample_rows = BTreeMap::<(usize, u8, u8, u128), BTreeSet<u128>>::new();
+        let mut sample_endpoint_bits = Vec::with_capacity(SAMPLES);
+        for _ in 0..SAMPLES {
+            let mut x = rand_u256(&mut rng);
+            if x.is_zero() {
+                x = U256::from(1u64);
+            }
+            let (b, d) = halfgcd_second_column_after_fixed_depth_for_test(x, p, DEPTH);
+            let (_, _, _, _, _, _, _, digit_patterns, block_start_states) =
+                halfgcd_signed_two_coeff_apply_block_active_trace_for_test(b, d, BLOCK);
+            let mut active_blocks = 0usize;
+            for (block_idx, &pattern) in digit_patterns.iter().enumerate() {
+                if pattern == 0 {
+                    continue;
+                }
+                active_blocks += 1;
+                let key = (
+                    block_idx,
+                    block_start_states[block_idx],
+                    endpoint_state(block_idx, &block_start_states),
+                    local_bits(b, d, block_idx, BLOCK),
+                );
+                sample_rows.entry(key).or_default().insert(pattern);
+            }
+            sample_endpoint_bits.push(active_blocks * ENDPOINT_BITS_PER_ACTIVE_BLOCK);
+        }
+        let (sample_ambiguous, sample_max_mult, sample_keys, sample_total_patterns) =
+            stats(&sample_rows);
+        let sample_endpoint_bits_total = sample_endpoint_bits.iter().sum::<usize>();
+        let sample_endpoint_bits_mean_milli =
+            sample_endpoint_bits_total * 1_000 / sample_endpoint_bits.len();
+        let sample_endpoint_bits_max = sample_endpoint_bits.iter().copied().max().unwrap_or(0);
+        let sample_endpoint_source_mean =
+            2.0 * FIELD_BITS as f64 * sample_endpoint_bits_total as f64 / SAMPLES as f64;
+        let sample_endpoint_projected =
+            FULL_BLOCK_PATTERN_MEAN + 2.0 * sample_endpoint_source_mean;
+        println!(
+            "METRIC halfgcd_full_block_pattern_endpoint_sample_keys={sample_keys}"
+        );
+        println!(
+            "METRIC halfgcd_full_block_pattern_endpoint_sample_total_patterns={sample_total_patterns}"
+        );
+        println!(
+            "METRIC halfgcd_full_block_pattern_endpoint_sample_ambiguous_keys={sample_ambiguous}"
+        );
+        println!(
+            "METRIC halfgcd_full_block_pattern_endpoint_sample_max_multiplicity={sample_max_mult}"
+        );
+        println!(
+            "METRIC halfgcd_full_block_pattern_endpoint_sample_bits_mean_milli={sample_endpoint_bits_mean_milli}"
+        );
+        println!(
+            "METRIC halfgcd_full_block_pattern_endpoint_sample_bits_max={sample_endpoint_bits_max}"
+        );
+        println!(
+            "METRIC halfgcd_full_block_pattern_endpoint_sample_source_mean={sample_endpoint_source_mean:.3}"
+        );
+        println!(
+            "METRIC halfgcd_full_block_pattern_endpoint_sample_projected_pointadd_mean={sample_endpoint_projected:.3}"
+        );
+        println!(
+            "METRIC halfgcd_full_block_pattern_endpoint_sample_projected_gap_to_2700k={:.3}",
+            sample_endpoint_projected - TARGET
+        );
+        eprintln!(
+            "half-GCD full-block endpoint decoder sample: keys={sample_keys}, patterns={sample_total_patterns}, ambiguous={sample_ambiguous}, max_mult={sample_max_mult}, endpoint_bits_mean_milli={sample_endpoint_bits_mean_milli}, endpoint_bits_max={sample_endpoint_bits_max}, projected={sample_endpoint_projected:.1}"
+        );
+
+        let cases = [
+            (10usize, 1_021u32, 2usize),
+            (12usize, 4_093u32, 3usize),
+            (14usize, 16_381u32, 4usize),
+            (16usize, 65_521u32, 4usize),
+            (17usize, 65_537u32, 5usize),
+        ];
+        let mut toy_collision_cases = 0usize;
+        let mut largest_toy_ambiguous = 0usize;
+        let mut largest_toy_max_mult = 0usize;
+        let mut largest_toy_bits_max = 0usize;
+        let mut n17_toy_keys = 0usize;
+        let mut n17_toy_total_patterns = 0usize;
+        let mut n17_toy_ambiguous = 0usize;
+        let mut n17_toy_max_mult = 0usize;
+        let mut n17_toy_endpoint_bits_p99 = 0usize;
+        let mut n17_toy_endpoint_bits_max = 0usize;
+        for &(toy_n, toy_p, toy_block) in &cases {
+            let toy_depth = (toy_n / 4).max(1);
+            let mut toy_rows = BTreeMap::<(usize, u8, u8, u128), BTreeSet<u128>>::new();
+            let mut toy_endpoint_bits = Vec::with_capacity(toy_p as usize - 1);
+            for x in 1..toy_p {
+                let (b, d) = halfgcd_second_column_after_fixed_depth_for_test(
+                    U256::from(x as u64),
+                    U256::from(toy_p as u64),
+                    toy_depth,
+                );
+                let (_, _, _, _, _, _, _, digit_patterns, block_start_states) =
+                    halfgcd_signed_two_coeff_apply_block_active_trace_for_test(b, d, toy_block);
+                let mut active_blocks = 0usize;
+                for (block_idx, &pattern) in digit_patterns.iter().enumerate() {
+                    if pattern == 0 {
+                        continue;
+                    }
+                    active_blocks += 1;
+                    let key = (
+                        block_idx,
+                        block_start_states[block_idx],
+                        endpoint_state(block_idx, &block_start_states),
+                        local_bits(b, d, block_idx, toy_block),
+                    );
+                    toy_rows.entry(key).or_default().insert(pattern);
+                }
+                toy_endpoint_bits.push(active_blocks * ENDPOINT_BITS_PER_ACTIVE_BLOCK);
+            }
+            let (toy_ambiguous, toy_max_mult, toy_keys, toy_total_patterns) = stats(&toy_rows);
+            toy_endpoint_bits.sort_unstable();
+            let toy_endpoint_bits_p99 = toy_endpoint_bits[toy_endpoint_bits.len() * 99 / 100];
+            let toy_endpoint_bits_max = *toy_endpoint_bits.last().unwrap();
+            println!("METRIC halfgcd_full_block_pattern_endpoint_toy_n{toy_n}_keys={toy_keys}");
+            println!(
+                "METRIC halfgcd_full_block_pattern_endpoint_toy_n{toy_n}_total_patterns={toy_total_patterns}"
+            );
+            println!(
+                "METRIC halfgcd_full_block_pattern_endpoint_toy_n{toy_n}_ambiguous_keys={toy_ambiguous}"
+            );
+            println!(
+                "METRIC halfgcd_full_block_pattern_endpoint_toy_n{toy_n}_max_multiplicity={toy_max_mult}"
+            );
+            println!(
+                "METRIC halfgcd_full_block_pattern_endpoint_toy_n{toy_n}_bits_p99={toy_endpoint_bits_p99}"
+            );
+            println!(
+                "METRIC halfgcd_full_block_pattern_endpoint_toy_n{toy_n}_bits_max={toy_endpoint_bits_max}"
+            );
+            eprintln!(
+                "half-GCD full-block endpoint decoder toy n{toy_n}: keys={toy_keys}, patterns={toy_total_patterns}, ambiguous={toy_ambiguous}, max_mult={toy_max_mult}, endpoint_bits_p99={toy_endpoint_bits_p99}, endpoint_bits_max={toy_endpoint_bits_max}"
+            );
+            toy_collision_cases += (toy_ambiguous > 0) as usize;
+            largest_toy_ambiguous = largest_toy_ambiguous.max(toy_ambiguous);
+            largest_toy_max_mult = largest_toy_max_mult.max(toy_max_mult);
+            largest_toy_bits_max = largest_toy_bits_max.max(toy_endpoint_bits_max);
+            if toy_n == 17 {
+                n17_toy_keys = toy_keys;
+                n17_toy_total_patterns = toy_total_patterns;
+                n17_toy_ambiguous = toy_ambiguous;
+                n17_toy_max_mult = toy_max_mult;
+                n17_toy_endpoint_bits_p99 = toy_endpoint_bits_p99;
+                n17_toy_endpoint_bits_max = toy_endpoint_bits_max;
+            }
+        }
+        println!(
+            "METRIC halfgcd_full_block_pattern_endpoint_toy_collision_cases={toy_collision_cases}"
+        );
+        println!(
+            "METRIC halfgcd_full_block_pattern_endpoint_toy_largest_ambiguous_keys={largest_toy_ambiguous}"
+        );
+        println!(
+            "METRIC halfgcd_full_block_pattern_endpoint_toy_largest_max_multiplicity={largest_toy_max_mult}"
+        );
+        println!(
+            "METRIC halfgcd_full_block_pattern_endpoint_toy_largest_bits_max={largest_toy_bits_max}"
+        );
+
+        assert_eq!(
+            sample_ambiguous, 0,
+            "sampled endpoint-state decoder now has collisions"
+        );
+        assert_eq!(
+            sample_max_mult, 1,
+            "sampled endpoint-state decoder multiplicity changed"
+        );
+        assert!(
+            sample_endpoint_projected < TARGET,
+            "endpoint-state side channel consumes the full block-pattern margin"
+        );
+        assert!(
+            toy_collision_cases == 0 && largest_toy_max_mult == 1,
+            "endpoint state no longer resolves exact toy block patterns; demote boundary-state decoder"
+        );
+        assert_eq!(
+            n17_toy_keys, 5_794,
+            "n17 endpoint-state key count changed; update boundary-state decoder ledger"
+        );
+        assert_eq!(
+            n17_toy_total_patterns, 5_794,
+            "n17 endpoint-state pattern count changed; update boundary-state decoder ledger"
+        );
+        assert_eq!(
+            n17_toy_ambiguous, 0,
+            "n17 endpoint-state ambiguity changed; update boundary-state decoder ledger"
+        );
+        assert_eq!(
+            n17_toy_max_mult, 1,
+            "n17 endpoint-state multiplicity changed; update boundary-state decoder ledger"
+        );
+        assert_eq!(
+            n17_toy_endpoint_bits_p99, 12,
+            "n17 endpoint-state p99 payload changed; update boundary-state decoder ledger"
+        );
+        assert_eq!(
+            n17_toy_endpoint_bits_max, 16,
+            "n17 endpoint-state max payload changed; update boundary-state decoder ledger"
+        );
+    }
+
+    #[test]
     fn half_gcd_second_column_fixed_depth_tail_bounded_barrel_needs_fallback() {
         // The sampled fixed-depth ledger only saw tail quotient widths that fit
         // a 5-bit selector.  Probe the full-domain failure mode directly:
