@@ -21761,6 +21761,72 @@ mod tests {
                     augmented_gap,
                 )
             };
+        let mut cond_symbol_prefix_rows = Vec::with_capacity(samples);
+        for (alignments, branches) in &traces {
+            let mut branch_at_step = vec![None; alignments.len()];
+            for &(step, branch) in branches {
+                branch_at_step[step] = Some(branch);
+            }
+            let mut prefix = Vec::with_capacity(alignments.len() + branches.len() + 1);
+            prefix.push(0.0f64);
+            let mut running = 0.0f64;
+            for (step, &alignment) in alignments.iter().enumerate() {
+                let step_total = align_by_step[step].values().sum::<usize>();
+                let step_freq = *align_by_step[step].get(&alignment).unwrap();
+                running += code_len(step_freq, step_total);
+                prefix.push(running);
+                if let Some(branch) = branch_at_step[step] {
+                    let branch_counts = branch_by_step_alignment[step]
+                        .get(&alignment)
+                        .expect("conditional branch model missing seen alignment");
+                    let branch_total = branch_counts.iter().sum::<usize>();
+                    running += code_len(branch_counts[branch as usize], branch_total);
+                    prefix.push(running);
+                }
+            }
+            cond_symbol_prefix_rows.push(prefix);
+        }
+        let eval_cond_schedule_fast =
+            |schedule: &[usize]| -> (f64, usize, usize, usize, usize, f64) {
+                let mut compressed_bits_rows = Vec::with_capacity(samples);
+                let mut live_scratch_rows = Vec::with_capacity(samples);
+                let mut symbol_count_rows = Vec::with_capacity(samples);
+                let mut state_touch_floor_rows = Vec::with_capacity(samples);
+                for prefix in &cond_symbol_prefix_rows {
+                    let symbol_count = prefix.len() - 1;
+                    let mut compressed_bits = 0usize;
+                    let mut state_touch_floor = 0usize;
+                    let mut pos = 0usize;
+                    let mut block_idx = 0usize;
+                    while pos < symbol_count {
+                        let block_len = schedule[block_idx % schedule.len()]
+                            .min(symbol_count - pos);
+                        let block_bits = (prefix[pos + block_len] - prefix[pos]).ceil() as usize;
+                        compressed_bits += block_bits;
+                        state_touch_floor += block_bits * block_len;
+                        pos += block_len;
+                        block_idx += 1;
+                    }
+                    compressed_bits_rows.push(compressed_bits);
+                    live_scratch_rows.push(256 + compressed_bits + 2 * model_precision_bits);
+                    symbol_count_rows.push(symbol_count);
+                    state_touch_floor_rows.push(state_touch_floor);
+                }
+                let touch_mean = mean_usize(&state_touch_floor_rows);
+                let touch_p99 = p99_usize(&mut state_touch_floor_rows);
+                let compressed_p99 = p99_usize(&mut compressed_bits_rows);
+                let scratch_p99 = p99_usize(&mut live_scratch_rows);
+                let symbol_count_p99 = p99_usize(&mut symbol_count_rows);
+                let augmented_gap = STORED_BRANCH_MEAN + 4.0 * touch_mean - TARGET;
+                (
+                    touch_mean,
+                    touch_p99,
+                    compressed_p99,
+                    scratch_p99,
+                    symbol_count_p99,
+                    augmented_gap,
+                )
+            };
         let mut best_mixed67: Option<(usize, usize, usize, f64, usize, usize, usize, usize, f64)> =
             None;
         for period in 2usize..=6 {
@@ -21797,6 +21863,50 @@ mod tests {
                 }
             }
         }
+        let mut best_mixed4to8: Option<(usize, usize, f64, usize, usize, usize, usize, f64)> =
+            None;
+        for period in 2usize..=4 {
+            let mut schedule = vec![4usize; period];
+            loop {
+                let (
+                    touch_mean,
+                    touch_p99,
+                    compressed_p99,
+                    scratch_p99,
+                    symbol_count_p99,
+                    augmented_gap,
+                ) = eval_cond_schedule_fast(&schedule);
+                if scratch_p99 <= GOOGLE_SCRATCH
+                    && best_mixed4to8
+                        .map(|old| touch_mean < old.2)
+                        .unwrap_or(true)
+                {
+                    let mut schedule_code = 0usize;
+                    for &block in schedule.iter().rev() {
+                        schedule_code = schedule_code * 10 + block;
+                    }
+                    best_mixed4to8 = Some((
+                        period,
+                        schedule_code,
+                        touch_mean,
+                        touch_p99,
+                        compressed_p99,
+                        scratch_p99,
+                        symbol_count_p99,
+                        augmented_gap,
+                    ));
+                }
+                let mut pos = 0usize;
+                while pos < period && schedule[pos] == 8 {
+                    schedule[pos] = 4;
+                    pos += 1;
+                }
+                if pos == period {
+                    break;
+                }
+                schedule[pos] += 1;
+            }
+        }
         let (
             mixed67_period,
             mixed67_mask,
@@ -21808,6 +21918,16 @@ mod tests {
             mixed67_symbol_count_p99,
             mixed67_augmented_gap,
         ) = best_mixed67.expect("no 6/7 mixed conditional schedule fit Google scratch");
+        let (
+            mixed4to8_period,
+            mixed4to8_schedule_code,
+            mixed4to8_touch_mean,
+            mixed4to8_touch_p99,
+            mixed4to8_compressed_p99,
+            mixed4to8_scratch_p99,
+            mixed4to8_symbol_count_p99,
+            mixed4to8_augmented_gap,
+        ) = best_mixed4to8.expect("no 4..8 mixed conditional schedule fit Google scratch");
         let best_with_binary_lookup_mean = best_touch_mean + binary_lookup_floor_mean;
         let best_with_binary_lookup_2x_mean =
             best_touch_mean + 2.0 * binary_lookup_floor_mean;
@@ -21859,6 +21979,12 @@ mod tests {
             STORED_BRANCH_MEAN + 4.0 * mixed67_with_binary_lookup_2x_mean - TARGET;
         let mixed67_lookup_multiplier_budget =
             (oneway_parser_budget - mixed67_touch_mean) / cond_branch_binary_lookup_floor_mean;
+        let mixed4to8_with_binary_lookup_2x_mean =
+            mixed4to8_touch_mean + 2.0 * cond_branch_binary_lookup_floor_mean;
+        let mixed4to8_with_binary_lookup_2x_gap =
+            STORED_BRANCH_MEAN + 4.0 * mixed4to8_with_binary_lookup_2x_mean - TARGET;
+        let mixed4to8_lookup_multiplier_budget =
+            (oneway_parser_budget - mixed4to8_touch_mean) / cond_branch_binary_lookup_floor_mean;
         let mixed67_with_cond_scan_lookup_2x_mean =
             mixed67_touch_mean + 2.0 * cond_branch_lookup_scan_floor_mean;
         let mixed67_with_cond_scan_lookup_2x_gap =
@@ -21960,6 +22086,14 @@ mod tests {
         println!("METRIC centered_direct_restoring_final_cond_mixed67_live_scratch_p99={mixed67_scratch_p99}");
         println!("METRIC centered_direct_restoring_final_cond_mixed67_symbol_count_p99={mixed67_symbol_count_p99}");
         println!("METRIC centered_direct_restoring_final_cond_mixed67_augmented_gap_to_2700k={mixed67_augmented_gap:.3}");
+        println!("METRIC centered_direct_restoring_final_cond_mixed4to8_best_period={mixed4to8_period}");
+        println!("METRIC centered_direct_restoring_final_cond_mixed4to8_schedule_code={mixed4to8_schedule_code}");
+        println!("METRIC centered_direct_restoring_final_cond_mixed4to8_touch_floor_mean={mixed4to8_touch_mean:.3}");
+        println!("METRIC centered_direct_restoring_final_cond_mixed4to8_touch_floor_p99={mixed4to8_touch_p99}");
+        println!("METRIC centered_direct_restoring_final_cond_mixed4to8_compressed_bits_p99={mixed4to8_compressed_p99}");
+        println!("METRIC centered_direct_restoring_final_cond_mixed4to8_live_scratch_p99={mixed4to8_scratch_p99}");
+        println!("METRIC centered_direct_restoring_final_cond_mixed4to8_symbol_count_p99={mixed4to8_symbol_count_p99}");
+        println!("METRIC centered_direct_restoring_final_cond_mixed4to8_augmented_gap_to_2700k={mixed4to8_augmented_gap:.3}");
         println!("METRIC centered_direct_restoring_final_block_parser_best_qrom_row_floor={best_qrom_row_floor}");
         println!("METRIC centered_direct_restoring_final_block_parser_best_qrom_max_rows_in_block={best_qrom_max_rows_in_block}");
         println!("METRIC centered_direct_restoring_final_block_parser_best_qrom_block_count_p99={best_qrom_block_count_p99}");
@@ -22013,6 +22147,9 @@ mod tests {
         println!("METRIC centered_direct_restoring_final_cond_mixed67_with_binary_lookup_2x_mean={mixed67_with_binary_lookup_2x_mean:.3}");
         println!("METRIC centered_direct_restoring_final_cond_mixed67_with_binary_lookup_2x_gap_to_2700k={mixed67_with_binary_lookup_2x_gap:.3}");
         println!("METRIC centered_direct_restoring_final_cond_mixed67_lookup_multiplier_budget={mixed67_lookup_multiplier_budget:.6}");
+        println!("METRIC centered_direct_restoring_final_cond_mixed4to8_with_binary_lookup_2x_mean={mixed4to8_with_binary_lookup_2x_mean:.3}");
+        println!("METRIC centered_direct_restoring_final_cond_mixed4to8_with_binary_lookup_2x_gap_to_2700k={mixed4to8_with_binary_lookup_2x_gap:.3}");
+        println!("METRIC centered_direct_restoring_final_cond_mixed4to8_lookup_multiplier_budget={mixed4to8_lookup_multiplier_budget:.6}");
         println!("METRIC centered_direct_restoring_final_cond_mixed67_with_cond_scan_lookup_2x_mean={mixed67_with_cond_scan_lookup_2x_mean:.3}");
         println!("METRIC centered_direct_restoring_final_cond_mixed67_with_cond_scan_lookup_2x_gap_to_2700k={mixed67_with_cond_scan_lookup_2x_gap:.3}");
         println!("METRIC centered_direct_restoring_final_cond_mixed67_with_huffman_lookup_2x_mean={mixed67_with_huffman_lookup_2x_mean:.3}");
@@ -22022,7 +22159,7 @@ mod tests {
         println!("METRIC centered_direct_restoring_final_block_parser_align_support_offset_steps={align_support_offset_steps}");
         println!("METRIC centered_direct_restoring_final_block_parser_align_support_max_span={align_support_max_span}");
         eprintln!(
-            "Direct-centered restoring-final block parser floor: best_block={best_block}, touch_mean={best_touch_mean:.1}, cond_branch_block={best_cond_branch_block}, cond_touch={best_cond_branch_touch_mean:.1}, cond_scratch={best_cond_branch_scratch_p99}, cond_binary2x_gap={best_cond_branch_with_binary_lookup_2x_gap:.1}, mixed67_period={mixed67_period}, mixed67_mask={mixed67_mask}, mixed67_scratch={mixed67_scratch_p99}, mixed67_binary2x_gap={mixed67_with_binary_lookup_2x_gap:.1}, mixed67_cond_scan2x_gap={mixed67_with_cond_scan_lookup_2x_gap:.1}, mixed67_huffman2x_gap={mixed67_with_huffman_lookup_2x_gap:.1}, qrom_rows={best_qrom_row_floor}, lookup_mean={lookup_scan_floor_mean:.1}, cond_scan_lookup={cond_branch_lookup_scan_floor_mean:.1}, binary_lookup={binary_lookup_floor_mean:.1}, huffman_lookup={huffman_lookup_floor_mean:.1}, cond_huffman_lookup={cond_branch_huffman_lookup_floor_mean:.1}, binary2x_gap={best_with_binary_lookup_2x_gap:.1}, noncontig_steps={align_support_noncontig_steps}, touch_plus_lookup={best_with_lookup_mean:.1}, scratch_p99={best_scratch_p99}, compressed_p99={best_compressed_p99}, augmented_gap={best_augmented_gap:.1}, qrom_gap={best_qrom_gap:.1}, lookup_gap={best_with_lookup_gap:.1}, block4_touch={block4_touch_mean:.1}, block4_scratch={block4_scratch_p99}, block4_binary2x_gap={block4_with_binary_lookup_2x_gap:.1}, block4_lookup_multiplier_budget={block4_lookup_multiplier_budget:.3}, cond_block4_scratch={cond_block4_scratch_p99}, cond_block4_binary2x_gap={cond_block4_with_binary_lookup_2x_gap:.1}, block5_touch={block5_touch_mean:.1}, block5_scratch={block5_scratch_p99}, block5_binary2x_gap={block5_with_binary_lookup_2x_gap:.1}, cond_block5_scratch={cond_block5_scratch_p99}, cond_block5_binary2x_gap={cond_block5_with_binary_lookup_2x_gap:.1}, block6_touch={block6_touch_mean:.1}, block6_scratch={block6_scratch_p99}, cond_block6_scratch={cond_block6_scratch_p99}, cond_block6_binary2x_gap={cond_block6_with_binary_lookup_2x_gap:.1}, block7_touch={block7_touch_mean:.1}, block7_scratch={block7_scratch_p99}, block7_binary2x_gap={block7_with_binary_lookup_2x_gap:.1}, block32_touch={block32_touch_mean:.1}, block32_qrom_rows={block32_qrom_row_floor}, block32_scratch={block32_scratch_p99}"
+            "Direct-centered restoring-final block parser floor: best_block={best_block}, touch_mean={best_touch_mean:.1}, cond_branch_block={best_cond_branch_block}, cond_touch={best_cond_branch_touch_mean:.1}, cond_scratch={best_cond_branch_scratch_p99}, cond_binary2x_gap={best_cond_branch_with_binary_lookup_2x_gap:.1}, mixed67_period={mixed67_period}, mixed67_mask={mixed67_mask}, mixed67_scratch={mixed67_scratch_p99}, mixed67_binary2x_gap={mixed67_with_binary_lookup_2x_gap:.1}, mixed4to8_period={mixed4to8_period}, mixed4to8_schedule={mixed4to8_schedule_code}, mixed4to8_touch={mixed4to8_touch_mean:.1}, mixed4to8_scratch={mixed4to8_scratch_p99}, mixed4to8_binary2x_gap={mixed4to8_with_binary_lookup_2x_gap:.1}, mixed67_cond_scan2x_gap={mixed67_with_cond_scan_lookup_2x_gap:.1}, mixed67_huffman2x_gap={mixed67_with_huffman_lookup_2x_gap:.1}, qrom_rows={best_qrom_row_floor}, lookup_mean={lookup_scan_floor_mean:.1}, cond_scan_lookup={cond_branch_lookup_scan_floor_mean:.1}, binary_lookup={binary_lookup_floor_mean:.1}, huffman_lookup={huffman_lookup_floor_mean:.1}, cond_huffman_lookup={cond_branch_huffman_lookup_floor_mean:.1}, binary2x_gap={best_with_binary_lookup_2x_gap:.1}, noncontig_steps={align_support_noncontig_steps}, touch_plus_lookup={best_with_lookup_mean:.1}, scratch_p99={best_scratch_p99}, compressed_p99={best_compressed_p99}, augmented_gap={best_augmented_gap:.1}, qrom_gap={best_qrom_gap:.1}, lookup_gap={best_with_lookup_gap:.1}, block4_touch={block4_touch_mean:.1}, block4_scratch={block4_scratch_p99}, block4_binary2x_gap={block4_with_binary_lookup_2x_gap:.1}, block4_lookup_multiplier_budget={block4_lookup_multiplier_budget:.3}, cond_block4_scratch={cond_block4_scratch_p99}, cond_block4_binary2x_gap={cond_block4_with_binary_lookup_2x_gap:.1}, block5_touch={block5_touch_mean:.1}, block5_scratch={block5_scratch_p99}, block5_binary2x_gap={block5_with_binary_lookup_2x_gap:.1}, cond_block5_scratch={cond_block5_scratch_p99}, cond_block5_binary2x_gap={cond_block5_with_binary_lookup_2x_gap:.1}, block6_touch={block6_touch_mean:.1}, block6_scratch={block6_scratch_p99}, cond_block6_scratch={cond_block6_scratch_p99}, cond_block6_binary2x_gap={cond_block6_with_binary_lookup_2x_gap:.1}, block7_touch={block7_touch_mean:.1}, block7_scratch={block7_scratch_p99}, block7_binary2x_gap={block7_with_binary_lookup_2x_gap:.1}, block32_touch={block32_touch_mean:.1}, block32_qrom_rows={block32_qrom_row_floor}, block32_scratch={block32_scratch_p99}"
         );
         assert!(
             best_scratch_p99 <= GOOGLE_SCRATCH,
@@ -22059,6 +22196,11 @@ mod tests {
             mixed67_with_cond_scan_lookup_2x_gap > 0.0
                 && cond_branch_lookup_scan_floor_mean > cond_branch_huffman_lookup_floor_mean,
             "coherent full-tree lookup now fits the mixed 6/7 restoring parser budget; revisit decoder"
+        );
+        assert!(
+            mixed4to8_scratch_p99 <= GOOGLE_SCRATCH
+                && mixed4to8_with_binary_lookup_2x_gap > 0.0,
+            "mixed 4..8 parser schedule now fits binary lookup budget; promote restoring-final parser"
         );
         assert!(
             best_qrom_row_floor as f64 > oneway_parser_budget

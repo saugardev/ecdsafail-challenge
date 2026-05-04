@@ -148,6 +148,12 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
             blocker: "period-5 mask-9 mixed 6/7 branch-conditioned blocks fit 663 scratch and reduce the 2x binary lookup miss to 8727 Toffoli, but still require sub-1.679x lookup cleanup to reach target",
         },
         Candidate {
+            name: "direct_centered_restoring_final_mixed4to8_parser",
+            scratch_bits: 663,
+            charged_toffoli: Some(2_708_680),
+            blocker: "period-4 code-8656 mixed 4..8 branch-conditioned blocks fit 663 scratch and reduce the 2x binary lookup miss to 8680 Toffoli, but still require sub-1.681x lookup cleanup; coherent full-tree lookup still misses",
+        },
+        Candidate {
             name: "direct_centered_restoring_final_mixed67_huffman_floor",
             scratch_bits: 663,
             charged_toffoli: Some(2_690_447),
@@ -616,6 +622,18 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let direct_restoring_final_cond_mixed67_with_huffman_lookup_2x_mean = 11_294.160f64;
     let direct_restoring_final_cond_mixed67_with_huffman_lookup_2x_gap = -9_553.359f64;
     let direct_restoring_final_cond_mixed67_huffman_lookup_multiplier_budget = 2.529_477f64;
+    let direct_restoring_final_cond_mixed4to8_best_period = 4usize;
+    let direct_restoring_final_cond_mixed4to8_schedule_code = 8_656usize;
+    let direct_restoring_final_cond_mixed4to8_touch_floor_mean = 2_260.848f64;
+    let direct_restoring_final_cond_mixed4to8_touch_floor_p99 = 2_439usize;
+    let direct_restoring_final_cond_mixed4to8_compressed_bits_p99 = 381usize;
+    let direct_restoring_final_cond_mixed4to8_live_scratch_p99 = 663usize;
+    let direct_restoring_final_cond_mixed4to8_symbol_count_p99 = 235usize;
+    let direct_restoring_final_cond_mixed4to8_augmented_gap = -45_686.608f64;
+    let direct_restoring_final_cond_mixed4to8_with_binary_lookup_2x_mean =
+        15_852.367f64;
+    let direct_restoring_final_cond_mixed4to8_with_binary_lookup_2x_gap = 8_679.468f64;
+    let direct_restoring_final_cond_mixed4to8_lookup_multiplier_budget = 1.680_703f64;
     let direct_restoring_final_huffman_tree_toy_compare_ccx = 30usize;
     let direct_restoring_final_huffman_tree_toy_forward_ccx = 34usize;
     let direct_restoring_final_huffman_tree_toy_roundtrip_ccx = 68usize;
@@ -1311,6 +1329,17 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     println!("METRIC scratch600_direct_restoring_final_cond_mixed67_with_binary_lookup_2x_mean={direct_restoring_final_cond_mixed67_with_binary_lookup_2x_mean:.3}");
     println!("METRIC scratch600_direct_restoring_final_cond_mixed67_with_binary_lookup_2x_gap_to_2700k={direct_restoring_final_cond_mixed67_with_binary_lookup_2x_gap:.3}");
     println!("METRIC scratch600_direct_restoring_final_cond_mixed67_lookup_multiplier_budget={direct_restoring_final_cond_mixed67_lookup_multiplier_budget:.6}");
+    println!("METRIC scratch600_direct_restoring_final_cond_mixed4to8_best_period={direct_restoring_final_cond_mixed4to8_best_period}");
+    println!("METRIC scratch600_direct_restoring_final_cond_mixed4to8_schedule_code={direct_restoring_final_cond_mixed4to8_schedule_code}");
+    println!("METRIC scratch600_direct_restoring_final_cond_mixed4to8_touch_floor_mean={direct_restoring_final_cond_mixed4to8_touch_floor_mean:.3}");
+    println!("METRIC scratch600_direct_restoring_final_cond_mixed4to8_touch_floor_p99={direct_restoring_final_cond_mixed4to8_touch_floor_p99}");
+    println!("METRIC scratch600_direct_restoring_final_cond_mixed4to8_compressed_bits_p99={direct_restoring_final_cond_mixed4to8_compressed_bits_p99}");
+    println!("METRIC scratch600_direct_restoring_final_cond_mixed4to8_live_scratch_p99={direct_restoring_final_cond_mixed4to8_live_scratch_p99}");
+    println!("METRIC scratch600_direct_restoring_final_cond_mixed4to8_symbol_count_p99={direct_restoring_final_cond_mixed4to8_symbol_count_p99}");
+    println!("METRIC scratch600_direct_restoring_final_cond_mixed4to8_augmented_gap_to_2700k={direct_restoring_final_cond_mixed4to8_augmented_gap:.3}");
+    println!("METRIC scratch600_direct_restoring_final_cond_mixed4to8_with_binary_lookup_2x_mean={direct_restoring_final_cond_mixed4to8_with_binary_lookup_2x_mean:.3}");
+    println!("METRIC scratch600_direct_restoring_final_cond_mixed4to8_with_binary_lookup_2x_gap_to_2700k={direct_restoring_final_cond_mixed4to8_with_binary_lookup_2x_gap:.3}");
+    println!("METRIC scratch600_direct_restoring_final_cond_mixed4to8_lookup_multiplier_budget={direct_restoring_final_cond_mixed4to8_lookup_multiplier_budget:.6}");
     println!("METRIC scratch600_direct_restoring_final_cond_mixed67_with_cond_scan_lookup_2x_mean={direct_restoring_final_cond_mixed67_with_cond_scan_lookup_2x_mean:.3}");
     println!("METRIC scratch600_direct_restoring_final_cond_mixed67_with_cond_scan_lookup_2x_gap_to_2700k={direct_restoring_final_cond_mixed67_with_cond_scan_lookup_2x_gap:.3}");
     println!("METRIC scratch600_direct_restoring_final_cond_mixed67_with_huffman_lookup_2x_mean={direct_restoring_final_cond_mixed67_with_huffman_lookup_2x_mean:.3}");
@@ -1896,6 +1925,18 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
             && direct_restoring_final_cond_mixed67_lookup_multiplier_budget > 1.67
             && direct_restoring_final_cond_mixed67_lookup_multiplier_budget < 1.69,
         "mixed 6/7 branch-conditioned parser now reaches target or changed schedule; update direct-centered frontier"
+    );
+    assert!(
+        direct_restoring_final_cond_mixed4to8_best_period == 4
+            && direct_restoring_final_cond_mixed4to8_schedule_code == 8_656
+            && direct_restoring_final_cond_mixed4to8_live_scratch_p99
+                == GOOGLE_LOW_QUBIT_SCRATCH
+            && direct_restoring_final_cond_mixed4to8_with_binary_lookup_2x_gap > 0.0
+            && direct_restoring_final_cond_mixed4to8_with_binary_lookup_2x_gap
+                < direct_restoring_final_cond_mixed67_with_binary_lookup_2x_gap
+            && direct_restoring_final_cond_mixed4to8_lookup_multiplier_budget > 1.68
+            && direct_restoring_final_cond_mixed4to8_lookup_multiplier_budget < 1.69,
+        "mixed 4..8 branch-conditioned parser now reaches target or changed schedule; update direct-centered frontier"
     );
     assert!(
         direct_restoring_final_block_parser_huffman_lookup_floor_mean
