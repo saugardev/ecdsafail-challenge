@@ -36984,6 +36984,307 @@ mod tests {
     }
 
     #[test]
+    fn direct_centered_low_branch_explicit_branch_sidecar_is_not_free() {
+        // Local recovery failed, so test the explicit-side-channel escape.
+        // The low-branch prefix schedule already spends the whole 381-bit
+        // compressed-history allowance at 663 scratch; any nonzero branch
+        // sidecar means this is a new architecture, not a wire-in.
+        use std::collections::BTreeMap;
+
+        const SAMPLES: usize = 8192;
+        const MAX_STEPS: usize = 260;
+        const GOOGLE_PREFIX_BIT_BUDGET: usize = 663 - 256 - 2 * 13;
+        const LOW_BRANCH_PEAKFIT_BITS: usize = 381;
+
+        type SampleKey = (usize, usize, usize, usize);
+        type ToyKey = (usize, i128, bool, bool, bool, bool, bool, usize, usize, usize);
+
+        fn bit_len_u128(x: u128) -> usize {
+            if x == 0 { 0 } else { 128 - x.leading_zeros() as usize }
+        }
+
+        fn push_count<K: Ord>(counts: &mut BTreeMap<K, [usize; 2]>, key: K, bit: u8) {
+            counts.entry(key).or_insert([0usize; 2])[bit as usize] += 1;
+        }
+
+        fn p99_usize(rows: &mut Vec<usize>) -> usize {
+            rows.sort_unstable();
+            rows[rows.len() * 99 / 100]
+        }
+
+        fn sidecar_stats<K: Copy + Ord>(
+            traces: &[Vec<(K, u8)>],
+            counts: &BTreeMap<K, [usize; 2]>,
+        ) -> (usize, usize, usize, f64, usize, usize) {
+            let mut entropy_rows = Vec::with_capacity(traces.len());
+            let mut prefix_rows = Vec::with_capacity(traces.len());
+            let mut raw_rows = Vec::with_capacity(traces.len());
+            let mut total_entropy = 0.0f64;
+            let mut mixed_contexts = 0usize;
+            for c in counts.values() {
+                mixed_contexts += (c[0] > 0 && c[1] > 0) as usize;
+            }
+            for trace in traces {
+                let mut entropy = 0.0f64;
+                let mut prefix_bits = 0usize;
+                for &(key, bit) in trace {
+                    let c = counts
+                        .get(&key)
+                        .expect("sidecar trace used an unseen branch context");
+                    let count = c[bit as usize];
+                    let total = c[0] + c[1];
+                    if count != total {
+                        let bits = (total as f64).log2() - (count as f64).log2();
+                        entropy += bits;
+                        prefix_bits += bits.ceil().max(1.0) as usize;
+                    }
+                }
+                total_entropy += entropy;
+                entropy_rows.push(entropy.ceil() as usize);
+                prefix_rows.push(prefix_bits);
+                raw_rows.push(trace.len());
+            }
+            let entropy_p99 = p99_usize(&mut entropy_rows);
+            let prefix_p99 = p99_usize(&mut prefix_rows);
+            let raw_p99 = p99_usize(&mut raw_rows);
+            let entropy_mean = total_entropy / traces.len() as f64;
+            let raw_max = raw_rows.iter().copied().max().unwrap_or(0);
+            (entropy_p99, prefix_p99, raw_p99, entropy_mean, mixed_contexts, raw_max)
+        }
+
+        fn sample_branch_traces(
+            samples: usize,
+            mut rng: u64,
+            p: U256,
+        ) -> (Vec<Vec<(SampleKey, u8)>>, BTreeMap<SampleKey, [usize; 2]>) {
+            let mut traces = Vec::with_capacity(samples);
+            let mut counts = BTreeMap::<SampleKey, [usize; 2]>::new();
+            for _ in 0..samples {
+                let mut x = rand_u256(&mut rng);
+                if x.is_zero() {
+                    x = U256::from(1u64);
+                }
+                let mut u = smag_for_halfgcd_test(false, u512_from_u256_for_halfgcd_test(p));
+                let mut v = smag_for_halfgcd_test(false, u512_from_u256_for_halfgcd_test(x));
+                let mut coeff_u = smag_for_halfgcd_test(false, U512::ZERO);
+                let mut coeff_v = smag_for_halfgcd_test(false, U512::from(1u64));
+                let mut step = 0usize;
+                let mut trace = Vec::new();
+                while !v.mag.is_zero() {
+                    let adjusted = u.mag + (v.mag >> 1usize);
+                    let q_direct = adjusted / v.mag;
+                    let q_neg = u.neg ^ v.neg;
+                    let qv = signed_mul_mag_for_halfgcd_test(v, q_neg, q_direct);
+                    let next_v = signed_add_for_halfgcd_test(
+                        u,
+                        signed_neg_for_halfgcd_test(qv),
+                    );
+                    let qv_coeff =
+                        signed_mul_mag_for_halfgcd_test(coeff_v, q_neg, q_direct);
+                    let next_coeff_v = signed_add_for_halfgcd_test(
+                        coeff_u,
+                        signed_neg_for_halfgcd_test(qv_coeff),
+                    );
+
+                    let denom = coeff_v.mag;
+                    assert!(!denom.is_zero(), "sample sidecar denominator vanished");
+                    let low_numer = if coeff_u.mag.is_zero() {
+                        next_coeff_v.mag
+                    } else {
+                        assert!(
+                            !next_coeff_v.mag.is_zero(),
+                            "sample sidecar low numerator underflow"
+                        );
+                        next_coeff_v.mag - U512::from(1u64)
+                    };
+                    let high_numer = if coeff_u.mag.is_zero() {
+                        low_numer
+                    } else {
+                        next_coeff_v.mag + denom - U512::from(1u64)
+                    };
+                    let low_q = low_numer / denom;
+                    let high_q = high_numer / denom;
+                    if low_q != high_q {
+                        assert!(
+                            q_direct == low_q || q_direct == high_q,
+                            "sample sidecar quotient escaped low/high candidates"
+                        );
+                        let denom_width = u512_bit_len_for_halfgcd_test(denom);
+                        let low_width =
+                            u512_bit_len_for_halfgcd_test(low_numer).max(denom_width).max(1);
+                        let low_alignment =
+                            u512_bit_len_for_halfgcd_test(low_numer).saturating_sub(denom_width);
+                        let key = (step, low_alignment, denom_width, low_width);
+                        let bit = (q_direct == high_q) as u8;
+                        push_count(&mut counts, key, bit);
+                        trace.push((key, bit));
+                    }
+
+                    u = v;
+                    v = next_v;
+                    coeff_u = coeff_v;
+                    coeff_v = next_coeff_v;
+                    step += 1;
+                    assert!(step < MAX_STEPS, "sample sidecar trace exceeded MAX_STEPS");
+                }
+                assert_eq!(u.mag, U512::from(1u64), "sample sidecar trace ended at non-unit gcd");
+                traces.push(trace);
+            }
+            (traces, counts)
+        }
+
+        fn toy_branch_traces(
+            n: usize,
+            p: u16,
+        ) -> (Vec<Vec<(ToyKey, u8)>>, BTreeMap<ToyKey, [usize; 2]>) {
+            let mut traces = Vec::with_capacity(p as usize);
+            let mut counts = BTreeMap::<ToyKey, [usize; 2]>::new();
+            let modulus = 1i128 << n;
+            for x in 1..p {
+                let mut u = p as i128;
+                let mut v = x as i128;
+                let mut coeff_u = 0i128;
+                let mut coeff_v = 1i128;
+                let mut step = 0usize;
+                let mut trace = Vec::new();
+                while v != 0 {
+                    let abs_u = u.unsigned_abs();
+                    let abs_v = v.unsigned_abs();
+                    let adjusted = abs_u + (abs_v >> 1usize);
+                    let q_abs = adjusted / abs_v;
+                    let q_signed = if (u < 0) ^ (v < 0) {
+                        -(q_abs as i128)
+                    } else {
+                        q_abs as i128
+                    };
+                    let next_v = u - q_signed * v;
+                    let next_coeff_v = coeff_u - q_signed * coeff_v;
+
+                    let denom = coeff_v.unsigned_abs();
+                    assert!(denom > 0, "toy sidecar denominator vanished");
+                    let next_abs = next_coeff_v.unsigned_abs();
+                    let low_numer = if coeff_u == 0 {
+                        next_abs
+                    } else {
+                        next_abs
+                            .checked_sub(1)
+                            .expect("toy sidecar low numerator underflow")
+                    };
+                    let high_numer = if coeff_u == 0 {
+                        low_numer
+                    } else {
+                        next_abs + denom - 1
+                    };
+                    let low_q = low_numer / denom;
+                    let high_q = high_numer / denom;
+                    if coeff_u != 0 && low_q != high_q {
+                        assert!(
+                            q_abs == low_q || q_abs == high_q,
+                            "toy sidecar quotient escaped low/high candidates"
+                        );
+                        let det = v * next_coeff_v - next_v * coeff_v;
+                        let det_residue = det.rem_euclid(modulus);
+                        let decoded_q_neg = !((next_coeff_v < 0) ^ (coeff_v < 0));
+                        let denom_width = bit_len_u128(denom);
+                        let low_width = bit_len_u128(low_numer).max(denom_width).max(1);
+                        let low_alignment = bit_len_u128(low_numer).saturating_sub(denom_width);
+                        let key = (
+                            step,
+                            det_residue,
+                            coeff_v < 0,
+                            next_coeff_v < 0,
+                            v < 0,
+                            next_v < 0,
+                            decoded_q_neg,
+                            low_alignment,
+                            denom_width,
+                            low_width,
+                        );
+                        let bit = (q_abs == high_q) as u8;
+                        push_count(&mut counts, key, bit);
+                        trace.push((key, bit));
+                    }
+                    u = v;
+                    v = next_v;
+                    coeff_u = coeff_v;
+                    coeff_v = next_coeff_v;
+                    step += 1;
+                }
+                traces.push(trace);
+            }
+            (traces, counts)
+        }
+
+        let (sample_traces, sample_counts) =
+            sample_branch_traces(SAMPLES, 0xd1ce_c0ef_a119_4101u64, SECP256K1_P);
+        let (
+            sample_entropy_p99,
+            sample_prefix_p99,
+            sample_raw_p99,
+            sample_entropy_mean,
+            sample_mixed_contexts,
+            sample_raw_max,
+        ) = sidecar_stats(&sample_traces, &sample_counts);
+        println!("METRIC centered_direct_low_branch_branch_sidecar_sample_contexts={}", sample_counts.len());
+        println!("METRIC centered_direct_low_branch_branch_sidecar_sample_mixed_contexts={sample_mixed_contexts}");
+        println!("METRIC centered_direct_low_branch_branch_sidecar_sample_entropy_mean={sample_entropy_mean:.3}");
+        println!("METRIC centered_direct_low_branch_branch_sidecar_sample_entropy_p99={sample_entropy_p99}");
+        println!("METRIC centered_direct_low_branch_branch_sidecar_sample_prefix_p99={sample_prefix_p99}");
+        println!("METRIC centered_direct_low_branch_branch_sidecar_sample_raw_p99={sample_raw_p99}");
+        println!("METRIC centered_direct_low_branch_branch_sidecar_sample_raw_max={sample_raw_max}");
+
+        let mut largest_toy_entropy_p99 = 0usize;
+        let mut largest_toy_prefix_p99 = 0usize;
+        let mut largest_toy_mixed_contexts = 0usize;
+        let mut n16_entropy_p99 = 0usize;
+        let mut n16_prefix_p99 = 0usize;
+        for &(n, p) in &[(10usize, 1021u16), (12, 4093), (14, 16381), (16, 65521)] {
+            let (toy_traces, toy_counts) = toy_branch_traces(n, p);
+            let (entropy_p99, prefix_p99, raw_p99, entropy_mean, mixed_contexts, raw_max) =
+                sidecar_stats(&toy_traces, &toy_counts);
+            largest_toy_entropy_p99 = largest_toy_entropy_p99.max(entropy_p99);
+            largest_toy_prefix_p99 = largest_toy_prefix_p99.max(prefix_p99);
+            largest_toy_mixed_contexts = largest_toy_mixed_contexts.max(mixed_contexts);
+            if n == 16 {
+                n16_entropy_p99 = entropy_p99;
+                n16_prefix_p99 = prefix_p99;
+            }
+            println!("METRIC centered_direct_low_branch_branch_sidecar_toy_n{n}_contexts={}", toy_counts.len());
+            println!("METRIC centered_direct_low_branch_branch_sidecar_toy_n{n}_mixed_contexts={mixed_contexts}");
+            println!("METRIC centered_direct_low_branch_branch_sidecar_toy_n{n}_entropy_mean={entropy_mean:.3}");
+            println!("METRIC centered_direct_low_branch_branch_sidecar_toy_n{n}_entropy_p99={entropy_p99}");
+            println!("METRIC centered_direct_low_branch_branch_sidecar_toy_n{n}_prefix_p99={prefix_p99}");
+            println!("METRIC centered_direct_low_branch_branch_sidecar_toy_n{n}_raw_p99={raw_p99}");
+            println!("METRIC centered_direct_low_branch_branch_sidecar_toy_n{n}_raw_max={raw_max}");
+            eprintln!(
+                "Low-branch explicit sidecar n={n}: contexts={}, mixed={mixed_contexts}, entropy_p99={entropy_p99}, prefix_p99={prefix_p99}, raw_p99={raw_p99}",
+                toy_counts.len()
+            );
+        }
+        println!("METRIC centered_direct_low_branch_branch_sidecar_toy_largest_entropy_p99={largest_toy_entropy_p99}");
+        println!("METRIC centered_direct_low_branch_branch_sidecar_toy_largest_prefix_p99={largest_toy_prefix_p99}");
+        println!("METRIC centered_direct_low_branch_branch_sidecar_toy_largest_mixed_contexts={largest_toy_mixed_contexts}");
+        println!("METRIC centered_direct_low_branch_branch_sidecar_budget_bits={GOOGLE_PREFIX_BIT_BUDGET}");
+        println!("METRIC centered_direct_low_branch_branch_sidecar_peakfit_bits={LOW_BRANCH_PEAKFIT_BITS}");
+        assert_eq!(
+            LOW_BRANCH_PEAKFIT_BITS, GOOGLE_PREFIX_BIT_BUDGET,
+            "low-branch peak-fit row no longer exactly fills the Google prefix-bit budget"
+        );
+        assert!(
+            sample_raw_p99 > 0 && sample_entropy_p99 > 0,
+            "sample branch sidecar became free; revisit low-branch integration"
+        );
+        assert!(
+            n16_entropy_p99 > 0 && n16_prefix_p99 > 0 && largest_toy_mixed_contexts > 0,
+            "full local toy context made the explicit high/low sidecar free"
+        );
+        assert!(
+            LOW_BRANCH_PEAKFIT_BITS + n16_entropy_p99 > GOOGLE_PREFIX_BIT_BUDGET,
+            "explicit branch sidecar now fits inside the existing low-branch scratch budget"
+        );
+    }
+
+    #[test]
     fn direct_centered_restoring_final_block_joint_rank_bits_are_dense() {
         // The mixed 4..8 block-joint binary-depth floor only helps if the block
         // pattern rank can be decoded phase-cleanly.  Treat the exact toy
