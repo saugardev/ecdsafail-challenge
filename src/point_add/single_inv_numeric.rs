@@ -20574,6 +20574,250 @@ mod tests {
     }
 
     #[test]
+    fn direct_centered_restoring_final_block_range_parser_budget_probe() {
+        // The monolithic range-parser floor is pessimistic if the metadata
+        // stream can be stored as fixed-size compressed blocks. Blocks keep
+        // public parser boundaries and replace the state-touch floor
+        // state_bits * total_symbols by roughly sum(block_bits * block_symbols).
+        // This is still only a lower bound: table lookup, renormalization,
+        // terminal-count recovery, and block cleanup are free here.
+        use std::collections::BTreeMap;
+
+        let p = SECP256K1_P;
+        let samples = 8192usize;
+        const MAX_STEPS: usize = 260;
+        const TARGET: f64 = 2_700_000.0;
+        const STORED_BRANCH_MEAN: f64 = 2_645_270.0;
+        const GOOGLE_SCRATCH: usize = 663;
+        let mut rng = 0xd1ce_c0ef_a119_6001u64;
+        let trace_alignment_metadata = |rng: &mut u64| -> (Vec<usize>, Vec<(usize, bool)>) {
+            let mut x = rand_u256(rng);
+            if x.is_zero() {
+                x = U256::from(1u64);
+            }
+            let mut u = smag_for_halfgcd_test(false, u512_from_u256_for_halfgcd_test(p));
+            let mut v = smag_for_halfgcd_test(false, u512_from_u256_for_halfgcd_test(x));
+            let mut coeff_u = smag_for_halfgcd_test(false, U512::ZERO);
+            let mut coeff_v = smag_for_halfgcd_test(false, U512::from(1u64));
+            let mut alignments = Vec::new();
+            let mut branches = Vec::new();
+            while !v.mag.is_zero() {
+                let adjusted = u.mag + (v.mag >> 1usize);
+                let q_direct = adjusted / v.mag;
+                let q_neg = u.neg ^ v.neg;
+                let qv = signed_mul_mag_for_halfgcd_test(v, q_neg, q_direct);
+                let next_v = signed_add_for_halfgcd_test(u, signed_neg_for_halfgcd_test(qv));
+                let qv_coeff = signed_mul_mag_for_halfgcd_test(coeff_v, q_neg, q_direct);
+                let next_coeff_v = signed_add_for_halfgcd_test(
+                    coeff_u,
+                    signed_neg_for_halfgcd_test(qv_coeff),
+                );
+                let denom = coeff_v.mag;
+                assert!(!denom.is_zero(), "restoring-final coefficient denominator vanished");
+                let low_numer = if coeff_u.mag.is_zero() {
+                    next_coeff_v.mag
+                } else {
+                    assert!(
+                        !next_coeff_v.mag.is_zero(),
+                        "restoring-final adjusted coefficient numerator underflow"
+                    );
+                    next_coeff_v.mag - U512::from(1u64)
+                };
+                let high_numer = if coeff_u.mag.is_zero() {
+                    low_numer
+                } else {
+                    next_coeff_v.mag + denom - U512::from(1u64)
+                };
+                let low_q = low_numer / denom;
+                let high_q = high_numer / denom;
+                let high_branch = q_direct != low_q;
+                let numer = if high_branch {
+                    assert_eq!(
+                        q_direct, high_q,
+                        "restoring-final coefficient reverse quotient candidates missed"
+                    );
+                    high_numer
+                } else {
+                    low_numer
+                };
+                if low_q != high_q {
+                    branches.push((alignments.len(), high_branch));
+                }
+                let alignment = u512_bit_len_for_halfgcd_test(numer)
+                    .saturating_sub(u512_bit_len_for_halfgcd_test(denom));
+                alignments.push(alignment);
+
+                u = v;
+                v = next_v;
+                coeff_u = coeff_v;
+                coeff_v = next_coeff_v;
+            }
+            assert_eq!(u.mag, U512::from(1u64), "restoring-final trace ended at non-unit gcd");
+            (alignments, branches)
+        };
+
+        let mut traces = Vec::with_capacity(samples);
+        let mut align_by_step = vec![BTreeMap::<usize, usize>::new(); MAX_STEPS];
+        let mut branch_by_step = [[0usize; 2]; MAX_STEPS];
+        for _ in 0..samples {
+            let (alignments, branches) = trace_alignment_metadata(&mut rng);
+            assert!(alignments.len() < MAX_STEPS, "trace exceeded alignment model");
+            for (step, &alignment) in alignments.iter().enumerate() {
+                *align_by_step[step].entry(alignment).or_insert(0) += 1;
+            }
+            for &(step, branch) in &branches {
+                branch_by_step[step][branch as usize] += 1;
+            }
+            traces.push((alignments, branches));
+        }
+
+        let max_align_model_total = align_by_step
+            .iter()
+            .map(|counts| counts.values().sum::<usize>())
+            .max()
+            .unwrap_or(0);
+        let max_branch_model_total = branch_by_step
+            .iter()
+            .map(|counts| counts.iter().sum::<usize>())
+            .max()
+            .unwrap_or(0);
+        let model_precision_bits =
+            usize_bit_len_for_payload_test(max_align_model_total.max(max_branch_model_total) - 1);
+        let code_len = |freq: usize, total: usize| -> f64 {
+            assert!(freq > 0 && total > 0, "entropy model missing a seen symbol");
+            (total as f64).log2() - (freq as f64).log2()
+        };
+        let mean_usize = |rows: &[usize]| -> f64 {
+            rows.iter().map(|&v| v as f64).sum::<f64>() / rows.len() as f64
+        };
+        let p99_usize = |rows: &mut Vec<usize>| -> usize {
+            rows.sort_unstable();
+            rows[rows.len() * 99 / 100]
+        };
+
+        let mut best: Option<(usize, f64, usize, usize, usize, usize, f64)> = None;
+        let mut block32: Option<(f64, usize, usize, usize, usize, f64)> = None;
+        for &block_symbols in &[8usize, 12, 16, 24, 32, 48, 64, 96, 128] {
+            let mut compressed_bits_rows = Vec::with_capacity(samples);
+            let mut live_scratch_rows = Vec::with_capacity(samples);
+            let mut symbol_count_rows = Vec::with_capacity(samples);
+            let mut state_touch_floor_rows = Vec::with_capacity(samples);
+            for (alignments, branches) in &traces {
+                let mut branch_at_step = vec![None; alignments.len()];
+                for &(step, branch) in branches {
+                    branch_at_step[step] = Some(branch);
+                }
+                let mut symbol_bits = Vec::with_capacity(alignments.len() + branches.len());
+                for (step, &alignment) in alignments.iter().enumerate() {
+                    let step_total = align_by_step[step].values().sum::<usize>();
+                    let step_freq = *align_by_step[step].get(&alignment).unwrap();
+                    symbol_bits.push(code_len(step_freq, step_total));
+                    if let Some(branch) = branch_at_step[step] {
+                        let bit = branch as usize;
+                        let step_branch_total = branch_by_step[step].iter().sum::<usize>();
+                        symbol_bits.push(code_len(branch_by_step[step][bit], step_branch_total));
+                    }
+                }
+                let mut compressed_bits = 0usize;
+                let mut state_touch_floor = 0usize;
+                for block in symbol_bits.chunks(block_symbols) {
+                    let block_bits = block.iter().sum::<f64>().ceil() as usize;
+                    compressed_bits += block_bits;
+                    state_touch_floor += block_bits * block.len();
+                }
+                let live_scratch = 256 + compressed_bits + 2 * model_precision_bits;
+                compressed_bits_rows.push(compressed_bits);
+                live_scratch_rows.push(live_scratch);
+                symbol_count_rows.push(symbol_bits.len());
+                state_touch_floor_rows.push(state_touch_floor);
+            }
+            let touch_mean = mean_usize(&state_touch_floor_rows);
+            let touch_p99 = p99_usize(&mut state_touch_floor_rows);
+            let compressed_p99 = p99_usize(&mut compressed_bits_rows);
+            let scratch_p99 = p99_usize(&mut live_scratch_rows);
+            let symbol_count_p99 = p99_usize(&mut symbol_count_rows);
+            let augmented_gap = STORED_BRANCH_MEAN + 4.0 * touch_mean - TARGET;
+            if block_symbols == 32 {
+                block32 = Some((
+                    touch_mean,
+                    touch_p99,
+                    compressed_p99,
+                    scratch_p99,
+                    symbol_count_p99,
+                    augmented_gap,
+                ));
+            }
+            let scratch_fit = scratch_p99 <= GOOGLE_SCRATCH;
+            let row = (
+                block_symbols,
+                touch_mean,
+                touch_p99,
+                compressed_p99,
+                scratch_p99,
+                symbol_count_p99,
+                augmented_gap,
+            );
+            if best
+                .map(|old| {
+                    let old_fit = old.4 <= GOOGLE_SCRATCH;
+                    if scratch_fit != old_fit {
+                        scratch_fit
+                    } else {
+                        augmented_gap < old.6
+                    }
+                })
+                .unwrap_or(true)
+            {
+                best = Some(row);
+            }
+        }
+        let (
+            best_block,
+            best_touch_mean,
+            best_touch_p99,
+            best_compressed_p99,
+            best_scratch_p99,
+            best_symbol_count_p99,
+            best_augmented_gap,
+        ) = best.unwrap();
+        let (
+            block32_touch_mean,
+            block32_touch_p99,
+            block32_compressed_p99,
+            block32_scratch_p99,
+            block32_symbol_count_p99,
+            block32_augmented_gap,
+        ) = block32.unwrap();
+        let oneway_parser_budget = (TARGET - STORED_BRANCH_MEAN) / 4.0;
+        println!("METRIC centered_direct_restoring_final_block_parser_model_precision_bits={model_precision_bits}");
+        println!("METRIC centered_direct_restoring_final_block_parser_oneway_budget={oneway_parser_budget:.3}");
+        println!("METRIC centered_direct_restoring_final_block_parser_best_block_symbols={best_block}");
+        println!("METRIC centered_direct_restoring_final_block_parser_best_touch_floor_mean={best_touch_mean:.3}");
+        println!("METRIC centered_direct_restoring_final_block_parser_best_touch_floor_p99={best_touch_p99}");
+        println!("METRIC centered_direct_restoring_final_block_parser_best_compressed_bits_p99={best_compressed_p99}");
+        println!("METRIC centered_direct_restoring_final_block_parser_best_live_scratch_p99={best_scratch_p99}");
+        println!("METRIC centered_direct_restoring_final_block_parser_best_symbol_count_p99={best_symbol_count_p99}");
+        println!("METRIC centered_direct_restoring_final_block_parser_best_augmented_gap_to_2700k={best_augmented_gap:.3}");
+        println!("METRIC centered_direct_restoring_final_block32_touch_floor_mean={block32_touch_mean:.3}");
+        println!("METRIC centered_direct_restoring_final_block32_touch_floor_p99={block32_touch_p99}");
+        println!("METRIC centered_direct_restoring_final_block32_compressed_bits_p99={block32_compressed_p99}");
+        println!("METRIC centered_direct_restoring_final_block32_live_scratch_p99={block32_scratch_p99}");
+        println!("METRIC centered_direct_restoring_final_block32_symbol_count_p99={block32_symbol_count_p99}");
+        println!("METRIC centered_direct_restoring_final_block32_augmented_gap_to_2700k={block32_augmented_gap:.3}");
+        eprintln!(
+            "Direct-centered restoring-final block parser floor: best_block={best_block}, touch_mean={best_touch_mean:.1}, scratch_p99={best_scratch_p99}, compressed_p99={best_compressed_p99}, augmented_gap={best_augmented_gap:.1}, block32_touch={block32_touch_mean:.1}, block32_scratch={block32_scratch_p99}"
+        );
+        assert!(
+            best_scratch_p99 <= GOOGLE_SCRATCH,
+            "blocked range parser no longer fits scratch; keep monolithic parser demotion"
+        );
+        assert!(
+            best_touch_mean <= oneway_parser_budget,
+            "blocked range parser still exceeds one-way average budget"
+        );
+    }
+
+    #[test]
     fn direct_centered_signnorm_normalization_sign_mbu_is_dense_too() {
         // The sign-normalized direct-centered route keeps quotient signs on the
         // phase-clean q_neg=false path by recording when the centered remainder

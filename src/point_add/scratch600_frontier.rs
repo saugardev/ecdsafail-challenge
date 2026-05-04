@@ -125,9 +125,9 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
         },
         Candidate {
             name: "direct_centered_restoring_final_stored_alignment",
-            scratch_bits: 602,
+            scratch_bits: 663,
             charged_toffoli: None,
-            blocker: "restoring-final select1 has phase-clean toy cleanup; stored alignment+branch decoder averages 2645270 with raw variable metadata p99 602 and ideal global/step entropy p99 627/622, but rounded prefix codes miss at 756/752; finite range state fits at 648 p99, yet a one-state-touch parser floor averages 71167 against a 13682 one-way budget",
+            blocker: "restoring-final select1 has phase-clean toy cleanup; fixed 8-symbol range blocks lower-bound to 2656532 average at 663 scratch p99, but table lookup, renormalization, terminal-count recovery, block cleanup, and a toy parser are still uncharged",
         },
         Candidate {
             name: "direct_centered_signnorm_rank_compressed_signs",
@@ -405,6 +405,21 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let direct_restoring_final_range_parser_state_touch_floor_p99 = 84_835usize;
     let direct_restoring_final_range_parser_oneway_budget = 13_682usize;
     let direct_restoring_final_range_parser_augmented_mean_gap = 229_938isize;
+    let direct_restoring_final_block_parser_model_precision_bits = 13usize;
+    let direct_restoring_final_block_parser_oneway_budget = 13_682.500f64;
+    let direct_restoring_final_block_parser_best_block_symbols = 8usize;
+    let direct_restoring_final_block_parser_best_touch_floor_mean = 2_815.547f64;
+    let direct_restoring_final_block_parser_best_touch_floor_p99 = 3_028usize;
+    let direct_restoring_final_block_parser_best_compressed_bits_p99 = 381usize;
+    let direct_restoring_final_block_parser_best_live_scratch_p99 = 663usize;
+    let direct_restoring_final_block_parser_best_symbol_count_p99 = 235usize;
+    let direct_restoring_final_block_parser_best_augmented_gap = -43_467.810f64;
+    let direct_restoring_final_block32_touch_floor_mean = 10_719.669f64;
+    let direct_restoring_final_block32_touch_floor_p99 = 11_618usize;
+    let direct_restoring_final_block32_compressed_bits_p99 = 369usize;
+    let direct_restoring_final_block32_live_scratch_p99 = 651usize;
+    let direct_restoring_final_block32_symbol_count_p99 = 235usize;
+    let direct_restoring_final_block32_augmented_gap = -11_851.323f64;
     let plusminus_raw_scratch = 564usize;
     let plusminus_unary_scratch_p99 = 640usize;
     let plusminus_parser_over_strict = plusminus_unary_scratch_p99 - STRICT_SCRATCH;
@@ -883,6 +898,21 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     println!("METRIC scratch600_direct_restoring_final_range_parser_state_touch_floor_p99={direct_restoring_final_range_parser_state_touch_floor_p99}");
     println!("METRIC scratch600_direct_restoring_final_range_parser_oneway_budget={direct_restoring_final_range_parser_oneway_budget}");
     println!("METRIC scratch600_direct_restoring_final_range_parser_augmented_mean_gap_to_2700k={direct_restoring_final_range_parser_augmented_mean_gap}");
+    println!("METRIC scratch600_direct_restoring_final_block_parser_model_precision_bits={direct_restoring_final_block_parser_model_precision_bits}");
+    println!("METRIC scratch600_direct_restoring_final_block_parser_oneway_budget={direct_restoring_final_block_parser_oneway_budget:.3}");
+    println!("METRIC scratch600_direct_restoring_final_block_parser_best_block_symbols={direct_restoring_final_block_parser_best_block_symbols}");
+    println!("METRIC scratch600_direct_restoring_final_block_parser_best_touch_floor_mean={direct_restoring_final_block_parser_best_touch_floor_mean:.3}");
+    println!("METRIC scratch600_direct_restoring_final_block_parser_best_touch_floor_p99={direct_restoring_final_block_parser_best_touch_floor_p99}");
+    println!("METRIC scratch600_direct_restoring_final_block_parser_best_compressed_bits_p99={direct_restoring_final_block_parser_best_compressed_bits_p99}");
+    println!("METRIC scratch600_direct_restoring_final_block_parser_best_live_scratch_p99={direct_restoring_final_block_parser_best_live_scratch_p99}");
+    println!("METRIC scratch600_direct_restoring_final_block_parser_best_symbol_count_p99={direct_restoring_final_block_parser_best_symbol_count_p99}");
+    println!("METRIC scratch600_direct_restoring_final_block_parser_best_augmented_gap_to_2700k={direct_restoring_final_block_parser_best_augmented_gap:.3}");
+    println!("METRIC scratch600_direct_restoring_final_block32_touch_floor_mean={direct_restoring_final_block32_touch_floor_mean:.3}");
+    println!("METRIC scratch600_direct_restoring_final_block32_touch_floor_p99={direct_restoring_final_block32_touch_floor_p99}");
+    println!("METRIC scratch600_direct_restoring_final_block32_compressed_bits_p99={direct_restoring_final_block32_compressed_bits_p99}");
+    println!("METRIC scratch600_direct_restoring_final_block32_live_scratch_p99={direct_restoring_final_block32_live_scratch_p99}");
+    println!("METRIC scratch600_direct_restoring_final_block32_symbol_count_p99={direct_restoring_final_block32_symbol_count_p99}");
+    println!("METRIC scratch600_direct_restoring_final_block32_augmented_gap_to_2700k={direct_restoring_final_block32_augmented_gap:.3}");
     println!("METRIC scratch600_plusminus_raw_scratch_bits={plusminus_raw_scratch}");
     println!("METRIC scratch600_plusminus_unary_scratch_p99={plusminus_unary_scratch_p99}");
     println!("METRIC scratch600_plusminus_parser_over_strict_bits={plusminus_parser_over_strict}");
@@ -1311,6 +1341,20 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
                 > direct_restoring_final_range_parser_oneway_budget
             && direct_restoring_final_range_parser_augmented_mean_gap > 0,
         "restoring-final range-parser hard-piece accounting changed; revisit parser route"
+    );
+    assert!(
+        direct_restoring_final_block_parser_model_precision_bits == 13
+            && direct_restoring_final_block_parser_best_block_symbols == 8
+            && direct_restoring_final_block_parser_best_live_scratch_p99
+                <= GOOGLE_LOW_QUBIT_SCRATCH
+            && direct_restoring_final_block_parser_best_touch_floor_mean
+                < direct_restoring_final_block_parser_oneway_budget
+            && direct_restoring_final_block_parser_best_augmented_gap < 0.0
+            && direct_restoring_final_block32_live_scratch_p99
+                <= GOOGLE_LOW_QUBIT_SCRATCH
+            && direct_restoring_final_block32_touch_floor_mean
+                < direct_restoring_final_block_parser_oneway_budget,
+        "restoring-final block range-parser lower bound changed; revisit toy parser work"
     );
     assert!(halfgcd_tail_over_google > 0, "half-GCD checkpoint must be fused before it fits");
     assert!(
