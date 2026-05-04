@@ -126,8 +126,8 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
         Candidate {
             name: "direct_centered_restoring_final_stored_alignment",
             scratch_bits: 663,
-            charged_toffoli: Some(2_731_958),
-            blocker: "restoring-final select1 has phase-clean toy cleanup; fixed 8-symbol range blocks lower-bound to 2656532 average at 663 scratch p99, but threshold-scan lookup pushes 31958 over target and sampled block-QROM rows push 405494 over before renormalization or cleanup",
+            charged_toffoli: Some(2_710_904),
+            blocker: "restoring-final select1 has phase-clean toy cleanup; fixed 8-symbol range blocks lower-bound to 2656532 average at 663 scratch p99, but a 2x binary compare/subtract parser floor still pushes 10904 over with 52 non-contiguous alignment-support steps before rank mapping, renormalization, or cleanup",
         },
         Candidate {
             name: "direct_centered_signnorm_rank_compressed_signs",
@@ -431,6 +431,15 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let direct_restoring_final_block_parser_lookup_scan_floor_p99 = 20_579usize;
     let direct_restoring_final_block_parser_best_with_lookup_mean = 21_672.106f64;
     let direct_restoring_final_block_parser_best_with_lookup_gap = 31_958.425f64;
+    let direct_restoring_final_block_parser_binary_lookup_floor_mean = 6_796.417f64;
+    let direct_restoring_final_block_parser_binary_lookup_floor_p99 = 7_605usize;
+    let direct_restoring_final_block_parser_best_with_binary_lookup_mean = 9_611.964f64;
+    let direct_restoring_final_block_parser_best_with_binary_lookup_gap = -16_282.144f64;
+    let direct_restoring_final_block_parser_best_with_binary_lookup_2x_mean = 16_408.380f64;
+    let direct_restoring_final_block_parser_best_with_binary_lookup_2x_gap = 10_903.522f64;
+    let direct_restoring_final_block_parser_align_support_noncontig_steps = 52usize;
+    let direct_restoring_final_block_parser_align_support_offset_steps = 127usize;
+    let direct_restoring_final_block_parser_align_support_max_span = 20usize;
     let plusminus_raw_scratch = 564usize;
     let plusminus_unary_scratch_p99 = 640usize;
     let plusminus_parser_over_strict = plusminus_unary_scratch_p99 - STRICT_SCRATCH;
@@ -946,6 +955,15 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     println!("METRIC scratch600_direct_restoring_final_block_parser_lookup_scan_floor_p99={direct_restoring_final_block_parser_lookup_scan_floor_p99}");
     println!("METRIC scratch600_direct_restoring_final_block_parser_best_with_lookup_mean={direct_restoring_final_block_parser_best_with_lookup_mean:.3}");
     println!("METRIC scratch600_direct_restoring_final_block_parser_best_with_lookup_gap_to_2700k={direct_restoring_final_block_parser_best_with_lookup_gap:.3}");
+    println!("METRIC scratch600_direct_restoring_final_block_parser_binary_lookup_floor_mean={direct_restoring_final_block_parser_binary_lookup_floor_mean:.3}");
+    println!("METRIC scratch600_direct_restoring_final_block_parser_binary_lookup_floor_p99={direct_restoring_final_block_parser_binary_lookup_floor_p99}");
+    println!("METRIC scratch600_direct_restoring_final_block_parser_best_with_binary_lookup_mean={direct_restoring_final_block_parser_best_with_binary_lookup_mean:.3}");
+    println!("METRIC scratch600_direct_restoring_final_block_parser_best_with_binary_lookup_gap_to_2700k={direct_restoring_final_block_parser_best_with_binary_lookup_gap:.3}");
+    println!("METRIC scratch600_direct_restoring_final_block_parser_best_with_binary_lookup_2x_mean={direct_restoring_final_block_parser_best_with_binary_lookup_2x_mean:.3}");
+    println!("METRIC scratch600_direct_restoring_final_block_parser_best_with_binary_lookup_2x_gap_to_2700k={direct_restoring_final_block_parser_best_with_binary_lookup_2x_gap:.3}");
+    println!("METRIC scratch600_direct_restoring_final_block_parser_align_support_noncontig_steps={direct_restoring_final_block_parser_align_support_noncontig_steps}");
+    println!("METRIC scratch600_direct_restoring_final_block_parser_align_support_offset_steps={direct_restoring_final_block_parser_align_support_offset_steps}");
+    println!("METRIC scratch600_direct_restoring_final_block_parser_align_support_max_span={direct_restoring_final_block_parser_align_support_max_span}");
     println!("METRIC scratch600_plusminus_raw_scratch_bits={plusminus_raw_scratch}");
     println!("METRIC scratch600_plusminus_unary_scratch_p99={plusminus_unary_scratch_p99}");
     println!("METRIC scratch600_plusminus_parser_over_strict_bits={plusminus_parser_over_strict}");
@@ -1403,6 +1421,16 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
                 > direct_restoring_final_block_parser_oneway_budget
             && direct_restoring_final_block_parser_best_with_lookup_gap > 0.0,
         "restoring-final threshold-scan lookup floor now fits; build a block parser toy"
+    );
+    assert!(
+        direct_restoring_final_block_parser_best_with_binary_lookup_mean
+            < direct_restoring_final_block_parser_oneway_budget
+            && direct_restoring_final_block_parser_best_with_binary_lookup_gap < 0.0
+            && direct_restoring_final_block_parser_best_with_binary_lookup_2x_mean
+                > direct_restoring_final_block_parser_oneway_budget
+            && direct_restoring_final_block_parser_best_with_binary_lookup_2x_gap > 0.0
+            && direct_restoring_final_block_parser_align_support_noncontig_steps > 0,
+        "restoring-final binary-threshold parser accounting changed; revisit rank-map/parser route"
     );
     assert!(
         direct_restoring_final_block_parser_best_qrom_row_floor as f64
