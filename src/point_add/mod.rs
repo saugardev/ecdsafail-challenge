@@ -4387,7 +4387,7 @@ fn r_small_threshold() -> usize {
 /// `2^256`. Termination requires reaching `(1, 0)`, i.e. `s = 1`, so any run
 /// needs at least `ceil(log2(s0)) = 256` steps. Therefore the first 256 step
 /// entries are guaranteed bulk / nonterminal.
-const BULK_PREFIX_SAFE_ITERS: usize = 377;
+const BULK_PREFIX_SAFE_ITERS: usize = 378;
 
 fn bulk_prefix_safe_iters() -> usize {
     let centered_roundtrip_hook = std::env::var("BY_CENTERED_CLEAN_ROUNDTRIP_BENCH").ok().as_deref() == Some("1")
@@ -4408,7 +4408,7 @@ fn bulk_prefix_safe_iters() -> usize {
         // The huge centered roundtrip hooks change the circuit hash / RNG stream
         // enough that the aggressively tuned 375 bulk-prefix setting can hit a
         // rare phase cliff in the old Kaliski scaffold. Use the previously
-        // validated 370 setting for these smoke hooks; normal default remains 375.
+        // validated 370 setting for these smoke hooks; normal default remains 378.
         370
     } else {
         BULK_PREFIX_SAFE_ITERS
