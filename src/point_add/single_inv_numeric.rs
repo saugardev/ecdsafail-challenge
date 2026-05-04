@@ -3651,6 +3651,180 @@ mod tests {
         )
     }
 
+    fn halfgcd_joint_signed_binary_active_digits_for_toy(
+        x0: usize,
+        x1: usize,
+    ) -> Vec<(bool, bool)> {
+        #[derive(Clone)]
+        struct Row {
+            cost: usize,
+            occupied: usize,
+            digits: usize,
+            path: Vec<(bool, bool)>,
+        }
+
+        fn better(candidate: Row, old: Option<Row>) -> Option<Row> {
+            match old {
+                Some(row)
+                    if (row.cost, row.digits, row.occupied)
+                        <= (candidate.cost, candidate.digits, candidate.occupied) =>
+                {
+                    Some(row)
+                }
+                _ => Some(candidate),
+            }
+        }
+
+        let max_bits = usize_bit_len_for_payload_test(x0)
+            .max(usize_bit_len_for_payload_test(x1))
+            .max(1);
+        let bit_at = |x: usize, bit: usize| -> i8 { ((x >> bit) & 1) as i8 };
+        let mut dp: [[Option<Row>; 3]; 3] =
+            std::array::from_fn(|_| std::array::from_fn(|_| None));
+        dp[1][1] = Some(Row { cost: 0, occupied: 0, digits: 0, path: Vec::new() });
+        for bit in 0..(max_bits + 3) {
+            let b0 = bit_at(x0, bit);
+            let b1 = bit_at(x1, bit);
+            let mut next: [[Option<Row>; 3]; 3] =
+                std::array::from_fn(|_| std::array::from_fn(|_| None));
+            for c0i in 0..3 {
+                for c1i in 0..3 {
+                    let Some(row) = dp[c0i][c1i].as_ref() else { continue; };
+                    let c0 = c0i as i8 - 1;
+                    let c1 = c1i as i8 - 1;
+                    for d0 in -1i8..=1 {
+                        let s0 = b0 + c0 - d0;
+                        if s0.rem_euclid(2) != 0 {
+                            continue;
+                        }
+                        let nc0 = s0 / 2;
+                        if !(-1..=1).contains(&nc0) {
+                            continue;
+                        }
+                        for d1 in -1i8..=1 {
+                            let s1 = b1 + c1 - d1;
+                            if s1.rem_euclid(2) != 0 {
+                                continue;
+                            }
+                            let nc1 = s1 / 2;
+                            if !(-1..=1).contains(&nc1) {
+                                continue;
+                            }
+                            let active0 = d0 != 0;
+                            let active1 = d1 != 0;
+                            let digit_count = active0 as usize + active1 as usize;
+                            let occupied = digit_count != 0;
+                            let mut path = row.path.clone();
+                            path.push((active0, active1));
+                            let candidate = Row {
+                                cost: row.cost
+                                    + if occupied { 1024 } else { 0 }
+                                    + 512 * digit_count,
+                                occupied: row.occupied + occupied as usize,
+                                digits: row.digits + digit_count,
+                                path,
+                            };
+                            let slot = &mut next[(nc0 + 1) as usize][(nc1 + 1) as usize];
+                            *slot = better(candidate, slot.take());
+                        }
+                    }
+                }
+            }
+            dp = next;
+        }
+        let mut path = dp[1][1]
+            .take()
+            .expect("toy joint signed-binary carry did not drain")
+            .path;
+        while path.last().copied() == Some((false, false)) {
+            path.pop();
+        }
+        path
+    }
+
+    fn half_gcd_second_column_joint_signed_binary_active_predicate_stats(
+        n: usize,
+        p: u16,
+        phase_mask: usize,
+    ) -> (usize, usize, usize, usize, usize, usize, usize) {
+        let size = 1usize << n;
+        let depth = (n / 4).max(1);
+        let pair_mask = 0b11usize;
+        let mut anf = vec![0u8; size];
+        let mut b_active_support = Vec::<bool>::new();
+        let mut d_active_support = Vec::<bool>::new();
+        let mut pair_active_support = Vec::<bool>::new();
+        let mut max_pair = 0usize;
+        for x in 1..p {
+            let mut u = p as i128;
+            let mut v = x as i128;
+            let mut b = 0i128;
+            let mut d = 1i128;
+            let mut prefix_steps = 0usize;
+            while prefix_steps < depth && v != 0 {
+                let q = u / v;
+                let rem = u - q * v;
+                (b, d) = (d, b - q * d);
+                u = v;
+                v = rem;
+                prefix_steps += 1;
+            }
+            let digits = halfgcd_joint_signed_binary_active_digits_for_toy(
+                b.unsigned_abs() as usize,
+                d.unsigned_abs() as usize,
+            );
+            if pair_active_support.len() < digits.len() {
+                let new_len = digits.len();
+                b_active_support.resize(new_len, false);
+                d_active_support.resize(new_len, false);
+                pair_active_support.resize(new_len, false);
+            }
+            let mut parity = 0u8;
+            for (pos, &(active0, active1)) in digits.iter().enumerate() {
+                let pair = active0 as usize | ((active1 as usize) << 1);
+                max_pair = max_pair.max(pair);
+                if active0 {
+                    b_active_support[pos] = true;
+                }
+                if active1 {
+                    d_active_support[pos] = true;
+                }
+                if pair != 0 {
+                    pair_active_support[pos] = true;
+                }
+                parity ^= ((pair & phase_mask & pair_mask).count_ones() as u8) & 1;
+            }
+            anf[x as usize] = parity;
+        }
+        for bit in 0..n {
+            for idx in 0..size {
+                if (idx & (1usize << bit)) != 0 {
+                    anf[idx] ^= anf[idx ^ (1usize << bit)];
+                }
+            }
+        }
+        let density = anf.iter().filter(|&&v| v != 0).count();
+        let degree = anf
+            .iter()
+            .enumerate()
+            .filter_map(|(i, &v)| if v != 0 { Some(i.count_ones() as usize) } else { None })
+            .max()
+            .unwrap_or(0);
+        let active_slots = b_active_support.iter().filter(|&&seen| seen).count()
+            + d_active_support.iter().filter(|&&seen| seen).count();
+        let full_active_slots = 2 * pair_active_support.len();
+        let pair_positions = pair_active_support.iter().filter(|&&seen| seen).count();
+        (
+            degree,
+            density,
+            pair_active_support.len(),
+            max_pair,
+            active_slots,
+            full_active_slots,
+            pair_positions,
+        )
+    }
+
     fn half_gcd_second_column_static_window_support_stats(
         n: usize,
         p: u16,
@@ -4735,6 +4909,56 @@ mod tests {
             );
             assert!(degree + 1 >= n, "compact-wNAF active predicate unexpectedly low degree");
             assert!(density > table / 4, "compact-wNAF active predicate unexpectedly sparse");
+        }
+    }
+
+    #[test]
+    fn half_gcd_second_column_joint_signed_binary_active_predicate_is_dense() {
+        // The joint signed-binary DP changes the coefficient representation,
+        // so the independent-NAF active predicate check is not enough.  Probe
+        // the resulting active stream directly on exact toy domains.
+        let cases = [
+            (8usize, 251u16, 0b01usize),
+            (10usize, 1021u16, 0b01usize),
+            (12usize, 4093u16, 0b01usize),
+            (14usize, 16381u16, 0b01usize),
+        ];
+        for &(n, p, phase_mask) in &cases {
+            let (
+                degree,
+                density,
+                max_positions,
+                max_pair,
+                active_slots,
+                full_active_slots,
+                pair_positions,
+            ) = half_gcd_second_column_joint_signed_binary_active_predicate_stats(
+                n, p, phase_mask,
+            );
+            let table = 1usize << n;
+            eprintln!(
+                "half-GCD second-column joint signed-binary active predicate: n={n}, mask={phase_mask:#b}, degree={degree}, density={density}/{table}, positions={max_positions}, pair_positions={pair_positions}, active_slots={active_slots}/{full_active_slots}, max_pair={max_pair}"
+            );
+            if n == 14 {
+                println!("METRIC halfgcd_second_col_joint_signed_binary_active_degree_n14={degree}");
+                println!("METRIC halfgcd_second_col_joint_signed_binary_active_density_n14={density}");
+                println!("METRIC halfgcd_second_col_joint_signed_binary_active_positions_n14={max_positions}");
+                println!("METRIC halfgcd_second_col_joint_signed_binary_active_pair_positions_n14={pair_positions}");
+                println!("METRIC halfgcd_second_col_joint_signed_binary_active_slots_n14={active_slots}");
+                println!("METRIC halfgcd_second_col_joint_signed_binary_active_full_slots_n14={full_active_slots}");
+                println!("METRIC halfgcd_second_col_joint_signed_binary_active_max_pair_n14={max_pair}");
+            }
+            assert_eq!(max_pair, 0b11, "toy joint signed-binary active pairs stopped saturating");
+            assert_eq!(
+                pair_positions, max_positions,
+                "joint signed-binary active pair positions became sparse enough to revisit support pruning"
+            );
+            assert!(
+                active_slots + 1 >= full_active_slots,
+                "joint signed-binary active slots became sparse enough to revisit active support pruning"
+            );
+            assert!(degree + 1 >= n, "joint signed-binary active predicate unexpectedly low degree");
+            assert!(density > table / 4, "joint signed-binary active predicate unexpectedly sparse");
         }
     }
 

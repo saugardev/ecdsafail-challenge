@@ -253,7 +253,7 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
             name: "halfgcd_second_column_fixed_depth64_static_window_floor",
             scratch_bits: 515,
             charged_toffoli: Some(2_748_271),
-            blocker: "joint static-window scan improves to w6 average 2749506 (+49506) under the exact bit-product floor; sparse signed wNAF recoding lowers the source-product floor to 2748271 (+48271), but still needs selector/recoder cost below 86824 one-way instead of 99575; free-active compact NAF w2 would clear at 2691392, but the omitted active/zero predicate is 38097 one-way against 4304 slack; joint signed-binary DP improves the free-active floor to 2679431, but the active predicate is still 38450 one-way against 10285 slack and charging it raises the row to 2756331; active-only toy parity is dense at n14 (degree 14, 8322/16384) and active support is 29/30 slots; table-only w4 would be 2559198 before data application, but row-controlled source products make the best table-source floor w2 average 3956644, generic cleanup is dense at n14 (plain 8194/16384, wNAF 8162/16384), and exact toy support leaves 27/28 coefficient bit positions live",
+            blocker: "joint static-window scan improves to w6 average 2749506 (+49506) under the exact bit-product floor; sparse signed wNAF recoding lowers the source-product floor to 2748271 (+48271), but still needs selector/recoder cost below 86824 one-way instead of 99575; free-active compact NAF w2 would clear at 2691392, but the omitted active/zero predicate is 38097 one-way against 4304 slack; joint signed-binary DP improves the free-active floor to 2679431, but the active predicate is still 38450 one-way against 10285 slack and charging it raises the row to 2756331; active-only toy parity is dense at n14 (wNAF degree 14, 8322/16384; joint signed-binary degree 13, 8194/16384) and active support is 29/30 slots; table-only w4 would be 2559198 before data application, but row-controlled source products make the best table-source floor w2 average 3956644, generic cleanup is dense at n14 (plain 8194/16384, wNAF 8162/16384), and exact toy support leaves 27/28 coefficient bit positions live",
         },
         Candidate {
             name: "folded_kaliski_one_pair_plus_required_sidecar",
@@ -1687,6 +1687,13 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let halfgcd_second_col_fixed_depth64_joint_signed_binary_digits_mean_milli =
         75_098usize;
     let halfgcd_second_col_fixed_depth64_joint_signed_binary_digits_p99 = 96usize;
+    let halfgcd_second_col_joint_signed_binary_active_degree_n14 = 13usize;
+    let halfgcd_second_col_joint_signed_binary_active_density_n14 = 8_194usize;
+    let halfgcd_second_col_joint_signed_binary_active_positions_n14 = 15usize;
+    let halfgcd_second_col_joint_signed_binary_active_pair_positions_n14 = 15usize;
+    let halfgcd_second_col_joint_signed_binary_active_slots_n14 = 29usize;
+    let halfgcd_second_col_joint_signed_binary_active_full_slots_n14 = 30usize;
+    let halfgcd_second_col_joint_signed_binary_active_max_pair_n14 = 3usize;
     let halfgcd_second_col_compact_wnaf_active_degree_n14 = 14usize;
     let halfgcd_second_col_compact_wnaf_active_density_n14 = 8_322usize;
     let halfgcd_second_col_compact_wnaf_active_positions_n14 = 15usize;
@@ -2846,6 +2853,13 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_joint_signed_binary_occupied_p99={halfgcd_second_col_fixed_depth64_joint_signed_binary_occupied_p99}");
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_joint_signed_binary_digits_mean_milli={halfgcd_second_col_fixed_depth64_joint_signed_binary_digits_mean_milli}");
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_joint_signed_binary_digits_p99={halfgcd_second_col_fixed_depth64_joint_signed_binary_digits_p99}");
+    println!("METRIC scratch600_halfgcd_second_col_joint_signed_binary_active_degree_n14={halfgcd_second_col_joint_signed_binary_active_degree_n14}");
+    println!("METRIC scratch600_halfgcd_second_col_joint_signed_binary_active_density_n14={halfgcd_second_col_joint_signed_binary_active_density_n14}");
+    println!("METRIC scratch600_halfgcd_second_col_joint_signed_binary_active_positions_n14={halfgcd_second_col_joint_signed_binary_active_positions_n14}");
+    println!("METRIC scratch600_halfgcd_second_col_joint_signed_binary_active_pair_positions_n14={halfgcd_second_col_joint_signed_binary_active_pair_positions_n14}");
+    println!("METRIC scratch600_halfgcd_second_col_joint_signed_binary_active_slots_n14={halfgcd_second_col_joint_signed_binary_active_slots_n14}");
+    println!("METRIC scratch600_halfgcd_second_col_joint_signed_binary_active_full_slots_n14={halfgcd_second_col_joint_signed_binary_active_full_slots_n14}");
+    println!("METRIC scratch600_halfgcd_second_col_joint_signed_binary_active_max_pair_n14={halfgcd_second_col_joint_signed_binary_active_max_pair_n14}");
     println!("METRIC scratch600_halfgcd_second_col_compact_wnaf_active_degree_n14={halfgcd_second_col_compact_wnaf_active_degree_n14}");
     println!("METRIC scratch600_halfgcd_second_col_compact_wnaf_active_density_n14={halfgcd_second_col_compact_wnaf_active_density_n14}");
     println!("METRIC scratch600_halfgcd_second_col_compact_wnaf_active_positions_n14={halfgcd_second_col_compact_wnaf_active_positions_n14}");
@@ -4052,6 +4066,16 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
             && halfgcd_second_col_fixed_depth64_joint_signed_binary_missing_active_p99
                 > halfgcd_second_col_fixed_depth64_joint_signed_binary_active_slack_oneway,
         "half-GCD joint signed-binary active predicate now fits; build the recoder-cleanup toy"
+    );
+    assert!(
+        halfgcd_second_col_joint_signed_binary_active_degree_n14 + 1 >= 14
+            && halfgcd_second_col_joint_signed_binary_active_density_n14 > 8_000
+            && halfgcd_second_col_joint_signed_binary_active_pair_positions_n14
+                == halfgcd_second_col_joint_signed_binary_active_positions_n14
+            && halfgcd_second_col_joint_signed_binary_active_slots_n14 + 1
+                >= halfgcd_second_col_joint_signed_binary_active_full_slots_n14
+            && halfgcd_second_col_joint_signed_binary_active_max_pair_n14 == 3,
+        "half-GCD joint signed-binary active stream became structurally cheap; revisit recoding"
     );
     assert!(
         halfgcd_second_col_compact_wnaf_active_degree_n14 == 14
