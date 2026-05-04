@@ -5901,6 +5901,85 @@ mod tests {
     }
 
     #[test]
+    fn branch_pattern_fixed_id_decoder_floor_blocks_generic_compression() {
+        // The entropy result above is only a storage target.  If each window is
+        // stored as a fixed dictionary ID, replay still has to recover the 16
+        // odd-pattern controls.  A generic row decoder has to at least touch
+        // every distinct pattern row in the codebook, before equality tests,
+        // output-bit toggles, cleanup, or a second replay are charged.  That
+        // already exceeds the remaining margin of the two-fast-replay budget,
+        // so the compressed BY route needs a structured parser/consumer, not a
+        // plain fixed-ID QROM decode.
+        use std::collections::HashMap;
+        const W: usize = 16;
+        const WINDOWS: usize = 35;
+        let samples = 10_000usize;
+        let mut sampler =
+            Sampler::new(b"by-branch-pattern-fixed-id-decoder-v1", SECP256K1_P);
+        let mut counts: Vec<HashMap<u16, usize>> =
+            (0..WINDOWS).map(|_| HashMap::new()).collect();
+        for _ in 0..samples {
+            let x = sampler.next();
+            let mut delta = 1i64;
+            let mut f = SInt::from_u(SECP256K1_P);
+            let mut g = SInt::from_u(x);
+            for j in 0..WINDOWS {
+                let mut pat = 0u16;
+                for i in 0..W {
+                    if g.bit0() {
+                        pat |= 1u16 << i;
+                    }
+                    divstep_sint_state(&mut delta, &mut f, &mut g);
+                }
+                *counts[j].entry(pat).or_insert(0) += 1;
+            }
+        }
+
+        let fixed_id_bits = counts
+            .iter()
+            .map(|c| ((c.len() + 1) as f64).log2().ceil() as usize)
+            .sum::<usize>();
+        let distinct_rows = counts.iter().map(|c| c.len()).sum::<usize>();
+        let nonzero_pattern_bits = counts
+            .iter()
+            .flat_map(|c| c.keys())
+            .map(|pat| pat.count_ones() as usize)
+            .sum::<usize>();
+        let max_window_rows = counts.iter().map(|c| c.len()).max().unwrap_or(0);
+        let two_fast_replay_with_pattern_decode = 2_637_286usize;
+        let remaining_to_2700k = 2_700_000usize - two_fast_replay_with_pattern_decode;
+        let row_floor_gap =
+            two_fast_replay_with_pattern_decode as isize + distinct_rows as isize
+                - 2_700_000isize;
+        let bit_floor_gap =
+            two_fast_replay_with_pattern_decode as isize + nonzero_pattern_bits as isize
+                - 2_700_000isize;
+        println!("METRIC by_branch_pattern_fixed_id_samples={samples}");
+        println!("METRIC by_branch_pattern_fixed_id_bits={fixed_id_bits}");
+        println!("METRIC by_branch_pattern_fixed_id_distinct_rows={distinct_rows}");
+        println!("METRIC by_branch_pattern_fixed_id_max_window_rows={max_window_rows}");
+        println!("METRIC by_branch_pattern_fixed_id_nonzero_table_bits={nonzero_pattern_bits}");
+        println!("METRIC by_branch_pattern_fixed_id_remaining_to_2700k={remaining_to_2700k}");
+        println!("METRIC by_branch_pattern_fixed_id_row_floor_gap_ccx={row_floor_gap}");
+        println!("METRIC by_branch_pattern_fixed_id_bit_floor_gap_ccx={bit_floor_gap}");
+        eprintln!(
+            "BY fixed-ID pattern decoder floor: fixed_bits={fixed_id_bits}, rows={distinct_rows}, max_window_rows={max_window_rows}, nonzero_bits={nonzero_pattern_bits}, remaining={remaining_to_2700k}, row_gap={row_floor_gap}, bit_gap={bit_floor_gap}"
+        );
+        assert!(
+            fixed_id_bits < 560,
+            "fixed pattern IDs no longer compress raw history; update the entropy target"
+        );
+        assert!(
+            distinct_rows > remaining_to_2700k,
+            "generic fixed-ID row decoder now fits the two-replay margin; build it"
+        );
+        assert!(
+            bit_floor_gap > row_floor_gap,
+            "pattern-bit table floor should be stricter than row-touch floor"
+        );
+    }
+
+    #[test]
     fn actual_matrix_sequence_entropy_supports_sub600_history_target() {
         // Storing raw 22-bit (delta,h) keys costs 770 bits for 35 windows, but
         // actual secp256k1 trajectories are highly non-uniform, especially near

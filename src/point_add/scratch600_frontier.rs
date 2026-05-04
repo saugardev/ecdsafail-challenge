@@ -70,6 +70,12 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
             blocker: "one-DIV local pieces project 2533964 at strict scratch cap, but two-denominator ledger projects 4068262",
         },
         Candidate {
+            name: "scaled_by_compressed_pattern_fixed_id_decode",
+            scratch_bits: 600,
+            charged_toffoli: Some(2_944_889),
+            blocker: "two fast scaled-BY replays project 2637286 before compressed-ID expansion; sampled fixed-ID row-touch floor adds 307603 and misses by 244889, so this needs a structured pattern parser",
+        },
+        Candidate {
             name: "streamed_mask_qoffset_replay_body_only",
             scratch_bits: 510,
             charged_toffoli: None,
@@ -209,6 +215,21 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let partial_prefix80_gap = partial_prefix80_projection as isize - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
     let partial_prefix90_gap = partial_prefix90_projection as isize - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
     let partial_prefix_two_den_gap = partial_prefix_two_den_projection as isize - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+    let scaled_by_pattern_fixed_id_bits = 481usize;
+    let scaled_by_pattern_fixed_id_distinct_rows = 307_603usize;
+    let scaled_by_pattern_fixed_id_max_window_rows = 9_339usize;
+    let scaled_by_pattern_fixed_id_nonzero_table_bits = 2_457_030usize;
+    let scaled_by_pattern_fixed_id_two_replay_before_decode = 2_637_286usize;
+    let scaled_by_pattern_fixed_id_remaining_to_2700k =
+        GOOGLE_LOW_QUBIT_TOFFOLI - scaled_by_pattern_fixed_id_two_replay_before_decode;
+    let scaled_by_pattern_fixed_id_row_floor_gap =
+        (scaled_by_pattern_fixed_id_two_replay_before_decode
+            + scaled_by_pattern_fixed_id_distinct_rows) as isize
+            - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+    let scaled_by_pattern_fixed_id_bit_floor_gap =
+        (scaled_by_pattern_fixed_id_two_replay_before_decode
+            + scaled_by_pattern_fixed_id_nonzero_table_bits) as isize
+            - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
     let by_consumed_high_update_mean_compute_ccx = 515_494usize;
     let by_consumed_high_update_compute_uncompute_ccx = 1_030_988usize;
     let by_consumed_high_q_oracle_total_ccx = 329_280usize;
@@ -801,6 +822,14 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     println!("METRIC scratch600_partial_prefix90_gap_to_2700k={partial_prefix90_gap}");
     println!("METRIC scratch600_partial_prefix_two_den_projected_toffoli={partial_prefix_two_den_projection}");
     println!("METRIC scratch600_partial_prefix_two_den_gap_to_2700k={partial_prefix_two_den_gap}");
+    println!("METRIC scratch600_scaled_by_pattern_fixed_id_bits={scaled_by_pattern_fixed_id_bits}");
+    println!("METRIC scratch600_scaled_by_pattern_fixed_id_distinct_rows={scaled_by_pattern_fixed_id_distinct_rows}");
+    println!("METRIC scratch600_scaled_by_pattern_fixed_id_max_window_rows={scaled_by_pattern_fixed_id_max_window_rows}");
+    println!("METRIC scratch600_scaled_by_pattern_fixed_id_nonzero_table_bits={scaled_by_pattern_fixed_id_nonzero_table_bits}");
+    println!("METRIC scratch600_scaled_by_pattern_fixed_id_two_replay_before_decode={scaled_by_pattern_fixed_id_two_replay_before_decode}");
+    println!("METRIC scratch600_scaled_by_pattern_fixed_id_remaining_to_2700k={scaled_by_pattern_fixed_id_remaining_to_2700k}");
+    println!("METRIC scratch600_scaled_by_pattern_fixed_id_row_floor_gap={scaled_by_pattern_fixed_id_row_floor_gap}");
+    println!("METRIC scratch600_scaled_by_pattern_fixed_id_bit_floor_gap={scaled_by_pattern_fixed_id_bit_floor_gap}");
     println!("METRIC scratch600_by_consumed_high_update_mean_compute_ccx={by_consumed_high_update_mean_compute_ccx}");
     println!("METRIC scratch600_by_consumed_high_update_compute_uncompute_ccx={by_consumed_high_update_compute_uncompute_ccx}");
     println!("METRIC scratch600_by_consumed_high_q_oracle_total_ccx={by_consumed_high_q_oracle_total_ccx}");
@@ -1268,6 +1297,14 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     assert!(
         tiny_lowword_w1_selector_slack > 0 && tiny_lowword_best_fixed_update_excess > 250_000,
         "tiny lowword selector/update tradeoff changed; revisit streamed BY route"
+    );
+    assert!(
+        scaled_by_pattern_fixed_id_bits < 560
+            && scaled_by_pattern_fixed_id_distinct_rows
+                > scaled_by_pattern_fixed_id_remaining_to_2700k
+            && scaled_by_pattern_fixed_id_row_floor_gap > 200_000
+            && scaled_by_pattern_fixed_id_bit_floor_gap > 2_000_000,
+        "compressed scaled-BY pattern IDs now have a generic decoder budget; revisit fixed-ID history"
     );
     assert!(
         by_consumed_high_gap_to_2700k > 1_000_000 && by_consumed_high_max_peak_q > GOOGLE_LOW_QUBIT_SCRATCH,
