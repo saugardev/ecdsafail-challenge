@@ -67,30 +67,30 @@ use crate::sim::Simulator;
 use crate::weierstrass_elliptic_curve::WeierstrassEllipticCurve;
 
 pub mod by;
+#[cfg(test)]
+pub mod coset_proto;
 pub mod fermat_inv;
-pub mod unconditional_kal;
+pub mod kaliski_classical_replay;
 pub mod kaliski_equiv;
 pub mod kaliski_jump;
-pub mod microbench;
 #[cfg(test)]
-pub mod primitive_costs;
-pub mod venting;
+pub mod kaliski_linear_transform;
 #[cfg(test)]
 pub mod kim_inv_circuit;
 #[cfg(test)]
 pub mod kim_proto;
 #[cfg(test)]
 pub mod luo_proto;
+pub mod microbench;
 #[cfg(test)]
-pub mod coset_proto;
-#[cfg(test)]
-pub mod single_inv_numeric;
+pub mod primitive_costs;
 #[cfg(test)]
 pub mod scratch600_frontier;
-pub mod kaliski_classical_replay;
 #[cfg(test)]
-pub mod kaliski_linear_transform;
+pub mod single_inv_numeric;
 pub mod test_timeout;
+pub mod unconditional_kal;
+pub mod venting;
 
 struct B {
     pub ops: Vec<Op>,
@@ -138,7 +138,10 @@ impl B {
             if std::env::var("TRACE_EACH_PEAK").is_ok() {
                 eprintln!(
                     "PEAK active={} next_idx={} phase='{}' ops_idx={}",
-                    self.active_qubits, self.next_qubit, self.phase, self.ops.len()
+                    self.active_qubits,
+                    self.next_qubit,
+                    self.phase,
+                    self.ops.len()
                 );
             }
         }
@@ -828,7 +831,12 @@ fn mod_sub_qq_fast(b: &mut B, acc: &[QubitId], a: &[QubitId], p: U256) {
         let c_low = c.as_limbs()[0];
         let q_clean2: [QubitId; 2] = [b.alloc_qubit(), b.alloc_qubit()];
         venting::cisub_dirty_2clean_classical(
-            b, &acc_ext[..n], &a_ext[..n - 2], &q_clean2, c_low, flag,
+            b,
+            &acc_ext[..n],
+            &a_ext[..n - 2],
+            &q_clean2,
+            c_low,
+            flag,
         );
         b.free(q_clean2[0]);
         b.free(q_clean2[1]);
@@ -1725,21 +1733,14 @@ fn mod_halve_inplace_fast_with_dirty(
         // For n=256, we still need to pass the full 256-bit constant via u64.
         // Since c only has 33 bits, u64 is fine.
         let c_u64: u64 = c.as_limbs()[0] | (c.as_limbs()[1] << 32); // hack for U256
-        // Actually, U256 limbs are u64[4]. Bit 32 of U256 is limbs[0] bit 32.
-        // limbs[0] holds bits 0..64. So just take limbs[0] for bits < 64.
+                                                                    // Actually, U256 limbs are u64[4]. Bit 32 of U256 is limbs[0] bit 32.
+                                                                    // limbs[0] holds bits 0..64. So just take limbs[0] for bits < 64.
         let c_low = c.as_limbs()[0];
         let dirty = dirty_src.unwrap();
         let dirty_slice = &dirty[..n - 2];
         // We need 2 clean ancilla. Alloc them fresh.
         let q_clean2: [QubitId; 2] = [b.alloc_qubit(), b.alloc_qubit()];
-        venting::cisub_dirty_2clean_classical(
-            b,
-            v,
-            dirty_slice,
-            &q_clean2,
-            c_low,
-            ovf,
-        );
+        venting::cisub_dirty_2clean_classical(b, v, dirty_slice, &q_clean2, c_low, ovf);
         b.free(q_clean2[0]);
         b.free(q_clean2[1]);
         let _ = c_u64; // unused, c_low is the right value
@@ -1845,7 +1846,12 @@ fn mod_add_qq_fast(b: &mut B, acc: &[QubitId], a: &[QubitId], p: U256) {
         let c_low = c.as_limbs()[0];
         let q_clean2: [QubitId; 2] = [b.alloc_qubit(), b.alloc_qubit()];
         venting::iadd_dirty_2clean_classical(
-            b, &acc_ext, &a_ext[..n1 - 2], &q_clean2, c_low, false,
+            b,
+            &acc_ext,
+            &a_ext[..n1 - 2],
+            &q_clean2,
+            c_low,
+            false,
         );
         b.free(q_clean2[0]);
         b.free(q_clean2[1]);
@@ -1864,7 +1870,12 @@ fn mod_add_qq_fast(b: &mut B, acc: &[QubitId], a: &[QubitId], p: U256) {
         let n1 = acc_ext.len();
         let q_clean2: [QubitId; 2] = [b.alloc_qubit(), b.alloc_qubit()];
         venting::cisub_dirty_2clean_classical(
-            b, &acc_ext, &a_ext[..n1 - 2], &q_clean2, c_low, flag,
+            b,
+            &acc_ext,
+            &a_ext[..n1 - 2],
+            &q_clean2,
+            c_low,
+            flag,
         );
         b.free(q_clean2[0]);
         b.free(q_clean2[1]);
@@ -1918,7 +1929,12 @@ fn mod_add_qq_fast_from_zero(b: &mut B, acc: &[QubitId], a: &[QubitId], p: U256)
         let c_low = c.as_limbs()[0];
         let q_clean2: [QubitId; 2] = [b.alloc_qubit(), b.alloc_qubit()];
         venting::iadd_dirty_2clean_classical(
-            b, &acc_ext, &a_ext[..n1 - 2], &q_clean2, c_low, false,
+            b,
+            &acc_ext,
+            &a_ext[..n1 - 2],
+            &q_clean2,
+            c_low,
+            false,
         );
         b.free(q_clean2[0]);
         b.free(q_clean2[1]);
@@ -1936,7 +1952,12 @@ fn mod_add_qq_fast_from_zero(b: &mut B, acc: &[QubitId], a: &[QubitId], p: U256)
         let n1 = acc_ext.len();
         let q_clean2: [QubitId; 2] = [b.alloc_qubit(), b.alloc_qubit()];
         venting::cisub_dirty_2clean_classical(
-            b, &acc_ext, &a_ext[..n1 - 2], &q_clean2, c_low, flag,
+            b,
+            &acc_ext,
+            &a_ext[..n1 - 2],
+            &q_clean2,
+            c_low,
+            flag,
         );
         b.free(q_clean2[0]);
         b.free(q_clean2[1]);
@@ -2635,12 +2656,7 @@ fn schoolbook_mul_into_addsub(b: &mut B, x: &[QubitId], y: &[QubitId], tmp_ext: 
 /// correction adders. Saves roughly `n` transient qubits at peak vs. the
 /// `_fast` variant at the cost of ~n extra Toffolis per row. Top-level
 /// semantics identical to `schoolbook_mul_into_addsub`.
-fn schoolbook_mul_into_addsub_lowq(
-    b: &mut B,
-    x: &[QubitId],
-    y: &[QubitId],
-    tmp_ext: &[QubitId],
-) {
+fn schoolbook_mul_into_addsub_lowq(b: &mut B, x: &[QubitId], y: &[QubitId], tmp_ext: &[QubitId]) {
     let n = x.len();
     debug_assert_eq!(y.len(), n);
     debug_assert_eq!(tmp_ext.len(), 2 * n);
@@ -3738,7 +3754,12 @@ fn squaring_sub_from_acc_schoolbook(b: &mut B, acc: &[QubitId], x: &[QubitId], p
     b.free_vec(&tmp_ext);
 }
 
-fn squaring_sub_from_acc_schoolbook_lowq_shift22(b: &mut B, acc: &[QubitId], x: &[QubitId], p: U256) {
+fn squaring_sub_from_acc_schoolbook_lowq_shift22(
+    b: &mut B,
+    acc: &[QubitId],
+    x: &[QubitId],
+    p: U256,
+) {
     let n = acc.len();
     debug_assert_eq!(n, 256);
     debug_assert_eq!(x.len(), n);
@@ -4369,7 +4390,7 @@ fn mulmod(a: U256, b: U256, p: U256) -> U256 {
 /// (since max(r,s) doubles per iter starting from max=1, so max ≤ 2^iter_idx).
 /// In that range, mod_double(r)'s Solinas cadd is identity — replace with
 /// a plain shift (0 Toffoli) for ~255 CCX savings per iter.
-const R_SMALL_THRESHOLD: usize = 260;
+const R_SMALL_THRESHOLD: usize = 261;
 
 fn r_small_threshold() -> usize {
     std::env::var("KAL_R_SMALL_THRESHOLD")
@@ -4390,14 +4411,29 @@ fn r_small_threshold() -> usize {
 const BULK_PREFIX_SAFE_ITERS: usize = 378;
 
 fn bulk_prefix_safe_iters() -> usize {
-    let centered_roundtrip_hook = std::env::var("BY_CENTERED_CLEAN_ROUNDTRIP_BENCH").ok().as_deref() == Some("1")
-        || std::env::var("BY_CENTERED_FAST_CLEAN_ROUNDTRIP_BENCH").ok().as_deref() == Some("1")
-        || std::env::var("BY_CENTERED_DENOM_CONTROLS_BENCH").ok().as_deref() == Some("1")
+    let centered_roundtrip_hook = std::env::var("BY_CENTERED_CLEAN_ROUNDTRIP_BENCH")
+        .ok()
+        .as_deref()
+        == Some("1")
+        || std::env::var("BY_CENTERED_FAST_CLEAN_ROUNDTRIP_BENCH")
+            .ok()
+            .as_deref()
+            == Some("1")
+        || std::env::var("BY_CENTERED_DENOM_CONTROLS_BENCH")
+            .ok()
+            .as_deref()
+            == Some("1")
         || std::env::var("BY_CENTERED_LIVE_NUM_BENCH").ok().as_deref() == Some("1")
         || std::env::var("BY_CENTERED_PAIR1_REPLACE").ok().as_deref() == Some("1")
         || std::env::var("BY_CENTERED_PAIR2_REPLACE").ok().as_deref() == Some("1")
-        || std::env::var("BY_SCALED_PAIR2_PRODUCT_REPLACE").ok().as_deref() == Some("1");
-    let centered_q_payload_hook = std::env::var("BY_CENTERED_WINDOW_Q_DENOM_REPLACE").ok().as_deref() == Some("1");
+        || std::env::var("BY_SCALED_PAIR2_PRODUCT_REPLACE")
+            .ok()
+            .as_deref()
+            == Some("1");
+    let centered_q_payload_hook = std::env::var("BY_CENTERED_WINDOW_Q_DENOM_REPLACE")
+        .ok()
+        .as_deref()
+        == Some("1");
     let default = if centered_q_payload_hook {
         // The narrower q-payload history changes the circuit shape enough that
         // the old 370 centered-hook Kaliski prefix hits an altseed phase cliff.
@@ -4487,7 +4523,14 @@ fn by_cmod_neg_inplace_canonical_for_bench(b: &mut B, v: &[QubitId], ctrl: Qubit
     b.free(nz);
 }
 
-fn scaled_by_controlled_microstep(b: &mut B, r: &[QubitId], s: &[QubitId], odd: QubitId, a: QubitId, p: U256) {
+fn scaled_by_controlled_microstep(
+    b: &mut B,
+    r: &[QubitId],
+    s: &[QubitId],
+    odd: QubitId,
+    a: QubitId,
+    p: U256,
+) {
     // Direct scaled Bernstein-Yang tagged-DIV microstep:
     //   C: (r,s) -> (r, s/2)
     //   B: (r,s) -> (r, (s+r)/2)
@@ -4577,7 +4620,11 @@ fn by_signed_controlled_sub_for_bench(b: &mut B, acc: &[QubitId], a: &[QubitId],
 }
 
 fn by_twos_cneg_for_bench(b: &mut B, v: &[QubitId], ctrl: QubitId) {
-    if std::env::var("BY_CENTERED_REPLAY_DIRECTFAST_CNEG").ok().as_deref() == Some("1") {
+    if std::env::var("BY_CENTERED_REPLAY_DIRECTFAST_CNEG")
+        .ok()
+        .as_deref()
+        == Some("1")
+    {
         for &q in v {
             b.cx(ctrl, q);
         }
@@ -4598,7 +4645,10 @@ fn by_arithmetic_shift_right_even_for_bench(b: &mut B, v: &[QubitId]) {
 }
 
 fn by_centered_halve_live_parity_for_bench(b: &mut B, v: &[QubitId], parity: QubitId, p: U256) {
-    let directfast = std::env::var("BY_CENTERED_REPLAY_DIRECTFAST_HALVE").ok().as_deref() == Some("1");
+    let directfast = std::env::var("BY_CENTERED_REPLAY_DIRECTFAST_HALVE")
+        .ok()
+        .as_deref()
+        == Some("1");
     let sign_hist = b.alloc_qubit();
     let add_ctrl = b.alloc_qubit();
     let sub_ctrl = b.alloc_qubit();
@@ -4636,9 +4686,18 @@ fn centered_signed_by_microstep_for_bench(
     parity: QubitId,
     p: U256,
 ) {
-    let exact_cneg = std::env::var("BY_CENTERED_REPLAY_EXACT_CNEG").ok().as_deref() == Some("1");
-    let exact_add = std::env::var("BY_CENTERED_REPLAY_EXACT_ADD").ok().as_deref() == Some("1");
-    let exact_halve = std::env::var("BY_CENTERED_REPLAY_EXACT_HALVE").ok().as_deref() == Some("1");
+    let exact_cneg = std::env::var("BY_CENTERED_REPLAY_EXACT_CNEG")
+        .ok()
+        .as_deref()
+        == Some("1");
+    let exact_add = std::env::var("BY_CENTERED_REPLAY_EXACT_ADD")
+        .ok()
+        .as_deref()
+        == Some("1");
+    let exact_halve = std::env::var("BY_CENTERED_REPLAY_EXACT_HALVE")
+        .ok()
+        .as_deref()
+        == Some("1");
     for i in 0..r.len() {
         cswap(b, a, r[i], s[i]);
     }
@@ -4659,7 +4718,12 @@ fn centered_signed_by_microstep_for_bench(
     }
 }
 
-fn by_signed_controlled_add_exact_for_bench(b: &mut B, acc: &[QubitId], a: &[QubitId], ctrl: QubitId) {
+fn by_signed_controlled_add_exact_for_bench(
+    b: &mut B,
+    acc: &[QubitId],
+    a: &[QubitId],
+    ctrl: QubitId,
+) {
     let f = b.alloc_qubits(acc.len());
     for i in 0..acc.len() {
         b.ccx(ctrl, a[i], f[i]);
@@ -4671,7 +4735,12 @@ fn by_signed_controlled_add_exact_for_bench(b: &mut B, acc: &[QubitId], a: &[Qub
     b.free_vec(&f);
 }
 
-fn by_signed_controlled_sub_exact_for_bench(b: &mut B, acc: &[QubitId], a: &[QubitId], ctrl: QubitId) {
+fn by_signed_controlled_sub_exact_for_bench(
+    b: &mut B,
+    acc: &[QubitId],
+    a: &[QubitId],
+    ctrl: QubitId,
+) {
     let f = b.alloc_qubits(acc.len());
     for i in 0..acc.len() {
         b.ccx(ctrl, a[i], f[i]);
@@ -4697,7 +4766,12 @@ fn by_arithmetic_shift_left_even_inverse_for_bench(b: &mut B, v: &[QubitId]) {
     }
 }
 
-fn by_centered_halve_live_parity_exact_for_bench(b: &mut B, v: &[QubitId], parity: QubitId, p: U256) {
+fn by_centered_halve_live_parity_exact_for_bench(
+    b: &mut B,
+    v: &[QubitId],
+    parity: QubitId,
+    p: U256,
+) {
     let sign_hist = b.alloc_qubit();
     let add_ctrl = b.alloc_qubit();
     let sub_ctrl = b.alloc_qubit();
@@ -4745,7 +4819,12 @@ fn by_centered_unhalve_with_parity_for_bench(b: &mut B, v: &[QubitId], parity: Q
     b.free(sign_hist);
 }
 
-fn by_centered_unhalve_with_parity_exact_for_bench(b: &mut B, v: &[QubitId], parity: QubitId, p: U256) {
+fn by_centered_unhalve_with_parity_exact_for_bench(
+    b: &mut B,
+    v: &[QubitId],
+    parity: QubitId,
+    p: U256,
+) {
     by_arithmetic_shift_left_even_inverse_for_bench(b, v);
     let sign_hist = b.alloc_qubit();
     let add_ctrl = b.alloc_qubit();
@@ -5099,12 +5178,18 @@ fn by_signed_lowword_window_xor_controls_for_bench(
 }
 
 fn by_window_controls_enabled_for_bench() -> bool {
-    std::env::var("BY_CENTERED_WINDOW_DENOM_REPLACE").ok().as_deref() == Some("1")
+    std::env::var("BY_CENTERED_WINDOW_DENOM_REPLACE")
+        .ok()
+        .as_deref()
+        == Some("1")
         || by_window_q_payload_enabled_for_bench()
 }
 
 fn by_window_q_payload_enabled_for_bench() -> bool {
-    std::env::var("BY_CENTERED_WINDOW_Q_DENOM_REPLACE").ok().as_deref() == Some("1")
+    std::env::var("BY_CENTERED_WINDOW_Q_DENOM_REPLACE")
+        .ok()
+        .as_deref()
+        == Some("1")
 }
 
 fn by_generate_signed_controls_for_bench(
@@ -5120,9 +5205,18 @@ fn by_generate_signed_controls_for_bench(
         const W: usize = 16;
         assert_eq!(odd.len() % W, 0);
         for start in (0..odd.len()).step_by(W) {
-            by_signed_lowword_window_xor_controls_for_bench(b, f, g, delta, odd, a_ctrl, q_hist, start);
+            by_signed_lowword_window_xor_controls_for_bench(
+                b, f, g, delta, odd, a_ctrl, q_hist, start,
+            );
             for j in 0..W {
-                by_signed_branch_apply_step_for_bench(b, f, g, delta, odd[start + j], a_ctrl[start + j]);
+                by_signed_branch_apply_step_for_bench(
+                    b,
+                    f,
+                    g,
+                    delta,
+                    odd[start + j],
+                    a_ctrl[start + j],
+                );
             }
         }
     } else {
@@ -5146,9 +5240,18 @@ fn by_reverse_signed_controls_for_bench(
         assert_eq!(odd.len() % W, 0);
         for start in (0..odd.len()).step_by(W).rev() {
             for j in (0..W).rev() {
-                by_signed_branch_apply_step_reverse_for_bench(b, f, g, delta, odd[start + j], a_ctrl[start + j]);
+                by_signed_branch_apply_step_reverse_for_bench(
+                    b,
+                    f,
+                    g,
+                    delta,
+                    odd[start + j],
+                    a_ctrl[start + j],
+                );
             }
-            by_signed_lowword_window_xor_controls_for_bench(b, f, g, delta, odd, a_ctrl, q_hist, start);
+            by_signed_lowword_window_xor_controls_for_bench(
+                b, f, g, delta, odd, a_ctrl, q_hist, start,
+            );
         }
     } else {
         for i in (0..odd.len()).rev() {
@@ -5240,11 +5343,15 @@ fn emit_centered_signed_by_clean_roundtrip_benchmark_scaffold(b: &mut B, p: U256
     }
     b.set_phase("by_centered_clean_roundtrip_bench_forward");
     for i in 0..560 {
-        centered_signed_by_microstep_all_exact_for_bench(b, &r, &s, odd[i], a_ctrl[i], parity[i], p);
+        centered_signed_by_microstep_all_exact_for_bench(
+            b, &r, &s, odd[i], a_ctrl[i], parity[i], p,
+        );
     }
     b.set_phase("by_centered_clean_roundtrip_bench_inverse");
     for i in (0..560).rev() {
-        centered_signed_by_microstep_inverse_all_exact_for_bench(b, &r, &s, odd[i], a_ctrl[i], parity[i], p);
+        centered_signed_by_microstep_inverse_all_exact_for_bench(
+            b, &r, &s, odd[i], a_ctrl[i], parity[i], p,
+        );
         centered_signed_by_clear_parity_after_inverse_for_bench(b, &r, &s, odd[i], parity[i]);
     }
     b.set_phase("by_centered_clean_roundtrip_bench_free");
@@ -5361,7 +5468,10 @@ fn emit_single_inv_strategy_c_shape_benchmark_scaffold(b: &mut B, p: U256) {
     // scaffold: one inversion on dx^3, plus the surrounding square/multiply
     // chain that a real one-DIV path would need to carry.
     const ITERS: usize = 404;
-    let lowq_unv_square = std::env::var("SINGLE_INV_C_LOWQ_UNV_SQUARE").ok().as_deref() == Some("1");
+    let lowq_unv_square = std::env::var("SINGLE_INV_C_LOWQ_UNV_SQUARE")
+        .ok()
+        .as_deref()
+        == Some("1");
     let lowq_undx2 = std::env::var("SINGLE_INV_C_LOWQ_UNDX2").ok().as_deref() == Some("1");
     let skip_ry = std::env::var("SINGLE_INV_C_SKIP_RY").ok().as_deref() == Some("1");
     b.set_phase("single_inv_c_shape_alloc");
@@ -5427,7 +5537,11 @@ fn emit_single_inv_strategy_c_shape_benchmark_scaffold(b: &mut B, p: U256) {
         b.free_vec(&v);
     });
 
-    if std::env::var("SINGLE_INV_C_FREE_DY_AFTER_BODY").ok().as_deref() == Some("1") {
+    if std::env::var("SINGLE_INV_C_FREE_DY_AFTER_BODY")
+        .ok()
+        .as_deref()
+        == Some("1")
+    {
         init_small_const_reg(b, &dy, 5);
         b.free_vec(&dy);
     }
@@ -5489,7 +5603,13 @@ fn by_uncopy_signed_mod_p_for_bench(b: &mut B, signed: &[QubitId], out: &[QubitI
     }
 }
 
-fn by_cmod_add_qq_exact_for_bench(b: &mut B, acc: &[QubitId], a: &[QubitId], ctrl: QubitId, p: U256) {
+fn by_cmod_add_qq_exact_for_bench(
+    b: &mut B,
+    acc: &[QubitId],
+    a: &[QubitId],
+    ctrl: QubitId,
+    p: U256,
+) {
     let f = b.alloc_qubits(acc.len());
     for i in 0..acc.len() {
         b.ccx(ctrl, a[i], f[i]);
@@ -5501,7 +5621,13 @@ fn by_cmod_add_qq_exact_for_bench(b: &mut B, acc: &[QubitId], a: &[QubitId], ctr
     b.free_vec(&f);
 }
 
-fn by_cmod_sub_qq_exact_for_bench(b: &mut B, acc: &[QubitId], a: &[QubitId], ctrl: QubitId, p: U256) {
+fn by_cmod_sub_qq_exact_for_bench(
+    b: &mut B,
+    acc: &[QubitId],
+    a: &[QubitId],
+    ctrl: QubitId,
+    p: U256,
+) {
     let f = b.alloc_qubits(acc.len());
     for i in 0..acc.len() {
         b.ccx(ctrl, a[i], f[i]);
@@ -5546,7 +5672,12 @@ fn by_write_neg_quotient_from_centered_r_for_bench(
     by_add_neg_quotient_from_centered_r_for_bench(b, lam, r, f_neg, p);
 }
 
-fn by_load_centered_copy_for_bench(b: &mut B, src: &[QubitId], dst: &[QubitId], p: U256) -> QubitId {
+fn by_load_centered_copy_for_bench(
+    b: &mut B,
+    src: &[QubitId],
+    dst: &[QubitId],
+    p: U256,
+) -> QubitId {
     assert!(dst.len() >= src.len());
     for i in 0..src.len() {
         b.cx(src[i], dst[i]);
@@ -5560,7 +5691,13 @@ fn by_load_centered_copy_for_bench(b: &mut B, src: &[QubitId], dst: &[QubitId], 
     center_flag
 }
 
-fn by_unload_centered_copy_for_bench(b: &mut B, src: &[QubitId], dst: &[QubitId], p: U256, center_flag: QubitId) {
+fn by_unload_centered_copy_for_bench(
+    b: &mut B,
+    src: &[QubitId],
+    dst: &[QubitId],
+    p: U256,
+    center_flag: QubitId,
+) {
     assert!(dst.len() >= src.len());
     cadd_nbit_const(b, dst, p, center_flag);
     let half_p = p >> 1usize;
@@ -5573,7 +5710,12 @@ fn by_unload_centered_copy_for_bench(b: &mut B, src: &[QubitId], dst: &[QubitId]
     b.free(center_flag);
 }
 
-fn compute_pair1_lam_with_centered_by_bench(b: &mut B, tx: &[QubitId], ty: &[QubitId], p: U256) -> Vec<QubitId> {
+fn compute_pair1_lam_with_centered_by_bench(
+    b: &mut B,
+    tx: &[QubitId],
+    ty: &[QubitId],
+    p: U256,
+) -> Vec<QubitId> {
     // Functional pair1 experiment: compute lam=-dy/dx using denominator-derived
     // BY controls and centered tagged numerator replay.  This is Bennett-style:
     // copy the recovered lam, then reverse replay/control generation so only lam
@@ -5622,7 +5764,9 @@ fn compute_pair1_lam_with_centered_by_bench(b: &mut B, tx: &[QubitId], ty: &[Qub
     // branch decisions are sourced from 16-step lowword window oracles, then
     // applied to this full-width state; otherwise this is the original direct
     // per-step generator.
-    let q_hist_slices = q_hist.as_ref().map(|(q0, q1)| (q0.as_slice(), q1.as_slice()));
+    let q_hist_slices = q_hist
+        .as_ref()
+        .map(|(q0, q1)| (q0.as_slice(), q1.as_slice()));
     by_generate_signed_controls_for_bench(b, &f, &g, &delta, &odd, &a_ctrl, q_hist_slices);
 
     b.set_phase("pair1_by_centered_forward");
@@ -5640,7 +5784,9 @@ fn compute_pair1_lam_with_centered_by_bench(b: &mut B, tx: &[QubitId], ty: &[Qub
     }
 
     b.set_phase("pair1_by_centered_reverse_den");
-    let q_hist_slices = q_hist.as_ref().map(|(q0, q1)| (q0.as_slice(), q1.as_slice()));
+    let q_hist_slices = q_hist
+        .as_ref()
+        .map(|(q0, q1)| (q0.as_slice(), q1.as_slice()));
     by_reverse_signed_controls_for_bench(b, &f, &g, &delta, &odd, &a_ctrl, q_hist_slices);
 
     b.set_phase("pair1_by_centered_clear");
@@ -5712,7 +5858,9 @@ fn write_pair2_product_and_clean_lam_with_scaled_by_bench(
 
     b.set_phase("pair2_by_scaled_product_inverse");
     for i in (0..STEPS).rev() {
-        scaled_by_controlled_microstep_inverse_negr_for_bench(b, lam, product, odd[i], a_ctrl[i], p);
+        scaled_by_controlled_microstep_inverse_negr_for_bench(
+            b, lam, product, odd[i], a_ctrl[i], p,
+        );
     }
 
     b.set_phase("pair2_by_scaled_product_clear_frame");
@@ -5784,7 +5932,9 @@ fn add_neg_quotient_into_acc_with_centered_by_bench(
     let center_flag = by_load_centered_copy_for_bench(b, &num, &s, p);
 
     b.set_phase("by_centered_accquot_generate");
-    let q_hist_slices = q_hist.as_ref().map(|(q0, q1)| (q0.as_slice(), q1.as_slice()));
+    let q_hist_slices = q_hist
+        .as_ref()
+        .map(|(q0, q1)| (q0.as_slice(), q1.as_slice()));
     by_generate_signed_controls_for_bench(b, &f, &g, &delta, &odd, &a_ctrl, q_hist_slices);
 
     b.set_phase("by_centered_accquot_forward");
@@ -5802,7 +5952,9 @@ fn add_neg_quotient_into_acc_with_centered_by_bench(
     }
 
     b.set_phase("by_centered_accquot_reverse_den");
-    let q_hist_slices = q_hist.as_ref().map(|(q0, q1)| (q0.as_slice(), q1.as_slice()));
+    let q_hist_slices = q_hist
+        .as_ref()
+        .map(|(q0, q1)| (q0.as_slice(), q1.as_slice()));
     by_reverse_signed_controls_for_bench(b, &f, &g, &delta, &odd, &a_ctrl, q_hist_slices);
 
     b.set_phase("by_centered_accquot_clear");
@@ -5831,7 +5983,11 @@ fn add_neg_quotient_into_acc_with_centered_by_bench(
     b.free_vec(&f);
 }
 
-fn emit_centered_by_denominator_derived_controls_benchmark_scaffold(b: &mut B, tx: &[QubitId], p: U256) {
+fn emit_centered_by_denominator_derived_controls_benchmark_scaffold(
+    b: &mut B,
+    tx: &[QubitId],
+    p: U256,
+) {
     // First functional integration step beyond fixed traces: derive the BY odd/A
     // controls reversibly from a live quantum denominator copy (here the current
     // output x register), run a clean fast centered replay roundtrip on scratch,
@@ -6710,7 +6866,17 @@ fn kaliski_forward_with_coeff(
     let bulk_prefix_iters = bulk_prefix_safe_iters();
     for i in 0..iters {
         if use_bulk_prefix3 && i < bulk_prefix_iters {
-            kaliski_iteration_bulk_prefix3(b, p, &st.u, &st.v_w, &st.r, &st.s, st.m_hist[i], i, coeff);
+            kaliski_iteration_bulk_prefix3(
+                b,
+                p,
+                &st.u,
+                &st.v_w,
+                &st.r,
+                &st.s,
+                st.m_hist[i],
+                i,
+                coeff,
+            );
         } else {
             kaliski_iteration(
                 b,
@@ -7491,7 +7657,13 @@ fn apply_coeff_channel_from_hist(
     }
 }
 
-fn with_eq_const_fast<F: FnOnce(&mut B)>(b: &mut B, bits: &[QubitId], c: usize, flag: QubitId, body: F) {
+fn with_eq_const_fast<F: FnOnce(&mut B)>(
+    b: &mut B,
+    bits: &[QubitId],
+    c: usize,
+    flag: QubitId,
+    body: F,
+) {
     for (i, &q) in bits.iter().enumerate() {
         if ((c >> i) & 1) != 0 {
             b.x(q);
@@ -7632,9 +7804,13 @@ fn apply_coeff_channel_from_term_index(
         cmp_gt_into(b, term_bits, &ci, active); // active = term_idx > i
         let vg_ctrl = b.alloc_qubit();
         let scratch = b.alloc_qubit();
-        mcx3_polar(b, active, true, a_hist[i], false, m_hist[i], false, vg_ctrl, scratch);
+        mcx3_polar(
+            b, active, true, a_hist[i], false, m_hist[i], false, vg_ctrl, scratch,
+        );
         coeff_channel_cadd(b, p, cr, cs, vg_ctrl);
-        mcx3_polar(b, active, true, a_hist[i], false, m_hist[i], false, vg_ctrl, scratch);
+        mcx3_polar(
+            b, active, true, a_hist[i], false, m_hist[i], false, vg_ctrl, scratch,
+        );
         b.free(scratch);
         b.free(vg_ctrl);
         cmp_gt_into(b, term_bits, &ci, active);
@@ -7885,7 +8061,15 @@ fn kaliski_branch_backward(
 ) {
     let n = v_in.len();
     for i in (0..iters).rev() {
-        kaliski_branch_iteration_backward(b, &st.u, &st.v_w, st.m_hist[i], st.a_hist[i], None, st.f_flag);
+        kaliski_branch_iteration_backward(
+            b,
+            &st.u,
+            &st.v_w,
+            st.m_hist[i],
+            st.a_hist[i],
+            None,
+            st.f_flag,
+        );
     }
     b.x(st.f_flag);
     for i in 0..n {
@@ -8034,11 +8218,15 @@ fn with_kal_branch_inv_raw_roll<F: FnOnce(&mut B, &[QubitId])>(
     let inv_raw = b.alloc_qubits(n);
     let coeff_s = b.alloc_qubits(n);
     b.x(coeff_s[0]);
-    apply_coeff_channel_from_term_roll(b, p, &inv_raw, &coeff_s, &st.a_hist, &st.m_hist, &term_bits);
+    apply_coeff_channel_from_term_roll(
+        b, p, &inv_raw, &coeff_s, &st.a_hist, &st.m_hist, &term_bits,
+    );
 
     body(b, &inv_raw);
 
-    apply_coeff_channel_from_term_roll_inverse(b, p, &inv_raw, &coeff_s, &st.a_hist, &st.m_hist, &term_bits);
+    apply_coeff_channel_from_term_roll_inverse(
+        b, p, &inv_raw, &coeff_s, &st.a_hist, &st.m_hist, &term_bits,
+    );
     b.x(coeff_s[0]);
     b.free_vec(&coeff_s);
     b.free_vec(&inv_raw);
@@ -8255,9 +8443,30 @@ fn kaliski_forward_prescaled_kind(
     let bulk_prefix_iters = bulk_prefix_safe_iters();
     for i in 0..iters {
         if use_bulk_prefix3 && i < bulk_prefix_iters {
-            kaliski_iteration_bulk_prefix3(b, p, &st.u, &st.v_w, &st.r, &st.s, st.m_hist[i], i, None);
+            kaliski_iteration_bulk_prefix3(
+                b,
+                p,
+                &st.u,
+                &st.v_w,
+                &st.r,
+                &st.s,
+                st.m_hist[i],
+                i,
+                None,
+            );
         } else {
-            kaliski_iteration(b, p, &st.u, &st.v_w, &st.r, &st.s, st.m_hist[i], st.f_flag, i, None);
+            kaliski_iteration(
+                b,
+                p,
+                &st.u,
+                &st.v_w,
+                &st.r,
+                &st.s,
+                st.m_hist[i],
+                st.f_flag,
+                i,
+                None,
+            );
         }
     }
 }
@@ -8300,9 +8509,28 @@ fn kaliski_backward_prescaled_kind(
     let bulk_prefix_iters = bulk_prefix_safe_iters();
     for i in (0..iters).rev() {
         if use_bulk_prefix3 && i < bulk_prefix_iters {
-            kaliski_iteration_bulk_prefix3_backward(b, p, &st.u, &st.v_w, &st.r, &st.s, st.m_hist[i], i);
+            kaliski_iteration_bulk_prefix3_backward(
+                b,
+                p,
+                &st.u,
+                &st.v_w,
+                &st.r,
+                &st.s,
+                st.m_hist[i],
+                i,
+            );
         } else {
-            kaliski_iteration_backward(b, p, &st.u, &st.v_w, &st.r, &st.s, st.m_hist[i], st.f_flag, i);
+            kaliski_iteration_backward(
+                b,
+                p,
+                &st.u,
+                &st.v_w,
+                &st.r,
+                &st.s,
+                st.m_hist[i],
+                st.f_flag,
+                i,
+            );
         }
     }
 
@@ -8355,8 +8583,7 @@ fn with_kal_inv_raw_prescaled_kind<F: FnOnce(&mut B, &[QubitId])>(
     let keep_u = keep_full_state || std::env::var("KAL_KEEP_U").ok().as_deref() == Some("1");
     let keep_v = keep_full_state || std::env::var("KAL_KEEP_V").ok().as_deref() == Some("1");
     let keep_f = keep_full_state || std::env::var("KAL_KEEP_F").ok().as_deref() == Some("1");
-    let free_s = !keep_full_state
-        && std::env::var("KAL_FREE_S").ok().as_deref() != Some("0");
+    let free_s = !keep_full_state && std::env::var("KAL_FREE_S").ok().as_deref() != Some("0");
 
     if chunked {
         kaliski_forward_prescaled_chunked(b, v_in, &st, p, iters, scale);
@@ -8431,8 +8658,7 @@ fn with_kal_inv_raw_coeff<F: FnOnce(&mut B, &[QubitId])>(
     // the s register provably equals p (the modulus) when iters >= ~407
     // (verified classically for our specific Kaliski variant). Free s by
     // X-ing the bits of p, then re-load before backward.
-    let free_s = !keep_full_state
-        && std::env::var("KAL_FREE_S").ok().as_deref() != Some("0");
+    let free_s = !keep_full_state && std::env::var("KAL_FREE_S").ok().as_deref() != Some("0");
 
     // Forward kaliski. st.r[..n] holds raw = v_in^{-1} * 2^(2n) mod p.
     // If coeff is supplied, the same branch controls also transform that
@@ -8769,7 +8995,9 @@ fn run_alt_seed_checks(ops: &[Op]) {
     );
 
     let phase_limit: usize = std::env::var("ALT_SEED_PHASE_LIMIT")
-        .ok().and_then(|s| s.parse().ok()).unwrap_or(0);
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0);
     assert!(
         total_phase_batches <= phase_limit,
         "ALT-SEED PHASE FAILURE: {} phase-garbage batches (limit {}) across {} seeds × {} shots",
@@ -8809,25 +9037,47 @@ fn build_standard_point_add(
 ) {
     let pair2_branch_inv = std::env::var("KAL_PAIR2_BRANCH_INV_ROLL").ok().as_deref() == Some("1");
     let prescale_pair1 = std::env::var("KAL_PRESCALE_PAIR1_SAFE").ok().as_deref() == Some("1");
-    let prescale_pair1_mixed = std::env::var("KAL_PRESCALE_PAIR1_MIXED").ok().as_deref() == Some("1");
-    let prescale_pair1_chunked = std::env::var("KAL_PRESCALE_PAIR1_CHUNKED").ok().as_deref() == Some("1");
-    let prescale_pair1_folded = std::env::var("KAL_PRESCALE_PAIR1_FOLDED").ok().as_deref() == Some("1");
-    let prescale_pair1_folded_chunked =
-        std::env::var("KAL_PRESCALE_PAIR1_FOLDED_CHUNKED").ok().as_deref() == Some("1");
+    let prescale_pair1_mixed =
+        std::env::var("KAL_PRESCALE_PAIR1_MIXED").ok().as_deref() == Some("1");
+    let prescale_pair1_chunked =
+        std::env::var("KAL_PRESCALE_PAIR1_CHUNKED").ok().as_deref() == Some("1");
+    let prescale_pair1_folded =
+        std::env::var("KAL_PRESCALE_PAIR1_FOLDED").ok().as_deref() == Some("1");
+    let prescale_pair1_folded_chunked = std::env::var("KAL_PRESCALE_PAIR1_FOLDED_CHUNKED")
+        .ok()
+        .as_deref()
+        == Some("1");
     let prescale_pair2 = std::env::var("KAL_PRESCALE_PAIR2_SAFE").ok().as_deref() == Some("1");
-    let prescale_pair2_mixed = std::env::var("KAL_PRESCALE_PAIR2_MIXED").ok().as_deref() == Some("1");
-    let prescale_pair2_chunked = std::env::var("KAL_PRESCALE_PAIR2_CHUNKED").ok().as_deref() == Some("1");
-    let prescale_pair2_folded = std::env::var("KAL_PRESCALE_PAIR2_FOLDED").ok().as_deref() == Some("1");
-    let prescale_pair2_folded_chunked =
-        std::env::var("KAL_PRESCALE_PAIR2_FOLDED_CHUNKED").ok().as_deref() == Some("1");
+    let prescale_pair2_mixed =
+        std::env::var("KAL_PRESCALE_PAIR2_MIXED").ok().as_deref() == Some("1");
+    let prescale_pair2_chunked =
+        std::env::var("KAL_PRESCALE_PAIR2_CHUNKED").ok().as_deref() == Some("1");
+    let prescale_pair2_folded =
+        std::env::var("KAL_PRESCALE_PAIR2_FOLDED").ok().as_deref() == Some("1");
+    let prescale_pair2_folded_chunked = std::env::var("KAL_PRESCALE_PAIR2_FOLDED_CHUNKED")
+        .ok()
+        .as_deref()
+        == Some("1");
     let by_pair1_centered = std::env::var("BY_CENTERED_PAIR1_REPLACE").ok().as_deref() == Some("1");
     let by_pair2_centered = std::env::var("BY_CENTERED_PAIR2_REPLACE").ok().as_deref() == Some("1");
-    let by_pair2_scaled_product = std::env::var("BY_SCALED_PAIR2_PRODUCT_REPLACE").ok().as_deref() == Some("1");
-    let coeff_channel_div = std::env::var("KAL_TAGGED_DIV_COEFF_CHANNEL").ok().as_deref() == Some("1");
+    let by_pair2_scaled_product = std::env::var("BY_SCALED_PAIR2_PRODUCT_REPLACE")
+        .ok()
+        .as_deref()
+        == Some("1");
+    let coeff_channel_div = std::env::var("KAL_TAGGED_DIV_COEFF_CHANNEL")
+        .ok()
+        .as_deref()
+        == Some("1");
     let branch_hist_div = std::env::var("KAL_TAGGED_DIV_BRANCH_HIST").ok().as_deref() == Some("1");
-    let branch_stream_div = std::env::var("KAL_TAGGED_DIV_BRANCH_STREAM").ok().as_deref() == Some("1");
+    let branch_stream_div = std::env::var("KAL_TAGGED_DIV_BRANCH_STREAM")
+        .ok()
+        .as_deref()
+        == Some("1");
     let branch_term_div = std::env::var("KAL_TAGGED_DIV_BRANCH_TERM").ok().as_deref() == Some("1");
-    let branch_term_roll_div = std::env::var("KAL_TAGGED_DIV_BRANCH_TERM_ROLL").ok().as_deref() == Some("1");
+    let branch_term_roll_div = std::env::var("KAL_TAGGED_DIV_BRANCH_TERM_ROLL")
+        .ok()
+        .as_deref()
+        == Some("1");
     let tagged_div_validate = coeff_channel_div
         || branch_hist_div
         || branch_stream_div
@@ -8845,7 +9095,11 @@ fn build_standard_point_add(
     // exact checked setting.  For the normal exact path, full-harness probes
     // after the R_SMALL_THRESHOLD=260 update found pair2=400 clean; pair2=399
     // remains outside the verified safety margin.
-    let pair2_default = if tagged_div_validate || pair2_branch_inv { 404 } else { 400 };
+    let pair2_default = if tagged_div_validate || pair2_branch_inv {
+        404
+    } else {
+        400
+    };
     let pair2_iters = std::env::var("KAL_PAIR2_ITERS")
         .ok()
         .and_then(|s| s.parse::<usize>().ok())
@@ -8897,22 +9151,15 @@ fn build_standard_point_add(
         let lam_coeff = lam_inner.clone();
         let ty_coeff: Vec<QubitId> = ty.to_vec();
         b.set_phase("pair1_kaliski_branch_term");
-        with_kal_branch_term_tagged_div(
-            b,
-            &tx,
-            p,
-            pair1_iters,
-            (&lam_coeff, &ty_coeff),
-            |b| {
-                b.set_phase("pair1_branch_term_halve");
-                for _ in 0..pair1_iters {
-                    mod_halve_inplace_fast(b, &lam_inner, p);
-                }
-                b.set_phase("pair1_branch_term_untag_lam");
-                mod_add_qc(b, &lam_inner, U256::from(1u64), p);
-                *lam_cell.borrow_mut() = Some(lam_inner);
-            },
-        );
+        with_kal_branch_term_tagged_div(b, &tx, p, pair1_iters, (&lam_coeff, &ty_coeff), |b| {
+            b.set_phase("pair1_branch_term_halve");
+            for _ in 0..pair1_iters {
+                mod_halve_inplace_fast(b, &lam_inner, p);
+            }
+            b.set_phase("pair1_branch_term_untag_lam");
+            mod_add_qc(b, &lam_inner, U256::from(1u64), p);
+            *lam_cell.borrow_mut() = Some(lam_inner);
+        });
     } else if branch_stream_div {
         // Branch-generation stream: record just branch histories, free the
         // denominator state, then replay those histories into the tagged
@@ -8922,22 +9169,15 @@ fn build_standard_point_add(
         let lam_coeff = lam_inner.clone();
         let ty_coeff: Vec<QubitId> = ty.to_vec();
         b.set_phase("pair1_kaliski_branch_stream");
-        with_kal_branch_stream_tagged_div(
-            b,
-            &tx,
-            p,
-            pair1_iters,
-            (&lam_coeff, &ty_coeff),
-            |b| {
-                b.set_phase("pair1_branch_stream_halve");
-                for _ in 0..pair1_iters {
-                    mod_halve_inplace_fast(b, &lam_inner, p);
-                }
-                b.set_phase("pair1_branch_stream_untag_lam");
-                mod_add_qc(b, &lam_inner, U256::from(1u64), p);
-                *lam_cell.borrow_mut() = Some(lam_inner);
-            },
-        );
+        with_kal_branch_stream_tagged_div(b, &tx, p, pair1_iters, (&lam_coeff, &ty_coeff), |b| {
+            b.set_phase("pair1_branch_stream_halve");
+            for _ in 0..pair1_iters {
+                mod_halve_inplace_fast(b, &lam_inner, p);
+            }
+            b.set_phase("pair1_branch_stream_untag_lam");
+            mod_add_qc(b, &lam_inner, U256::from(1u64), p);
+            *lam_cell.borrow_mut() = Some(lam_inner);
+        });
     } else if branch_hist_div {
         // More aggressive structural probe: do not run the ordinary inverse
         // coefficient `(r,s)` at all. Store `a_hist` next to `m_hist`; together
@@ -8947,22 +9187,15 @@ fn build_standard_point_add(
         let lam_coeff = lam_inner.clone();
         let ty_coeff: Vec<QubitId> = ty.to_vec();
         b.set_phase("pair1_kaliski_branch_hist_coeff");
-        with_kal_branch_tagged_div_coeff(
-            b,
-            &tx,
-            p,
-            pair1_iters,
-            (&lam_coeff, &ty_coeff),
-            |b| {
-                b.set_phase("pair1_branch_hist_halve");
-                for _ in 0..pair1_iters {
-                    mod_halve_inplace_fast(b, &lam_inner, p);
-                }
-                b.set_phase("pair1_branch_hist_untag_lam");
-                mod_add_qc(b, &lam_inner, U256::from(1u64), p);
-                *lam_cell.borrow_mut() = Some(lam_inner);
-            },
-        );
+        with_kal_branch_tagged_div_coeff(b, &tx, p, pair1_iters, (&lam_coeff, &ty_coeff), |b| {
+            b.set_phase("pair1_branch_hist_halve");
+            for _ in 0..pair1_iters {
+                mod_halve_inplace_fast(b, &lam_inner, p);
+            }
+            b.set_phase("pair1_branch_hist_untag_lam");
+            mod_add_qc(b, &lam_inner, U256::from(1u64), p);
+            *lam_cell.borrow_mut() = Some(lam_inner);
+        });
     } else if coeff_channel_div {
         // Experimental structural path: compute the tagged quotient by carrying
         // an external coefficient pair `(lam_inner, ty)` through the Kaliski
@@ -9101,97 +9334,103 @@ fn build_standard_point_add(
         b.set_phase("pair2_by_scaled_product_cleanup");
         mod_sub_qb(b, &ty, &oy, p);
     } else {
-    b.set_phase("mul3_between_pair");
-    mod_mul_write_into_zero_acc_karatsuba2(b, &ty, &lam, &tx, p);
-    if by_pair2_centered {
-        b.set_phase("pair2_by_centered_compute_correction");
-        add_neg_quotient_into_acc_with_centered_by_bench(b, &lam, &tx, &ty, p);
-        b.set_phase("pair2_by_centered_cleanup");
-        mod_sub_qb(b, &ty, &oy, p);
-    } else {
-    b.set_phase("pair2_kaliski_forward");
-    if pair2_branch_inv {
-        // Compact exact inversion scaffold for pair2: branch histories +
-        // coefficient replay compute inv_raw, then replay is reversed after
-        // lam cleanup. This targets qubit shape rather than Toffoli.
-        with_kal_branch_inv_raw_roll(b, &tx, p, pair2_iters, |b, inv_raw| {
-            b.set_phase("pair2_branch_inv_double");
-            for _ in 0..pair2_iters {
-                mod_double_inplace_fast(b, &lam, p);
-            }
-            b.set_phase("pair2_branch_inv_mul");
-            mod_mul_add_into_acc_schoolbook(b, &lam, inv_raw, &ty, p);
-            b.set_phase("pair2_branch_inv_cleanup");
+        b.set_phase("mul3_between_pair");
+        mod_mul_write_into_zero_acc_karatsuba2(b, &ty, &lam, &tx, p);
+        if by_pair2_centered {
+            b.set_phase("pair2_by_centered_compute_correction");
+            add_neg_quotient_into_acc_with_centered_by_bench(b, &lam, &tx, &ty, p);
+            b.set_phase("pair2_by_centered_cleanup");
             mod_sub_qb(b, &ty, &oy, p);
-        });
-    } else if prescale_pair2
-        || prescale_pair2_mixed
-        || prescale_pair2_chunked
-        || prescale_pair2_folded
-        || prescale_pair2_folded_chunked
-    {
-        // Pair2 scale absorption: feed `2^iters * (Rx-Qx)` so the raw inverse
-        // is exact and the lam-doubling correction loop disappears.
-        if prescale_pair2_folded || prescale_pair2_folded_chunked {
-            if prescale_pair2_folded_chunked {
-                with_kal_inv_raw_prescaled_chunked(b, &tx, p, pair2_iters, |b, inv_raw| {
-                    b.set_phase("pair2_prescale_mul");
-                    mod_mul_add_into_acc_schoolbook(b, &lam, inv_raw, &ty, p);
-                    b.set_phase("pair2_prescale_cleanup");
-                    mod_sub_qb(b, &ty, &oy, p);
-                    b.set_phase("pair2_kaliski_backward_prescaled_folded_chunked");
-                });
-            } else {
-                with_kal_inv_raw_prescaled_mixed(b, &tx, p, pair2_iters, |b, inv_raw| {
-                    b.set_phase("pair2_prescale_mul");
-                    mod_mul_add_into_acc_schoolbook(b, &lam, inv_raw, &ty, p);
-                    b.set_phase("pair2_prescale_cleanup");
-                    mod_sub_qb(b, &ty, &oy, p);
-                    b.set_phase("pair2_kaliski_backward_prescaled_folded");
-                });
-            }
         } else {
-            let scaled_tx = b.alloc_qubits(N);
-            let scale = pow_mod_2_k(p, pair2_iters);
-            b.set_phase("pair2_prescale_den_safe");
-            if prescale_pair2_chunked {
-                mul_by_const_acc_chunked_shifts_inplace_src(b, &tx, scale, &scaled_tx, p, false);
-            } else if prescale_pair2_mixed {
-                mul_by_const_acc_exact_adds_fast_shifts(b, &tx, scale, &scaled_tx, p, false);
+            b.set_phase("pair2_kaliski_forward");
+            if pair2_branch_inv {
+                // Compact exact inversion scaffold for pair2: branch histories +
+                // coefficient replay compute inv_raw, then replay is reversed after
+                // lam cleanup. This targets qubit shape rather than Toffoli.
+                with_kal_branch_inv_raw_roll(b, &tx, p, pair2_iters, |b, inv_raw| {
+                    b.set_phase("pair2_branch_inv_double");
+                    for _ in 0..pair2_iters {
+                        mod_double_inplace_fast(b, &lam, p);
+                    }
+                    b.set_phase("pair2_branch_inv_mul");
+                    mod_mul_add_into_acc_schoolbook(b, &lam, inv_raw, &ty, p);
+                    b.set_phase("pair2_branch_inv_cleanup");
+                    mod_sub_qb(b, &ty, &oy, p);
+                });
+            } else if prescale_pair2
+                || prescale_pair2_mixed
+                || prescale_pair2_chunked
+                || prescale_pair2_folded
+                || prescale_pair2_folded_chunked
+            {
+                // Pair2 scale absorption: feed `2^iters * (Rx-Qx)` so the raw inverse
+                // is exact and the lam-doubling correction loop disappears.
+                if prescale_pair2_folded || prescale_pair2_folded_chunked {
+                    if prescale_pair2_folded_chunked {
+                        with_kal_inv_raw_prescaled_chunked(b, &tx, p, pair2_iters, |b, inv_raw| {
+                            b.set_phase("pair2_prescale_mul");
+                            mod_mul_add_into_acc_schoolbook(b, &lam, inv_raw, &ty, p);
+                            b.set_phase("pair2_prescale_cleanup");
+                            mod_sub_qb(b, &ty, &oy, p);
+                            b.set_phase("pair2_kaliski_backward_prescaled_folded_chunked");
+                        });
+                    } else {
+                        with_kal_inv_raw_prescaled_mixed(b, &tx, p, pair2_iters, |b, inv_raw| {
+                            b.set_phase("pair2_prescale_mul");
+                            mod_mul_add_into_acc_schoolbook(b, &lam, inv_raw, &ty, p);
+                            b.set_phase("pair2_prescale_cleanup");
+                            mod_sub_qb(b, &ty, &oy, p);
+                            b.set_phase("pair2_kaliski_backward_prescaled_folded");
+                        });
+                    }
+                } else {
+                    let scaled_tx = b.alloc_qubits(N);
+                    let scale = pow_mod_2_k(p, pair2_iters);
+                    b.set_phase("pair2_prescale_den_safe");
+                    if prescale_pair2_chunked {
+                        mul_by_const_acc_chunked_shifts_inplace_src(
+                            b, &tx, scale, &scaled_tx, p, false,
+                        );
+                    } else if prescale_pair2_mixed {
+                        mul_by_const_acc_exact_adds_fast_shifts(
+                            b, &tx, scale, &scaled_tx, p, false,
+                        );
+                    } else {
+                        mul_by_const_acc_phase_clean(b, &tx, scale, &scaled_tx, p, false);
+                    }
+                    with_kal_inv_raw(b, &scaled_tx, p, pair2_iters, |b, inv_raw| {
+                        b.set_phase("pair2_prescale_mul");
+                        mod_mul_add_into_acc_schoolbook(b, &lam, inv_raw, &ty, p);
+                        b.set_phase("pair2_prescale_cleanup");
+                        mod_sub_qb(b, &ty, &oy, p);
+                        b.set_phase("pair2_kaliski_backward_prescaled_safe");
+                    });
+                    b.set_phase("pair2_unprescale_den_safe");
+                    if prescale_pair2_chunked {
+                        mul_by_const_acc_chunked_shifts_inplace_src(
+                            b, &tx, scale, &scaled_tx, p, true,
+                        );
+                    } else if prescale_pair2_mixed {
+                        mul_by_const_acc_exact_adds_fast_shifts(b, &tx, scale, &scaled_tx, p, true);
+                    } else {
+                        mul_by_const_acc_phase_clean(b, &tx, scale, &scaled_tx, p, true);
+                    }
+                    b.free_vec(&scaled_tx);
+                }
             } else {
-                mul_by_const_acc_phase_clean(b, &tx, scale, &scaled_tx, p, false);
+                with_kal_inv_raw(b, &tx, p, pair2_iters, |b, inv_raw| {
+                    b.set_phase("pair2_double");
+                    for _ in 0..pair2_iters {
+                        mod_double_inplace_fast(b, &lam, p);
+                    }
+                    b.set_phase("pair2_mul");
+                    mod_mul_add_into_acc_schoolbook(b, &lam, inv_raw, &ty, p);
+                    b.set_phase("pair2_cleanup");
+                    mod_sub_qb(b, &ty, &oy, p);
+                    b.set_phase("pair2_kaliski_backward");
+                });
             }
-            with_kal_inv_raw(b, &scaled_tx, p, pair2_iters, |b, inv_raw| {
-                b.set_phase("pair2_prescale_mul");
-                mod_mul_add_into_acc_schoolbook(b, &lam, inv_raw, &ty, p);
-                b.set_phase("pair2_prescale_cleanup");
-                mod_sub_qb(b, &ty, &oy, p);
-                b.set_phase("pair2_kaliski_backward_prescaled_safe");
-            });
-            b.set_phase("pair2_unprescale_den_safe");
-            if prescale_pair2_chunked {
-                mul_by_const_acc_chunked_shifts_inplace_src(b, &tx, scale, &scaled_tx, p, true);
-            } else if prescale_pair2_mixed {
-                mul_by_const_acc_exact_adds_fast_shifts(b, &tx, scale, &scaled_tx, p, true);
-            } else {
-                mul_by_const_acc_phase_clean(b, &tx, scale, &scaled_tx, p, true);
-            }
-            b.free_vec(&scaled_tx);
         }
-    } else {
-        with_kal_inv_raw(b, &tx, p, pair2_iters, |b, inv_raw| {
-            b.set_phase("pair2_double");
-            for _ in 0..pair2_iters {
-                mod_double_inplace_fast(b, &lam, p);
-            }
-            b.set_phase("pair2_mul");
-            mod_mul_add_into_acc_schoolbook(b, &lam, inv_raw, &ty, p);
-            b.set_phase("pair2_cleanup");
-            mod_sub_qb(b, &ty, &oy, p);
-            b.set_phase("pair2_kaliski_backward");
-        });
-    }
-    }
     }
     mod_add_qb(b, &tx, &ox, p);
     b.free_vec(&lam);
@@ -9327,16 +9566,32 @@ pub fn build() -> Vec<Op> {
     if std::env::var("BY_REPLAY_BENCH_SCAFFOLD").ok().as_deref() == Some("1") {
         emit_scaled_by_pattern_replay_benchmark_scaffold(b, p);
     }
-    if std::env::var("BY_CENTERED_REPLAY_BODY_BENCH").ok().as_deref() == Some("1") {
+    if std::env::var("BY_CENTERED_REPLAY_BODY_BENCH")
+        .ok()
+        .as_deref()
+        == Some("1")
+    {
         emit_centered_signed_by_replay_body_benchmark_scaffold(b, p);
     }
-    if std::env::var("BY_CENTERED_CLEAN_ROUNDTRIP_BENCH").ok().as_deref() == Some("1") {
+    if std::env::var("BY_CENTERED_CLEAN_ROUNDTRIP_BENCH")
+        .ok()
+        .as_deref()
+        == Some("1")
+    {
         emit_centered_signed_by_clean_roundtrip_benchmark_scaffold(b, p);
     }
-    if std::env::var("BY_CENTERED_FAST_CLEAN_ROUNDTRIP_BENCH").ok().as_deref() == Some("1") {
+    if std::env::var("BY_CENTERED_FAST_CLEAN_ROUNDTRIP_BENCH")
+        .ok()
+        .as_deref()
+        == Some("1")
+    {
         emit_centered_signed_by_fast_clean_roundtrip_benchmark_scaffold(b, p);
     }
-    if std::env::var("BY_CENTERED_DENOM_CONTROLS_BENCH").ok().as_deref() == Some("1") {
+    if std::env::var("BY_CENTERED_DENOM_CONTROLS_BENCH")
+        .ok()
+        .as_deref()
+        == Some("1")
+    {
         emit_centered_by_denominator_derived_controls_benchmark_scaffold(b, &tx, p);
     }
     if std::env::var("BY_CENTERED_LIVE_NUM_BENCH").ok().as_deref() == Some("1") {
@@ -9345,7 +9600,11 @@ pub fn build() -> Vec<Op> {
     if std::env::var("SINGLE_INV_STRATEGY_C_BENCH").ok().as_deref() == Some("1") {
         emit_single_inv_strategy_c_shape_benchmark_scaffold(b, p);
     }
-    if std::env::var("CENTERED_RESTORING_QBIT_BENCH").ok().as_deref() == Some("1") {
+    if std::env::var("CENTERED_RESTORING_QBIT_BENCH")
+        .ok()
+        .as_deref()
+        == Some("1")
+    {
         emit_centered_restoring_qbit_benchmark_scaffold(b);
     }
 
@@ -9452,7 +9711,10 @@ pub fn build() -> Vec<Op> {
 #[cfg(test)]
 mod direct_const_tests {
     use super::*;
-    use sha3::{digest::{ExtendableOutput, Update, XofReader}, Shake128};
+    use sha3::{
+        digest::{ExtendableOutput, Update, XofReader},
+        Shake128,
+    };
 
     fn set_reg<R: XofReader>(sim: &mut Simulator<'_, R>, qs: &[QubitId], val: u64, shot: usize) {
         for (i, &q) in qs.iter().enumerate() {
@@ -9491,7 +9753,9 @@ mod direct_const_tests {
             let x = ((shot * 37 + 11) & 0xff) as u64;
             let ctrl_v = (shot & 1) as u64;
             set_reg(&mut sim, &acc, x, shot);
-            if ctrl_v != 0 { *sim.qubit_mut(ctrl) |= 1u64 << shot; }
+            if ctrl_v != 0 {
+                *sim.qubit_mut(ctrl) |= 1u64 << shot;
+            }
         }
         sim.apply(&b.ops);
         assert_eq!(sim.global_phase(), 0, "direct csub left phase garbage");
@@ -9523,7 +9787,9 @@ mod direct_const_tests {
             let x = ((shot * 37 + 11) & 0xff) as u64;
             let ctrl_v = (shot & 1) as u64;
             set_reg(&mut sim, &acc, x, shot);
-            if ctrl_v != 0 { *sim.qubit_mut(ctrl) |= 1u64 << shot; }
+            if ctrl_v != 0 {
+                *sim.qubit_mut(ctrl) |= 1u64 << shot;
+            }
         }
         sim.apply(&b.ops);
         assert_eq!(sim.global_phase(), 0, "direct cadd left phase garbage");

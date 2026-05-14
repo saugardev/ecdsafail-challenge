@@ -24,7 +24,7 @@ use alloy_primitives::{U256, U512};
 
 use super::{
     add_nbit_qq_fast, cswap, emit_inverse, mod_add_qq, mul_by_const_acc, sub_nbit_qq_fast, with_gt,
-    B, QubitId, SECP256K1_P,
+    QubitId, B, SECP256K1_P,
 };
 
 fn u256_to_u512(x: U256) -> U512 {
@@ -171,7 +171,11 @@ pub(crate) fn kim_iteration_backward(
     debug_assert_eq!(nu, nv);
     debug_assert_eq!(nr, ns);
     let n = nu.saturating_sub(1);
-    let uv_width = if iter_idx < n { nu } else { (2 * n - iter_idx).max(1) };
+    let uv_width = if iter_idx < n {
+        nu
+    } else {
+        (2 * n - iter_idx).max(1)
+    };
     let rs_width = if iter_idx + 2 < nr { iter_idx + 2 } else { nr };
 
     // Reverse of final cswaps on (u,v),(r,s).
@@ -379,7 +383,11 @@ pub(crate) fn kim_iteration_forward(
     // Invariant bitlen bounds: u,v fit in (2n - iter_idx), r,s fit in (iter_idx + 1).
     // Use these to truncate wide register ops.
     let n = nu.saturating_sub(1); // n+1 = nu, so n = nu-1
-    let uv_width = if iter_idx < n { nu } else { (2 * n - iter_idx).max(1) };
+    let uv_width = if iter_idx < n {
+        nu
+    } else {
+        (2 * n - iter_idx).max(1)
+    };
     let rs_width = if iter_idx + 2 < nr { iter_idx + 2 } else { nr };
 
     // m <- swap = (u even) OR (u odd & v odd & u>v)
@@ -506,7 +514,11 @@ mod tests {
         }
     }
 
-    fn set_slice_u256(sim: &mut Simulator<impl sha3::digest::XofReader>, qs: &[QubitId], val: U256) {
+    fn set_slice_u256(
+        sim: &mut Simulator<impl sha3::digest::XofReader>,
+        qs: &[QubitId],
+        val: U256,
+    ) {
         for (i, &q) in qs.iter().enumerate() {
             if val.bit(i) {
                 *sim.qubit_mut(q) |= 1;
@@ -516,7 +528,11 @@ mod tests {
         }
     }
 
-    fn set_slice_u512(sim: &mut Simulator<impl sha3::digest::XofReader>, qs: &[QubitId], val: U512) {
+    fn set_slice_u512(
+        sim: &mut Simulator<impl sha3::digest::XofReader>,
+        qs: &[QubitId],
+        val: U512,
+    ) {
         for (i, &q) in qs.iter().enumerate() {
             if val.bit(i) {
                 *sim.qubit_mut(q) |= 1;
@@ -546,9 +562,12 @@ mod tests {
 
     /// Classical wide-r reference for ONE round, mirroring the Kim
     /// iteration that the reversible circuit emits.
-    fn classical_round_wide(u_in: U256, v_in: U256, r_in: U512, s_in: U512)
-        -> (U256, U256, U512, U512, bool)
-    {
+    fn classical_round_wide(
+        u_in: U256,
+        v_in: U256,
+        r_in: U512,
+        s_in: U512,
+    ) -> (U256, U256, U512, U512, bool) {
         let mut u = u_in;
         let mut v = v_in;
         let mut r = r_in;
@@ -609,12 +628,16 @@ mod tests {
             // r, s are wide; random values < 2^NR.
             let mut rbytes = [0u8; 64];
             for i in 0..(NR / 8 + 1) {
-                rng = rng.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+                rng = rng
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
                 rbytes[i] = rng as u8;
             }
             let mut sbytes = [0u8; 64];
             for i in 0..(NR / 8 + 1) {
-                rng = rng.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+                rng = rng
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
                 sbytes[i] = rng as u8;
             }
             // r,s must fit in NR-1 bits so the left-shift is lossless.
@@ -630,8 +653,7 @@ mod tests {
             let r0 = U512::from_le_slice(&rbytes) & r_mask;
             let s0 = U512::from_le_slice(&sbytes) & r_mask;
 
-            let (u_exp, v_exp, r_exp, s_exp, m_exp) =
-                classical_round_wide(u0, v0, r0, s0);
+            let (u_exp, v_exp, r_exp, s_exp, m_exp) = classical_round_wide(u0, v0, r0, s0);
 
             let mut hasher = sha3::Shake128::default();
             use sha3::digest::{ExtendableOutput, Update};
@@ -652,18 +674,35 @@ mod tests {
             let m_got = (sim.qubit(m) & 1) != 0;
 
             if u_got != u_exp {
-                eprintln!("DEBUG trial {trial}: u0={:x} v0={:x} r0={:x} s0={:x}", u0, v0, r0, s0);
-                eprintln!("       expected u={:x} v={:x} r={:x} s={:x} m={}", u_exp, v_exp, r_exp, s_exp, m_exp);
-                eprintln!("       got      u={:x} v={:x} r={:x} s={:x} m={}", u_got, v_got, r_got, s_got, m_got);
+                eprintln!(
+                    "DEBUG trial {trial}: u0={:x} v0={:x} r0={:x} s0={:x}",
+                    u0, v0, r0, s0
+                );
+                eprintln!(
+                    "       expected u={:x} v={:x} r={:x} s={:x} m={}",
+                    u_exp, v_exp, r_exp, s_exp, m_exp
+                );
+                eprintln!(
+                    "       got      u={:x} v={:x} r={:x} s={:x} m={}",
+                    u_got, v_got, r_got, s_got, m_got
+                );
             }
-            assert_eq!(u_got, u_exp, "trial {trial}: u mismatch  u0={:x} v0={:x}", u0, v0);
+            assert_eq!(
+                u_got, u_exp,
+                "trial {trial}: u mismatch  u0={:x} v0={:x}",
+                u0, v0
+            );
             assert_eq!(v_got, v_exp, "trial {trial}: v mismatch");
             assert_eq!(r_got, r_exp, "trial {trial}: r mismatch");
             assert_eq!(s_got, s_exp, "trial {trial}: s mismatch");
             assert_eq!(m_got, m_exp, "trial {trial}: m mismatch");
             // Global phase should be 0 (this is a reversible Clifford+Toffoli
             // circuit on basis states, no R gates inside).
-            assert_eq!(sim.global_phase() & 1, 0, "trial {trial}: global phase nonzero");
+            assert_eq!(
+                sim.global_phase() & 1,
+                0,
+                "trial {trial}: global phase nonzero"
+            );
         }
     }
 
@@ -809,7 +848,9 @@ mod tests {
 
         for trial in 0..5 {
             let x0 = rand_u256(&mut rng);
-            if x0.is_zero() { continue; }
+            if x0.is_zero() {
+                continue;
+            }
 
             let mut hasher = sha3::Shake128::default();
             use sha3::digest::{ExtendableOutput, Update};
@@ -827,10 +868,10 @@ mod tests {
             // Read wide r and check its mod-p residue matches ±x^-1 * 2^{2n}.
             let r_wide = get_slice_u512(&sim, &r);
             let r_mod_p = mod_p_of_u512(r_wide);
-            let expected_pos = x0.inv_mod(p).unwrap().mul_mod(
-                two.pow_mod(U256::from(512u64), p),
-                p,
-            );
+            let expected_pos = x0
+                .inv_mod(p)
+                .unwrap()
+                .mul_mod(two.pow_mod(U256::from(512u64), p), p);
             let expected_neg = sub_mod_p(U256::ZERO, expected_pos, p);
             assert!(
                 r_mod_p == expected_pos || r_mod_p == expected_neg,
@@ -869,7 +910,9 @@ mod tests {
         for trial in 0..3 {
             let u0 = SECP256K1_P;
             let v0 = rand_u256(&mut rng);
-            if v0.is_zero() { continue; }
+            if v0.is_zero() {
+                continue;
+            }
 
             let mut hasher = sha3::Shake128::default();
             use sha3::digest::{ExtendableOutput, Update};
@@ -915,10 +958,12 @@ mod tests {
         let ccx_count = b
             .ops
             .iter()
-            .filter(|o| matches!(
-                o.kind,
-                crate::circuit::OperationType::CCX | crate::circuit::OperationType::CCZ
-            ))
+            .filter(|o| {
+                matches!(
+                    o.kind,
+                    crate::circuit::OperationType::CCX | crate::circuit::OperationType::CCZ
+                )
+            })
             .count();
         let peak = b.peak_qubits;
         eprintln!("kim_inv full primitive: Toffoli={ccx_count}, peak qubits={peak}");
@@ -955,6 +1000,121 @@ mod tests {
         }
     }
 
+    fn kim_sign_counts_for_toy(n: usize, p: u64) -> (usize, usize) {
+        let mut pos = 0usize;
+        let mut neg = 0usize;
+        let scale = (0..(2 * n)).fold(1u64, |acc, _| (2 * acc) % p);
+        for x in 1..p {
+            let mut u = p;
+            let mut v = x;
+            let mut r = 0u128;
+            let mut s = 1u128;
+            for _ in 0..(2 * n) {
+                if v == 0 {
+                    r <<= 1;
+                } else if (u & 1) == 0 {
+                    u >>= 1;
+                    s <<= 1;
+                } else if (v & 1) == 0 {
+                    v >>= 1;
+                    r <<= 1;
+                } else if u > v {
+                    u = (u - v) >> 1;
+                    r += s;
+                    s <<= 1;
+                } else {
+                    v = (v - u) >> 1;
+                    s += r;
+                    r <<= 1;
+                }
+            }
+            let raw = (r % p as u128) as u64;
+            let want = (1..p)
+                .find(|&cand| (cand * x) % p == 1)
+                .expect("toy inverse exists");
+            let pos_scaled = (want * scale) % p;
+            let neg_scaled = if pos_scaled == 0 { 0 } else { p - pos_scaled };
+            if raw == pos_scaled {
+                pos += 1;
+            } else if raw == neg_scaled {
+                neg += 1;
+            } else {
+                panic!("toy Kim sign probe got neither sign for x={x}, p={p}, raw={raw}");
+            }
+        }
+        (pos, neg)
+    }
+
+    #[test]
+    fn kim_scale_import_sign_is_fixed_negative_on_toys_and_sampled_secp() {
+        // The scale-loop deletion row assumes a sign-locked Kim import.  Check
+        // whether the ± in the current wide-r primitive is actually a hard
+        // predicate or just a fixed convention.  On these toy fields, and on
+        // sampled secp inputs below, it is fixed negative; sign correction is
+        // not the missing Kim-scale import blocker.
+        let cases = [(8usize, 251u64), (10usize, 1021u64), (12usize, 4093u64)];
+        let mut n12_pos = 0usize;
+        let mut n12_neg = 0usize;
+        for &(n, p) in &cases {
+            let (pos, neg) = kim_sign_counts_for_toy(n, p);
+            eprintln!("Kim scale-import sign toy: n={n}, p={p}, pos={pos}, neg={neg}");
+            if n == 12 {
+                n12_pos = pos;
+                n12_neg = neg;
+            }
+            assert_eq!(pos, 0, "Kim sign is no longer fixed negative on toy field");
+            assert_eq!(
+                neg,
+                (p - 1) as usize,
+                "Kim sign did not cover every nonzero toy input"
+            );
+        }
+        let p = SECP256K1_P;
+        let two = U256::from(2u64);
+        let scale_2n = two.pow_mod(U256::from(512u64), p);
+        let mut rng = 0x51a1_5ca1_f00d_beefu64;
+        let mut secp_samples = 0usize;
+        let mut secp_pos = 0usize;
+        let mut secp_neg = 0usize;
+        while secp_samples < 128 {
+            let x = rand_u256(&mut rng);
+            if x.is_zero() || x >= p {
+                continue;
+            }
+            let mut u = p;
+            let mut v = x;
+            let mut r = U512::ZERO;
+            let mut s = U512::from(1u64);
+            for _ in 0..512 {
+                classical_round(&mut u, &mut v, &mut r, &mut s);
+            }
+            let raw = mod_p_of_u512(r);
+            let expected_pos = x.inv_mod(p).unwrap().mul_mod(scale_2n, p);
+            let expected_neg = sub_mod_p(U256::ZERO, expected_pos, p);
+            if raw == expected_pos {
+                secp_pos += 1;
+            } else if raw == expected_neg {
+                secp_neg += 1;
+            } else {
+                panic!("secp Kim sign probe got neither sign for x={x:x}");
+            }
+            secp_samples += 1;
+        }
+        println!("METRIC kim_scale_import_sign_toy_n12_pos={n12_pos}");
+        println!("METRIC kim_scale_import_sign_toy_n12_neg={n12_neg}");
+        println!("METRIC kim_scale_import_sign_secp_samples={secp_samples}");
+        println!("METRIC kim_scale_import_sign_secp_pos={secp_pos}");
+        println!("METRIC kim_scale_import_sign_secp_neg={secp_neg}");
+        assert_eq!(
+            secp_pos, 0,
+            "Kim sign is no longer fixed negative on sampled secp inputs"
+        );
+        assert_eq!(
+            secp_neg, secp_samples,
+            "Kim sign did not cover every sampled secp input"
+        );
+    }
+
     /// Measure the Toffoli count of the full-width, full-iter Kim forward
     /// inversion. This is just a cost report, no correctness claim.
     #[test]
@@ -976,10 +1136,17 @@ mod tests {
         let ccx_count = b
             .ops
             .iter()
-            .filter(|o| matches!(o.kind, crate::circuit::OperationType::CCX | crate::circuit::OperationType::CCZ))
+            .filter(|o| {
+                matches!(
+                    o.kind,
+                    crate::circuit::OperationType::CCX | crate::circuit::OperationType::CCZ
+                )
+            })
             .count();
         let peak = b.peak_qubits;
-        eprintln!("Kim forward inversion at n=256, 2n rounds: Toffoli={ccx_count}, peak qubits={peak}");
+        eprintln!(
+            "Kim forward inversion at n=256, 2n rounds: Toffoli={ccx_count}, peak qubits={peak}"
+        );
     }
 
     /// Same, but using per-round modular reduction. This is the variant
@@ -998,7 +1165,11 @@ mod tests {
             }
             let got = classical_kim_inv_mod_per_round(x);
             let want = x.inv_mod(p).unwrap();
-            assert_eq!(got, want, "classical per-round kim_inv disagrees on x={:x}", x);
+            assert_eq!(
+                got, want,
+                "classical per-round kim_inv disagrees on x={:x}",
+                x
+            );
             n += 1;
         }
     }

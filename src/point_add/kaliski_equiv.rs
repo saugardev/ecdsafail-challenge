@@ -644,7 +644,18 @@ mod tests {
         let fg = bg.alloc_qubit();
         let mhg = bg.alloc_qubits(3);
         for i in 0..3 {
-            kaliski_iteration(&mut bg, SECP256K1_P, &ug, &vg, &rg, &sg, mhg[i], fg, i, None);
+            kaliski_iteration(
+                &mut bg,
+                SECP256K1_P,
+                &ug,
+                &vg,
+                &rg,
+                &sg,
+                mhg[i],
+                fg,
+                i,
+                None,
+            );
         }
         for i in (0..3).rev() {
             super::super::kaliski_iteration_backward(
@@ -679,7 +690,17 @@ mod tests {
         let fs = bs.alloc_qubit();
         let mhs = bs.alloc_qubits(3);
         for i in 0..3 {
-            kaliski_iteration_bulk_prefix3(&mut bs, SECP256K1_P, &us, &vs, &rs, &ss, mhs[i], i, None);
+            kaliski_iteration_bulk_prefix3(
+                &mut bs,
+                SECP256K1_P,
+                &us,
+                &vs,
+                &rs,
+                &ss,
+                mhs[i],
+                i,
+                None,
+            );
         }
         for i in (0..3).rev() {
             super::super::kaliski_iteration_bulk_prefix3_backward(

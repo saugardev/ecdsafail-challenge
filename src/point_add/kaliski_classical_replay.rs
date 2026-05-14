@@ -125,7 +125,11 @@ pub fn kaliski_iter_classical(
 
     // STEP 7+8: r := 2r mod p.
     let r2 = r.wrapping_add(*r);
-    *r = if r2 >= p || r2 < *r { r2.wrapping_sub(p) } else { r2 };
+    *r = if r2 >= p || r2 < *r {
+        r2.wrapping_sub(p)
+    } else {
+        r2
+    };
 
     // STEP 9: with control a_f: swap(u, v_w); swap(r, s).
     if a_f == 1 {
@@ -315,10 +319,7 @@ inputs={} iters/input={} total_samples={}",
         "F4 (f,u0,v0,u>v_w,s0): {} conflicts (examples: {:?})",
         f4_conflicts, f4_conflict_examples
     );
-    println!(
-        "F_min (f,u0,v0,u>v_w): {} conflicts",
-        fmin_conflicts
-    );
+    println!("F_min (f,u0,v0,u>v_w): {} conflicts", fmin_conflicts);
 
     // The structural question: F4 includes the comparator, which is
     // mathematically what STEP 2 looks at. Per the algorithm, m_i can only
@@ -361,7 +362,8 @@ so m_i can be recomputed at backward-start from the same fingerprint.
 
 => m_hist elimination is ALGEBRAICALLY POSSIBLE. Implementation risk
 remains: phase-correction protocol for the recomputed ancilla (Gidney
-MBU pattern applies).");
+MBU pattern applies)."
+        );
     } else {
         println!(
             "\n❌ FEASIBILITY REJECTED: F4 is NOT a deterministic function of
@@ -412,7 +414,10 @@ mod tests {
         // Scale up: 500 inputs × 512 iters = 256k samples. If F4 is truly
         // deterministic, it should still have 0 conflicts.
         let ok = run_feasibility_test(500, 512);
-        assert!(ok, "F4 fingerprint failed to be deterministic at large scale");
+        assert!(
+            ok,
+            "F4 fingerprint failed to be deterministic at large scale"
+        );
     }
 
     /// Helper: replay a single iter and return m_i, a_f, AND the state
@@ -428,14 +433,20 @@ mod tests {
         // Replay EXACTLY as kaliski_iter_classical but also return a_f.
         let is_zero = if *v_w == U256::ZERO { 1u8 } else { 0 };
         let mut m_i: u8 = 0;
-        if *f == 1 && is_zero == 1 { m_i ^= 1; }
+        if *f == 1 && is_zero == 1 {
+            m_i ^= 1;
+        }
         *f ^= m_i;
 
         let u0 = (u.as_limbs()[0] & 1) as u8;
         let v0 = (v_w.as_limbs()[0] & 1) as u8;
         let mut a_f: u8 = 0;
-        if *f == 1 && u0 == 0 { a_f ^= 1; }
-        if *f == 1 && u0 == 1 && v0 == 0 { m_i ^= 1; }
+        if *f == 1 && u0 == 0 {
+            a_f ^= 1;
+        }
+        if *f == 1 && u0 == 1 && v0 == 0 {
+            m_i ^= 1;
+        }
         let b_f = a_f ^ m_i;
 
         let l_gt = if *u > *v_w { 1u8 } else { 0 };
@@ -460,7 +471,11 @@ mod tests {
         *v_w = *v_w >> 1;
 
         let r2 = r.wrapping_add(*r);
-        *r = if r2 >= p || r2 < *r { r2.wrapping_sub(p) } else { r2 };
+        *r = if r2 >= p || r2 < *r {
+            r2.wrapping_sub(p)
+        } else {
+            r2
+        };
 
         if a_f == 1 {
             std::mem::swap(u, v_w);
@@ -493,10 +508,18 @@ mod tests {
                 let gt = if u > v_w { 1u8 } else { 0 };
                 let s0 = (s.as_limbs()[0] & 1) as u8;
                 // Fingerprint: (f, u0, v0, gt, s0, a_f) = 6 bits.
-                let k = ((f as u16) << 5) | ((u0 as u16) << 4) | ((v0 as u16) << 3)
-                       | ((gt as u16) << 2) | ((s0 as u16) << 1) | (a_f as u16);
+                let k = ((f as u16) << 5)
+                    | ((u0 as u16) << 4)
+                    | ((v0 as u16) << 3)
+                    | ((gt as u16) << 2)
+                    | ((s0 as u16) << 1)
+                    | (a_f as u16);
                 let e = tt.entry(k).or_insert((m_i, 0, 0));
-                if m_i == 0 { e.1 += 1; } else { e.2 += 1; }
+                if m_i == 0 {
+                    e.1 += 1;
+                } else {
+                    e.2 += 1;
+                }
             }
         }
 
@@ -507,9 +530,16 @@ mod tests {
         for k in ks {
             let (_, c0, c1) = tt[k];
             let conflict = c0 > 0 && c1 > 0;
-            if conflict { conflicts += 1; }
-            println!("  key={:06b}: m=0 {:>7} m=1 {:>7}{}",
-                k, c0, c1, if conflict { "  <- CONFLICT" } else { "" });
+            if conflict {
+                conflicts += 1;
+            }
+            println!(
+                "  key={:06b}: m=0 {:>7} m=1 {:>7}{}",
+                k,
+                c0,
+                c1,
+                if conflict { "  <- CONFLICT" } else { "" }
+            );
         }
         println!("TOTAL CONFLICTS: {}", conflicts);
     }
@@ -544,7 +574,11 @@ mod tests {
                 // Fingerprint: (f_after, u0_after, v0_after, gt_after, s0_after) -- 5 bits
                 let k = (f << 4) | (u0 << 3) | (v0 << 2) | (gt << 1) | s0;
                 let e = tt.entry(k).or_insert((m_i, 0, 0));
-                if m_i == 0 { e.1 += 1; } else { e.2 += 1; }
+                if m_i == 0 {
+                    e.1 += 1;
+                } else {
+                    e.2 += 1;
+                }
             }
         }
 
@@ -555,9 +589,16 @@ mod tests {
         for k in ks {
             let (_, c0, c1) = tt[k];
             let conflict = c0 > 0 && c1 > 0;
-            if conflict { conflicts += 1; }
-            println!("  key={:05b}: m=0 {:>6} times, m=1 {:>6} times{}",
-                k, c0, c1, if conflict { "  <- CONFLICT" } else { "" });
+            if conflict {
+                conflicts += 1;
+            }
+            println!(
+                "  key={:05b}: m=0 {:>6} times, m=1 {:>6} times{}",
+                k,
+                c0,
+                c1,
+                if conflict { "  <- CONFLICT" } else { "" }
+            );
         }
         println!("TOTAL CONFLICTS: {}", conflicts);
     }
@@ -728,7 +769,11 @@ mod tests {
                 }
                 pv >>= 1;
                 let r2 = pr.wrapping_add(pr);
-                pr = if r2 >= p || r2 < pr { r2.wrapping_sub(p) } else { r2 };
+                pr = if r2 >= p || r2 < pr {
+                    r2.wrapping_sub(p)
+                } else {
+                    r2
+                };
             }
             if orient != 0 {
                 core::mem::swap(&mut pu, &mut pv);
@@ -774,7 +819,9 @@ mod tests {
         println!("METRIC kaliski_transition_cswap_saving_ccx_per_iter_404={cswap_saving_404:.3}");
         println!("METRIC kaliski_transition_cswap_saving_ccx_per_iter_401={cswap_saving_401:.3}");
         println!("METRIC kaliski_transition_selector_floor_ccx_per_iter={selector_floor:.3}");
-        println!("METRIC kaliski_transition_projected_pointadd_loss_ccx={projected_pointadd_loss:.0}");
+        println!(
+            "METRIC kaliski_transition_projected_pointadd_loss_ccx={projected_pointadd_loss:.0}"
+        );
         assert!(projected_pointadd_loss > 100_000.0);
     }
 
@@ -838,11 +885,15 @@ mod tests {
             let v0 = (k >> 1) & 1;
             let gt = k & 1;
             if let Some(&(m, c)) = tt.get(&k) {
-                println!("| {} |  {}   |   {}    |   {}   |  {}  | {:>6}  |",
-                    f, u0, v0, gt, m, c);
+                println!(
+                    "| {} |  {}   |   {}    |   {}   |  {}  | {:>6}  |",
+                    f, u0, v0, gt, m, c
+                );
             } else {
-                println!("| {} |  {}   |   {}    |   {}   |  -  |    0   | (unreachable state)",
-                    f, u0, v0, gt);
+                println!(
+                    "| {} |  {}   |   {}    |   {}   |  -  |    0   | (unreachable state)",
+                    f, u0, v0, gt
+                );
             }
         }
     }
@@ -865,7 +916,11 @@ mod tests {
                 let m_i = m_hist[i];
                 let k1 = (f << 2) | (u0 << 1) | v0;
                 let e = f1_sets.entry(k1).or_insert((0, 0));
-                if m_i == 0 { e.0 += 1; } else { e.1 += 1; }
+                if m_i == 0 {
+                    e.0 += 1;
+                } else {
+                    e.1 += 1;
+                }
             }
         }
 
@@ -874,9 +929,20 @@ mod tests {
         keys.sort();
         for k in keys {
             let (c0, c1) = f1_sets[k];
-            println!("  key={:03b} (f={}, u0={}, v0={}): m=0 {} times, m=1 {} times{}",
-                k, (k >> 2) & 1, (k >> 1) & 1, k & 1, c0, c1,
-                if c0 > 0 && c1 > 0 { "  <- CONFLICT" } else { "" });
+            println!(
+                "  key={:03b} (f={}, u0={}, v0={}): m=0 {} times, m=1 {} times{}",
+                k,
+                (k >> 2) & 1,
+                (k >> 1) & 1,
+                k & 1,
+                c0,
+                c1,
+                if c0 > 0 && c1 > 0 {
+                    "  <- CONFLICT"
+                } else {
+                    ""
+                }
+            );
         }
     }
 }

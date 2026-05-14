@@ -8,11 +8,10 @@
 
 use super::{
     mod_add_qb, mod_add_qc, mod_add_qq, mod_double_inplace_fast, mod_halve_inplace_fast,
-    mod_mul_add_into_acc_schoolbook,
-    mod_mul_sub_qq, mod_mul_write_into_zero_acc_schoolbook, mod_neg_inplace_fast, mod_sub_qb, N,
-    SECP256K1_P,
+    mod_mul_add_into_acc_schoolbook, mod_mul_sub_qq, mod_mul_write_into_zero_acc_schoolbook,
+    mod_neg_inplace_fast, mod_sub_qb, N, SECP256K1_P,
 };
-use super::{B, QubitId};
+use super::{QubitId, B};
 use crate::circuit::OperationType;
 
 enum ShiftUndoForCost {
@@ -133,12 +132,7 @@ fn inv_mod_u64_pow2_for_cost(a: u64, k: usize) -> u64 {
     x & mask
 }
 
-fn xor_solinas_multihalve_threshold_s_for_cost(
-    b: &mut B,
-    h: &[QubitId],
-    s: &[QubitId],
-    k: usize,
-) {
+fn xor_solinas_multihalve_threshold_s_for_cost(b: &mut B, h: &[QubitId], s: &[QubitId], k: usize) {
     // For y = h·2^(n-k)+r and p=2^n-(2^32+977), the quotient cleanup bit is
     //   e = [r >= 2^(n-k) - floor((2^32+977)(h+1)/2^k)].
     // For k≤22 the threshold size splits with no carry overlap:
@@ -230,7 +224,9 @@ fn xor_solinas_multihalve_threshold_flag_for_cost(
 fn direct_solinas_multihalve_chunk_cost(k: usize) -> (usize, usize, usize, usize) {
     let n = N;
     let p = SECP256K1_P;
-    let c = alloy_primitives::U256::MAX.wrapping_sub(p).wrapping_add(alloy_primitives::U256::from(1u64));
+    let c = alloy_primitives::U256::MAX
+        .wrapping_sub(p)
+        .wrapping_add(alloy_primitives::U256::from(1u64));
     let c_u64 = c.as_limbs()[0];
     let mask = (1u64 << k) - 1;
     let c_inv = inv_mod_u64_pow2_for_cost(c_u64 & mask, k);
@@ -285,7 +281,12 @@ fn direct_solinas_multihalve_chunk_cost(k: usize) -> (usize, usize, usize, usize
     xor_solinas_multihalve_threshold_flag_for_cost(&mut b, &v, k, t[0]);
     let threshold_ccx = count_ccx(&b.ops[threshold_start..]);
     let candidate_exact = count_ccx(&b.ops[start..]);
-    (current, candidate_without_corr, candidate_exact, threshold_ccx)
+    (
+        current,
+        candidate_without_corr,
+        candidate_exact,
+        threshold_ccx,
+    )
 }
 
 pub(super) fn direct_solinas_multihalve_chunk_cost_split(k: usize) -> (usize, usize, usize, usize) {
@@ -351,7 +352,12 @@ pub(super) fn direct_solinas_multihalve_chunk_cost_split(k: usize) -> (usize, us
     xor_solinas_multihalve_threshold_flag_for_cost(&mut b, &v, k, t[0]);
     let threshold_ccx = count_ccx(&b.ops[threshold_start..]);
     let candidate_exact = count_ccx(&b.ops[start..]);
-    (current, candidate_without_corr, candidate_exact, threshold_ccx)
+    (
+        current,
+        candidate_without_corr,
+        candidate_exact,
+        threshold_ccx,
+    )
 }
 
 pub(super) fn direct_solinas_multihalve_chunk_cost_split_peak(
@@ -375,12 +381,7 @@ pub(super) fn direct_solinas_multihalve_chunk_cost_split_peak(
     }
     for i in 0..k {
         let ci = ((c_low as u128) << i) as u64 & mask;
-        super::csub_nbit_const_direct_fast(
-            &mut b,
-            &v[..k],
-            alloy_primitives::U256::from(ci),
-            t[i],
-        );
+        super::csub_nbit_const_direct_fast(&mut b, &v[..k], alloy_primitives::U256::from(ci), t[i]);
     }
     for i in 0..k {
         let ci = alloy_primitives::U256::from(c_low) << i;
@@ -434,17 +435,21 @@ fn new_builder_with_reg(n: usize) -> (B, Vec<QubitId>) {
 fn direct_solinas_multihalve_chunk_cost_probe() {
     let (cur22, cand22_no_corr, cand22_exact, thr22) = direct_solinas_multihalve_chunk_cost(22);
     let (cur8, cand8_no_corr, cand8_exact, thr8) = direct_solinas_multihalve_chunk_cost(8);
-    let (_cur22s, split22_no_corr, split22_exact, split_thr22) = direct_solinas_multihalve_chunk_cost_split(22);
-    let (_cur8s, split8_no_corr, split8_exact, split_thr8) = direct_solinas_multihalve_chunk_cost_split(8);
+    let (_cur22s, split22_no_corr, split22_exact, split_thr22) =
+        direct_solinas_multihalve_chunk_cost_split(22);
+    let (_cur8s, split8_no_corr, split8_exact, split_thr8) =
+        direct_solinas_multihalve_chunk_cost_split(8);
     let projected_current_404 = 18 * cur22 + cur8;
     let projected_exact_404 = 18 * cand22_exact + cand8_exact;
     let projected_saving_404 = projected_current_404 as isize - projected_exact_404 as isize;
     let projected_split_exact_404 = 18 * split22_exact + split8_exact;
-    let projected_split_saving_404 = projected_current_404 as isize - projected_split_exact_404 as isize;
+    let projected_split_saving_404 =
+        projected_current_404 as isize - projected_split_exact_404 as isize;
     let projected_split_no_threshold_404 = 18 * split22_no_corr + split8_no_corr;
     let projected_split_no_threshold_saving_404 =
         projected_current_404 as isize - projected_split_no_threshold_404 as isize;
-    let projected_split_no_threshold_roundtrip_saving_404 = 2 * projected_split_no_threshold_saving_404;
+    let projected_split_no_threshold_roundtrip_saving_404 =
+        2 * projected_split_no_threshold_saving_404;
     eprintln!(
         "direct Solinas multihalve cost: cur22={cur22}, cand22_no_corr={cand22_no_corr}, cand22_exact={cand22_exact}, thr22={thr22}, split22_no_corr={split22_no_corr}, split22_exact={split22_exact}, split_thr22={split_thr22}, cur8={cur8}, cand8_no_corr={cand8_no_corr}, cand8_exact={cand8_exact}, thr8={thr8}, split8_no_corr={split8_no_corr}, split8_exact={split8_exact}, split_thr8={split_thr8}, projected_saving_404={projected_saving_404}, projected_split_saving_404={projected_split_saving_404}, projected_split_no_threshold_saving_404={projected_split_no_threshold_saving_404}"
     );
@@ -466,7 +471,10 @@ fn direct_solinas_multihalve_chunk_cost_probe() {
     println!("METRIC solinas_multihalve_split_exact_projected_saving_404_ccx={projected_split_saving_404}");
     println!("METRIC solinas_multihalve_split_no_threshold_projected_saving_404_ccx={projected_split_no_threshold_saving_404}");
     println!("METRIC solinas_multihalve_split_no_threshold_roundtrip_saving_404_ccx={projected_split_no_threshold_roundtrip_saving_404}");
-    println!("METRIC solinas_multihalve_split_no_threshold_history_bits_404={}", 19);
+    println!(
+        "METRIC solinas_multihalve_split_no_threshold_history_bits_404={}",
+        19
+    );
 
     let mut split_exact_by_k = vec![0usize; 23];
     let mut split_no_threshold_by_k = vec![0usize; 23];
@@ -510,7 +518,8 @@ fn direct_solinas_multihalve_chunk_cost_probe() {
     };
     let (exact_dp_cost, exact_dp_saving, exact_counts) = best_chunking(&split_exact_by_k, 404);
     let (hist_dp_cost, hist_dp_saving, hist_counts) = best_chunking(&split_no_threshold_by_k, 404);
-    let (hist401_dp_cost, hist401_dp_saving, hist401_counts) = best_chunking(&split_no_threshold_by_k, 401);
+    let (hist401_dp_cost, hist401_dp_saving, hist401_counts) =
+        best_chunking(&split_no_threshold_by_k, 401);
     let hist_dp_history_bits: usize = hist_counts.iter().sum();
     let hist401_dp_history_bits: usize = hist401_counts.iter().sum();
     let total_pair12_roundtrip_saving = 2 * (hist_dp_saving + hist401_dp_saving);
@@ -523,14 +532,25 @@ fn direct_solinas_multihalve_chunk_cost_probe() {
     println!("METRIC solinas_multihalve_split_exact_best_dp_saving_404_ccx={exact_dp_saving}");
     println!("METRIC solinas_multihalve_split_history_best_dp_cost_404_ccx={hist_dp_cost}");
     println!("METRIC solinas_multihalve_split_history_best_dp_saving_404_ccx={hist_dp_saving}");
-    println!("METRIC solinas_multihalve_split_history_best_dp_roundtrip_saving_404_ccx={}", 2 * hist_dp_saving);
-    println!("METRIC solinas_multihalve_split_history_best_dp_history_bits_404={hist_dp_history_bits}");
+    println!(
+        "METRIC solinas_multihalve_split_history_best_dp_roundtrip_saving_404_ccx={}",
+        2 * hist_dp_saving
+    );
+    println!(
+        "METRIC solinas_multihalve_split_history_best_dp_history_bits_404={hist_dp_history_bits}"
+    );
     println!("METRIC solinas_multihalve_split_history_best_dp_cost_401_ccx={hist401_dp_cost}");
     println!("METRIC solinas_multihalve_split_history_best_dp_saving_401_ccx={hist401_dp_saving}");
-    println!("METRIC solinas_multihalve_split_history_best_dp_roundtrip_saving_401_ccx={}", 2 * hist401_dp_saving);
+    println!(
+        "METRIC solinas_multihalve_split_history_best_dp_roundtrip_saving_401_ccx={}",
+        2 * hist401_dp_saving
+    );
     println!("METRIC solinas_multihalve_split_history_best_dp_history_bits_401={hist401_dp_history_bits}");
     println!("METRIC solinas_multihalve_split_history_pair12_roundtrip_saving_ccx={total_pair12_roundtrip_saving}");
-    println!("METRIC solinas_multihalve_split_history_pair12_history_bits={}", hist_dp_history_bits + hist401_dp_history_bits);
+    println!(
+        "METRIC solinas_multihalve_split_history_pair12_history_bits={}",
+        hist_dp_history_bits + hist401_dp_history_bits
+    );
     assert!(projected_split_saving_404 > projected_saving_404);
 }
 
@@ -604,7 +624,9 @@ fn cost_squaring_sub_n256() {
     use super::*;
     use crate::circuit::OperationType;
     fn count_ccx(ops: &[crate::circuit::Op]) -> usize {
-        ops.iter().filter(|o| matches!(o.kind, OperationType::CCX | OperationType::CCZ)).count()
+        ops.iter()
+            .filter(|o| matches!(o.kind, OperationType::CCX | OperationType::CCZ))
+            .count()
     }
     let mut b = B::new();
     let p = SECP256K1_P;
@@ -727,16 +749,25 @@ fn chunked_shift_prescaler_reopens_small_scale_absorption_but_not_qubit_gate() {
         println!("METRIC scale_absorb_{label}_chunked_inplace_prescale_peak_qubits={inplace_peak}");
         println!("METRIC scale_absorb_{label}_correction_loop_ccx={correction_loop_ccx}");
         println!("METRIC scale_absorb_{label}_chunked_inplace_projected_delta={projected_delta}");
-        assert!(inplace_ccx < mixed_ccx / 2, "chunked sparse shifts should strongly improve the local prescaler");
-        assert!(inplace_peak < chunked_peak, "in-place source schedule should remove the tmp-register peak");
-        assert!(projected_delta < 0, "chunked compute+uncompute should beat the deleted correction loop locally");
+        assert!(
+            inplace_ccx < mixed_ccx / 2,
+            "chunked sparse shifts should strongly improve the local prescaler"
+        );
+        assert!(
+            inplace_peak < chunked_peak,
+            "in-place source schedule should remove the tmp-register peak"
+        );
+        assert!(
+            projected_delta < 0,
+            "chunked compute+uncompute should beat the deleted correction loop locally"
+        );
     }
 }
 
 #[test]
 fn profile_point_add_by_phase() {
-    use std::collections::HashMap;
     use crate::circuit::OperationType;
+    use std::collections::HashMap;
     let mut b = B::new();
     let p = SECP256K1_P;
     let n = 256;

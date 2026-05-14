@@ -912,8 +912,8 @@ mod tests {
     }
 
     fn row_popcount_adds_i128(row: (i128, i128)) -> usize {
-        let terms = row.0.unsigned_abs().count_ones() as usize
-            + row.1.unsigned_abs().count_ones() as usize;
+        let terms =
+            row.0.unsigned_abs().count_ones() as usize + row.1.unsigned_abs().count_ones() as usize;
         terms.saturating_sub(1)
     }
 
@@ -948,7 +948,10 @@ mod tests {
             fail_560 as f64 / samples as f64,
             iters[samples - 1]
         );
-        assert!(fail_550 as f64 / samples as f64 <= 0.01, "550-step approximate cutoff exceeded 1% on sample");
+        assert!(
+            fail_550 as f64 / samples as f64 <= 0.01,
+            "550-step approximate cutoff exceeded 1% on sample"
+        );
     }
 
     #[test]
@@ -998,14 +1001,18 @@ mod tests {
         let decoder_per_step = 62_160i64 / 560;
         let lowword_selector_per_step = 208_320i64 / 560;
         let projected = |k: usize| -> i64 {
-            scaffold_after_div + (replay_per_step + decoder_per_step + lowword_selector_per_step) * k as i64
+            scaffold_after_div
+                + (replay_per_step + decoder_per_step + lowword_selector_per_step) * k as i64
         };
         let best_projected = projected(best_cutoff);
         let aligned_projected = projected(aligned_cutoff);
         let best_gap = best_projected - 2_700_000;
         let aligned_gap = aligned_projected - 2_700_000;
         println!("METRIC by_approx_1pct_best_cutoff_steps={best_cutoff}");
-        println!("METRIC by_approx_1pct_best_fail_ppm={}", fail_ppm(best_cutoff));
+        println!(
+            "METRIC by_approx_1pct_best_fail_ppm={}",
+            fail_ppm(best_cutoff)
+        );
         println!("METRIC by_approx_1pct_best_projected_gap_ccx={best_gap}");
         println!("METRIC by_approx_1pct_aligned_cutoff_steps={aligned_cutoff}");
         println!("METRIC by_approx_1pct_aligned_projected_gap_ccx={aligned_gap}");
@@ -1019,7 +1026,10 @@ mod tests {
             fail_ppm(550),
             fail_ppm(560)
         );
-        assert!(fail_ppm(best_cutoff) <= 10_000, "selected cutoff violates 1% classical-mismatch budget");
+        assert!(
+            fail_ppm(best_cutoff) <= 10_000,
+            "selected cutoff violates 1% classical-mismatch budget"
+        );
     }
 
     #[test]
@@ -1064,7 +1074,8 @@ mod tests {
         let decoder_per_step = 62_160i64 / 560;
         let lowword_selector_per_step = 208_320i64 / 560;
         let projected = |k: usize| -> i64 {
-            scaffold_after_div + (replay_per_step + decoder_per_step + lowword_selector_per_step) * k as i64
+            scaffold_after_div
+                + (replay_per_step + decoder_per_step + lowword_selector_per_step) * k as i64
         };
         let pointadd_gap = projected(cutoff_half_percent) - 2_700_000;
         let independent_cutoff_gap = projected(cutoff_one_percent_two_den_union) - 2_700_000;
@@ -1079,14 +1090,19 @@ mod tests {
         println!("METRIC by_approx_pointadd_union_fail_ppm={union_ppm}");
         println!("METRIC by_approx_pointadd_independent_fail_ppm={indep_ppm}");
         println!("METRIC by_approx_pointadd_projected_gap_ccx={pointadd_gap}");
-        println!("METRIC by_approx_pointadd_independent_cutoff_steps={cutoff_one_percent_two_den_union}");
+        println!(
+            "METRIC by_approx_pointadd_independent_cutoff_steps={cutoff_one_percent_two_den_union}"
+        );
         println!("METRIC by_approx_pointadd_independent_gap_ccx={independent_cutoff_gap}");
         println!("METRIC by_approx_pointadd_fail550_ppm={}", fail_ppm(550));
         println!("METRIC by_approx_pointadd_fail552_ppm={}", fail_ppm(552));
         eprintln!(
             "BY 1% point-add cutoff budget: union cutoff={cutoff_half_percent}, per_den_fail={per_den_ppm}ppm, union_fail={union_ppm}ppm, gap={pointadd_gap}; independent cutoff={cutoff_one_percent_two_den_union}, independent_gap={independent_cutoff_gap}"
         );
-        assert!(union_ppm <= 10_000, "two-denominator union-bound failure exceeds 1%");
+        assert!(
+            union_ppm <= 10_000,
+            "two-denominator union-bound failure exceeds 1%"
+        );
     }
 
     #[test]
@@ -1127,15 +1143,22 @@ mod tests {
         let decoder_per_step = 62_160i64 / 560;
         let lowword_selector_per_step = 208_320i64 / 560;
         let projected = |k: usize| -> i64 {
-            scaffold_after_div + (replay_per_step + decoder_per_step + lowword_selector_per_step) * k as i64
+            scaffold_after_div
+                + (replay_per_step + decoder_per_step + lowword_selector_per_step) * k as i64
         };
         let gap_100ppm = projected(cutoff_100ppm_pointadd) - 2_700_000;
         let gap_20ppm = projected(cutoff_20ppm_pointadd) - 2_700_000;
         println!("METRIC by_approx_harness_100ppm_cutoff_steps={cutoff_100ppm_pointadd}");
-        println!("METRIC by_approx_harness_100ppm_union_fail_ppm={}", pointadd_union_ppm(cutoff_100ppm_pointadd));
+        println!(
+            "METRIC by_approx_harness_100ppm_union_fail_ppm={}",
+            pointadd_union_ppm(cutoff_100ppm_pointadd)
+        );
         println!("METRIC by_approx_harness_100ppm_projected_gap_ccx={gap_100ppm}");
         println!("METRIC by_approx_harness_20ppm_cutoff_steps={cutoff_20ppm_pointadd}");
-        println!("METRIC by_approx_harness_20ppm_union_fail_ppm={}", pointadd_union_ppm(cutoff_20ppm_pointadd));
+        println!(
+            "METRIC by_approx_harness_20ppm_union_fail_ppm={}",
+            pointadd_union_ppm(cutoff_20ppm_pointadd)
+        );
         println!("METRIC by_approx_harness_projected_gap_ccx={gap_20ppm}");
         println!("METRIC by_approx_harness_fail556_ppm={}", fail_ppm(556));
         println!("METRIC by_approx_harness_fail560_ppm={}", fail_ppm(560));
@@ -1146,7 +1169,10 @@ mod tests {
             fail_ppm(560),
             fail_ppm(564)
         );
-        assert!(gap_20ppm > 0, "harness-scale approximate cutoff unexpectedly funds old lowword BY route");
+        assert!(
+            gap_20ppm > 0,
+            "harness-scale approximate cutoff unexpectedly funds old lowword BY route"
+        );
     }
 
     fn approx_odd_pattern_from_truncated_lowbits_for_test(
@@ -1218,7 +1244,13 @@ mod tests {
                     divstep_sint_state(&mut delta, &mut f, &mut g);
                 }
                 for (j, &t) in ts.iter().enumerate() {
-                    let approx = approx_odd_pattern_from_truncated_lowbits_for_test(W, t, start_delta, start_f, start_g);
+                    let approx = approx_odd_pattern_from_truncated_lowbits_for_test(
+                        W,
+                        t,
+                        start_delta,
+                        start_f,
+                        start_g,
+                    );
                     if approx != true_pattern {
                         window_mismatches[j] += 1;
                         any[j] = true;
@@ -1254,8 +1286,14 @@ mod tests {
         eprintln!(
             "BY truncated lowword patterns: window mismatch ppm t8={window_t8}, t12={window_t12}, t14={window_t14}, t15={window_t15}; trajectory ppm t14={traj_t14}, t15={traj_t15}; selector savings t14={selector_saving_t14}, t15={selector_saving_t15}"
         );
-        assert!(traj_t15 > 10_000, "15-bit truncated lowword pattern would be harness-clean enough to revisit");
-        assert!(selector_saving_t15 < 20_000, "15-bit truncation unexpectedly saves enough selector cost");
+        assert!(
+            traj_t15 > 10_000,
+            "15-bit truncated lowword pattern would be harness-clean enough to revisit"
+        );
+        assert!(
+            selector_saving_t15 < 20_000,
+            "15-bit truncation unexpectedly saves enough selector cost"
+        );
     }
 
     fn two_inv_pow(p: U256, iters: usize) -> U256 {
@@ -1302,10 +1340,18 @@ mod tests {
                 continue;
             }
             let tag = addm(y, x, p);
-            assert_eq!(mulm(run.final_coeffs.rr, tag, p), U256::ZERO, "bottom BY tagged channel did not self-zero");
+            assert_eq!(
+                mulm(run.final_coeffs.rr, tag, p),
+                U256::ZERO,
+                "bottom BY tagged channel did not self-zero"
+            );
             let raw = mulm(run.final_coeffs.vv, tag, p);
             let scaled = mulm(raw, two_inv_k, p);
-            let plus_one = if run.final_f.is_one_pos() { scaled } else { negm(scaled, p) };
+            let plus_one = if run.final_f.is_one_pos() {
+                scaled
+            } else {
+                negm(scaled, p)
+            };
             let quotient = subm(plus_one, U256::from(1), p);
             let expected = mulm(y, fermat_modinv(x, p), p);
             assert_eq!(quotient, expected, "BY tagged quotient mismatch");
@@ -1314,7 +1360,10 @@ mod tests {
         eprintln!(
             "fixed BY tagged-DIV algebra at K={k}: failures={failures}/{samples} ({fail_rate:.4})"
         );
-        assert!(fail_rate <= 0.01, "550-step fixed BY tagged DIV exceeded 1% failure tolerance");
+        assert!(
+            fail_rate <= 0.01,
+            "550-step fixed BY tagged DIV exceeded 1% failure tolerance"
+        );
     }
 
     fn sint_low_i128(x: SInt, w: usize) -> i128 {
@@ -1354,7 +1403,11 @@ mod tests {
         }
     }
 
-    fn inverse_divstep_candidates_for_ambiguity(delta: i64, f: i128, g: i128) -> Vec<(i64, i128, i128, u8)> {
+    fn inverse_divstep_candidates_for_ambiguity(
+        delta: i64,
+        f: i128,
+        g: i128,
+    ) -> Vec<(i64, i128, i128, u8)> {
         // Invert one BY denominator divstep from a poststate.  The point of the
         // last-shot consumed-denominator idea was to avoid storing branch bits
         // and later recover them from the consumed denominator state.  These are
@@ -1394,11 +1447,13 @@ mod tests {
         // a SOTA BY denominator cannot be branchless-poststate cleanup; it must
         // carry compressed history or consume q/pattern inside a reversible
         // fixed-matrix update with an explicit local inverse.
-        let mut states: std::collections::BTreeMap<(i64, i128, i128), usize> = std::collections::BTreeMap::new();
+        let mut states: std::collections::BTreeMap<(i64, i128, i128), usize> =
+            std::collections::BTreeMap::new();
         states.insert((0, 1, 0), 1);
         let mut totals = Vec::new();
         for _depth in 1..=16 {
-            let mut next: std::collections::BTreeMap<(i64, i128, i128), usize> = std::collections::BTreeMap::new();
+            let mut next: std::collections::BTreeMap<(i64, i128, i128), usize> =
+                std::collections::BTreeMap::new();
             for (&(d, f, g), &count) in states.iter() {
                 for (d0, f0, g0, _case) in inverse_divstep_candidates_for_ambiguity(d, f, g) {
                     assert!(d0.abs() < 64);
@@ -1425,11 +1480,20 @@ mod tests {
         println!("METRIC scratch600_consumed_w4_poststate_bits={bits4}");
         println!("METRIC scratch600_consumed_w8_poststate_patterns={total8}");
         println!("METRIC scratch600_consumed_w8_poststate_bits={bits8}");
-        println!("METRIC scratch600_consumed_w16_poststate_states={}", states.len());
+        println!(
+            "METRIC scratch600_consumed_w16_poststate_states={}",
+            states.len()
+        );
         println!("METRIC scratch600_consumed_w16_poststate_patterns={total16}");
         println!("METRIC scratch600_consumed_w16_poststate_bits={bits16}");
-        assert!(states.len() > 500_000, "poststate unexpectedly identifies most predecessor states");
-        assert!(total16 > 500_000, "poststate unexpectedly identifies most branch patterns");
+        assert!(
+            states.len() > 500_000,
+            "poststate unexpectedly identifies most predecessor states"
+        );
+        assert!(
+            total16 > 500_000,
+            "poststate unexpectedly identifies most branch patterns"
+        );
     }
 
     #[test]
@@ -1487,7 +1551,11 @@ mod tests {
                 failures += 1;
                 continue;
             }
-            assert_eq!(s, U256::ZERO, "scaled BY bottom tagged channel did not zero");
+            assert_eq!(
+                s,
+                U256::ZERO,
+                "scaled BY bottom tagged channel did not zero"
+            );
             let plus_one = if f.is_one_pos() { r } else { negm(r, p) };
             let quotient = subm(plus_one, U256::from(1), p);
             let expected = mulm(y, fermat_modinv(x, p), p);
@@ -1538,7 +1606,10 @@ mod tests {
                 "BY jump w={w}: mean row-add terms/window={mean:.2}, p90={p90}, max={max_cost}, exact_windows={}, mean_terms_per_pair={mean_terms_per_pair:.1}",
                 exact_windows
             );
-            assert!(mean_terms_per_pair < 600.0, "BY row-add intensity unexpectedly high");
+            assert!(
+                mean_terms_per_pair < 600.0,
+                "BY row-add intensity unexpectedly high"
+            );
         }
     }
 
@@ -1570,18 +1641,31 @@ mod tests {
         let mean_terms_per_window = total_terms as f64 / samples as f64;
         let exact_windows = safegcd_iters(256).div_ceil(w);
         let approx_windows_1pct = 550usize.div_ceil(w);
-        let exact_toffoli_lb = mean_terms_per_window * exact_windows as f64 * PAIRS_PER_WINDOW as f64 * N as f64;
-        let approx_toffoli_lb = mean_terms_per_window * approx_windows_1pct as f64 * PAIRS_PER_WINDOW as f64 * N as f64;
+        let exact_toffoli_lb =
+            mean_terms_per_window * exact_windows as f64 * PAIRS_PER_WINDOW as f64 * N as f64;
+        let approx_toffoli_lb =
+            mean_terms_per_window * approx_windows_1pct as f64 * PAIRS_PER_WINDOW as f64 * N as f64;
         eprintln!(
             "BY w=16 budget lower-bound: mean_terms/window={mean_terms_per_window:.2}, exact_windows={exact_windows}, exact≈{exact_toffoli_lb:.0} Toffoli, approx_windows={approx_windows_1pct}, approx≈{approx_toffoli_lb:.0} Toffoli"
         );
-        assert!(exact_toffoli_lb < 600_000.0, "BY lower bound no longer beats Kaliski enough to prototype");
-        assert!(approx_toffoli_lb < 500_000.0, "Approx BY lower bound too high");
+        assert!(
+            exact_toffoli_lb < 600_000.0,
+            "BY lower bound no longer beats Kaliski enough to prototype"
+        );
+        assert!(
+            approx_toffoli_lb < 500_000.0,
+            "Approx BY lower bound too high"
+        );
     }
 
     fn count_ccx(ops: &[crate::circuit::Op]) -> usize {
         ops.iter()
-            .filter(|o| matches!(o.kind, crate::circuit::OperationType::CCX | crate::circuit::OperationType::CCZ))
+            .filter(|o| {
+                matches!(
+                    o.kind,
+                    crate::circuit::OperationType::CCX | crate::circuit::OperationType::CCZ
+                )
+            })
             .count()
     }
 
@@ -1631,7 +1715,11 @@ mod tests {
         }
     }
 
-    fn emit_constant_matrix_apply_for_cost(b: &mut super::super::B, m: TransitionMatrix, width: usize) {
+    fn emit_constant_matrix_apply_for_cost(
+        b: &mut super::super::B,
+        m: TransitionMatrix,
+        width: usize,
+    ) {
         let f = b.alloc_qubits(width);
         let g = b.alloc_qubits(width);
         let out0 = b.alloc_qubits(width);
@@ -1648,7 +1736,10 @@ mod tests {
     fn det_sign_pow2(m: TransitionMatrix, w: usize) -> i128 {
         let det = m.m00 * m.m11 - m.m01 * m.m10;
         let scale = 1i128 << w;
-        assert!(det == scale || det == -scale, "unexpected jump determinant {det}, expected ±{scale}");
+        assert!(
+            det == scale || det == -scale,
+            "unexpected jump determinant {det}, expected ±{scale}"
+        );
         det / scale
     }
 
@@ -1731,7 +1822,10 @@ mod tests {
             "constant BY w=16 matrix apply cost probe: mean_ccx={mean_ccx:.1}, mean_terms={mean_terms:.2}, ccx_per_term={:.1}, max_peak={max_peak}",
             mean_ccx / mean_terms
         );
-        assert!(mean_ccx < 10_000.0, "constant matrix row formation too costly to prototype");
+        assert!(
+            mean_ccx < 10_000.0,
+            "constant matrix row formation too costly to prototype"
+        );
     }
 
     #[test]
@@ -1765,7 +1859,10 @@ mod tests {
             "scaled BY w=16 pair update+cleanup probe: mean_ccx={mean_ccx:.1}, max_peak={max_peak}"
         );
         assert!(mean_ccx < 9_000.0, "scaled pair replacement too expensive");
-        assert!(max_peak < 1_800, "single-pair replacement peak unexpectedly high");
+        assert!(
+            max_peak < 1_800,
+            "single-pair replacement peak unexpectedly high"
+        );
     }
 
     fn cadd_qq_fast_for_cost(
@@ -1835,15 +1932,12 @@ mod tests {
                     let inv_f = inv_odd_mod_pow2_u64(f_low, w);
                     for g_raw in 0..(1usize << w) {
                         let h = (g_raw as u64).wrapping_mul(inv_f) & mask;
-                        let (_, _, _, m) = jump_matrix_direct_lowword(
-                            w,
-                            w,
-                            delta,
-                            f_low as i128,
-                            g_raw as i128,
-                        );
+                        let (_, _, _, m) =
+                            jump_matrix_direct_lowword(w, w, delta, f_low as i128, g_raw as i128);
                         match by_key.insert((delta, h), m) {
-                            Some(prev) => assert_eq!(prev, m, "matrix not determined by delta,h for w={w}"),
+                            Some(prev) => {
+                                assert_eq!(prev, m, "matrix not determined by delta,h for w={w}")
+                            }
                             None => {}
                         }
                     }
@@ -1867,7 +1961,10 @@ mod tests {
         let mut d = delta;
         let mut f = SInt::from_u(U256::from(1));
         let mag = U256::from(signed_h.unsigned_abs());
-        let mut g = SInt { neg: signed_h < 0, mag };
+        let mut g = SInt {
+            neg: signed_h < 0,
+            mag,
+        };
         let mut pattern = 0u64;
         for i in 0..w {
             if g.bit0() {
@@ -1954,7 +2051,10 @@ mod tests {
         eprintln!(
             "BY h16+pattern forward incompleteness: mismatches={h_next_mismatches}/{windows} ({mismatch_rate:.4}), first={first:?}"
         );
-        assert!(mismatch_rate > 0.50, "h16+pattern unexpectedly predicts next-window h often enough");
+        assert!(
+            mismatch_rate > 0.50,
+            "h16+pattern unexpectedly predicts next-window h often enough"
+        );
     }
 
     #[test]
@@ -1986,7 +2086,10 @@ mod tests {
             let mut g = SInt::from_u(x);
             let mut sample_max = 0u32;
             for _ in 0..35 {
-                assert!((-24..=64).contains(&delta), "delta out of modeled range: {delta}");
+                assert!(
+                    (-24..=64).contains(&delta),
+                    "delta out of modeled range: {delta}"
+                );
                 let h = low_ratio_of_sints(f, g, W);
                 let out = ratio_window_next(W, delta, h);
                 let rank_space = *counts.get(&out).expect("counted output");
@@ -2005,8 +2108,14 @@ mod tests {
             "BY low-ratio reversible-state rank: max_rank={max_rank}, bits={}, fail_if_16bit_rank={fail_16:.4}",
             32 - (max_rank - 1).leading_zeros()
         );
-        assert!(max_rank > (1u32 << 16), "16-bit/window rank unexpectedly sufficient");
-        assert!(fail_16 > 0.01, "16-bit/window rank would meet 1% tolerance; revisit h-only path");
+        assert!(
+            max_rank > (1u32 << 16),
+            "16-bit/window rank unexpectedly sufficient"
+        );
+        assert!(
+            fail_16 > 0.01,
+            "16-bit/window rank would meet 1% tolerance; revisit h-only path"
+        );
     }
 
     fn by_h_only_next_ratio_payload_stats(
@@ -2058,8 +2167,7 @@ mod tests {
         rank_rows.sort_unstable();
         let rank_p99 = rank_rows[rank_rows.len() * 99 / 100];
         let rank_max = *rank_rows.last().unwrap();
-        let rank_mean_milli =
-            rank_rows.iter().sum::<usize>() * 1_000 / rank_rows.len().max(1);
+        let rank_mean_milli = rank_rows.iter().sum::<usize>() * 1_000 / rank_rows.len().max(1);
         let max_next_h_choices = groups.values().map(BTreeSet::len).max().unwrap_or(0);
         let ambiguous_keys = groups.values().filter(|values| values.len() > 1).count();
         (
@@ -2109,7 +2217,9 @@ mod tests {
                 println!("METRIC by_h_only_next_ratio_toy_n14_windows={windows}");
                 println!("METRIC by_h_only_next_ratio_toy_n14_keys={keys}");
                 println!("METRIC by_h_only_next_ratio_toy_n14_ambiguous_keys={ambiguous_keys}");
-                println!("METRIC by_h_only_next_ratio_toy_n14_max_next_h_choices={max_next_h_choices}");
+                println!(
+                    "METRIC by_h_only_next_ratio_toy_n14_max_next_h_choices={max_next_h_choices}"
+                );
                 println!("METRIC by_h_only_next_ratio_toy_n14_rank_p99={rank_p99}");
                 println!("METRIC by_h_only_next_ratio_toy_n14_rank_max={rank_max}");
                 println!("METRIC by_h_only_next_ratio_toy_n14_rank_mean_milli={rank_mean_milli}");
@@ -2124,7 +2234,9 @@ mod tests {
             );
         }
         println!("METRIC by_h_only_next_ratio_toy_largest_rank_p99={largest_rank_p99}");
-        println!("METRIC by_h_only_next_ratio_toy_largest_max_next_h_choices={largest_max_choices}");
+        println!(
+            "METRIC by_h_only_next_ratio_toy_largest_max_next_h_choices={largest_max_choices}"
+        );
         assert!(
             largest_rank_p99 >= 28
                 && largest_max_choices == 16
@@ -2138,7 +2250,11 @@ mod tests {
         assert!((1..=63).contains(&bits));
         let mask = (1u64 << bits) - 1;
         let low = x.mag.as_limbs()[0] & mask;
-        let residue = if x.neg { ((!low).wrapping_add(1)) & mask } else { low };
+        let residue = if x.neg {
+            ((!low).wrapping_add(1)) & mask
+        } else {
+            low
+        };
         if (residue & (1u64 << (bits - 1))) != 0 {
             residue as i128 - (1i128 << bits)
         } else {
@@ -2196,8 +2312,14 @@ mod tests {
         (x * c) & mask_u512_bits_for_streaming_test(bits)
     }
 
-    fn add_i128_term_mod_width_for_streaming_test(acc: U512, x: U512, coeff: i128, bits: usize) -> U512 {
-        (acc + mul_i128_mod_width_for_streaming_test(x, coeff, bits)) & mask_u512_bits_for_streaming_test(bits)
+    fn add_i128_term_mod_width_for_streaming_test(
+        acc: U512,
+        x: U512,
+        coeff: i128,
+        bits: usize,
+    ) -> U512 {
+        (acc + mul_i128_mod_width_for_streaming_test(x, coeff, bits))
+            & mask_u512_bits_for_streaming_test(bits)
     }
 
     type Big9 = [u64; 9];
@@ -2328,7 +2450,11 @@ mod tests {
     fn h_ratio_step_big9_for_streaming_test(delta: i64, h: Big9, t: usize) -> (i64, Big9, bool) {
         let odd = big9_bit(&h, 0);
         if t == 1 {
-            let next_delta = if delta > 0 && odd { 1 - delta } else { 1 + delta };
+            let next_delta = if delta > 0 && odd {
+                1 - delta
+            } else {
+                1 + delta
+            };
             return (next_delta, [0u64; 9], odd);
         }
         let next_bits = t - 1;
@@ -2356,7 +2482,11 @@ mod tests {
     fn h_ratio_step_u512_for_streaming_test(delta: i64, h: U512, t: usize) -> (i64, U512, bool) {
         let odd = h.bit(0);
         if t == 1 {
-            let next_delta = if delta > 0 && odd { 1 - delta } else { 1 + delta };
+            let next_delta = if delta > 0 && odd {
+                1 - delta
+            } else {
+                1 + delta
+            };
             return (next_delta, U512::ZERO, odd);
         }
         let next_bits = t - 1;
@@ -2466,7 +2596,10 @@ mod tests {
         let prod_bits = b_bits.max(c0_bits).max(c1_bits) + W;
         let p = SECP256K1_P;
         let mut bx = [U512::ZERO, U512::from(1u64)];
-        let mut c = [U512::from(p) & mask_u512_bits_for_streaming_test(c0_bits), U512::ZERO];
+        let mut c = [
+            U512::from(p) & mask_u512_bits_for_streaming_test(c0_bits),
+            U512::ZERO,
+        ];
         let mut delta = 1i64;
         let mut actual_delta = 1i64;
         let mut f = SInt::from_u(p);
@@ -2519,7 +2652,12 @@ mod tests {
         true
     }
 
-    fn streaming_selector_tail_c_only_matches_for_test(x: U256, b_limbs: usize, c0_limbs: usize, c1_limbs: usize) -> bool {
+    fn streaming_selector_tail_c_only_matches_for_test(
+        x: U256,
+        b_limbs: usize,
+        c0_limbs: usize,
+        c1_limbs: usize,
+    ) -> bool {
         const W: usize = 16;
         let b_bits = b_limbs * W;
         let c0_bits = c0_limbs * W;
@@ -2527,7 +2665,10 @@ mod tests {
         let prod_bits = b_bits.max(c0_bits).max(c1_bits) + W;
         let p = SECP256K1_P;
         let mut bx = [U512::ZERO, U512::from(1u64)];
-        let mut c = [U512::from(p) & mask_u512_bits_for_streaming_test(c0_bits), U512::ZERO];
+        let mut c = [
+            U512::from(p) & mask_u512_bits_for_streaming_test(c0_bits),
+            U512::ZERO,
+        ];
         let mut delta = 1i64;
         let mut actual_delta = 1i64;
         let mut f = SInt::from_u(p);
@@ -2535,8 +2676,16 @@ mod tests {
         for win in 0..35 {
             let limb_x = U512::from(u256_limb16_for_streaming_test(x, win));
             let use_b = win < 16;
-            let b0_ext = if use_b { sign_extend_u512_for_streaming_test(bx[0], b_bits, prod_bits) } else { U512::ZERO };
-            let b1_ext = if use_b { sign_extend_u512_for_streaming_test(bx[1], b_bits, prod_bits) } else { U512::ZERO };
+            let b0_ext = if use_b {
+                sign_extend_u512_for_streaming_test(bx[0], b_bits, prod_bits)
+            } else {
+                U512::ZERO
+            };
+            let b1_ext = if use_b {
+                sign_extend_u512_for_streaming_test(bx[1], b_bits, prod_bits)
+            } else {
+                U512::ZERO
+            };
             let c0_ext = sign_extend_u512_for_streaming_test(c[0], c0_bits, prod_bits);
             let c1_ext = sign_extend_u512_for_streaming_test(c[1], c1_bits, prod_bits);
             let v0_ext = (b0_ext * limb_x + c0_ext) & mask_u512_bits_for_streaming_test(prod_bits);
@@ -2589,7 +2738,10 @@ mod tests {
         let mut bx = [U512::ZERO; 2];
         bx[1] = U512::from(1u64);
         let p = SECP256K1_P;
-        let mut c = [U512::from(p) & mask_u512_bits_for_streaming_test(bits), U512::ZERO];
+        let mut c = [
+            U512::from(p) & mask_u512_bits_for_streaming_test(bits),
+            U512::ZERO,
+        ];
         let mut delta = 1i64;
         let mut actual_delta = 1i64;
         let mut f = SInt::from_u(p);
@@ -2671,11 +2823,20 @@ mod tests {
         eprintln!(
             "BY streaming limb selector: samples={samples}, k8_failures={k8_failures}, k12_state_bits={state_bits}"
         );
-        assert!(k8_failures > 0, "8-limb streaming state unexpectedly exact on all samples");
-        assert!(state_bits > 600, "streaming selector would already fit the low-scratch target");
+        assert!(
+            k8_failures > 0,
+            "8-limb streaming state unexpectedly exact on all samples"
+        );
+        assert!(
+            state_bits > 600,
+            "streaming selector would already fit the low-scratch target"
+        );
     }
 
-    fn streaming_selector_projective_normalized_matches_for_test(x: U256, state_limbs: usize) -> bool {
+    fn streaming_selector_projective_normalized_matches_for_test(
+        x: U256,
+        state_limbs: usize,
+    ) -> bool {
         const W: usize = 16;
         const WINDOWS: usize = 35;
         let bits = state_limbs * W;
@@ -2693,7 +2854,8 @@ mod tests {
         let mut g = SInt::from_u(x);
         for win in 0..WINDOWS {
             let limb_x = U512::from(u256_limb16_for_streaming_test(x, win));
-            let v0_bits = (U512::from(1u64) + b0 * limb_x) & mask_u512_bits_for_streaming_test(bits);
+            let v0_bits =
+                (U512::from(1u64) + b0 * limb_x) & mask_u512_bits_for_streaming_test(bits);
             let v1_bits = (c1 + b1 * limb_x) & mask_u512_bits_for_streaming_test(bits);
             let low0 = low_i16_from_residue_for_streaming_test(v0_bits);
             let low1 = low_i16_from_residue_for_streaming_test(v1_bits);
@@ -2773,9 +2935,18 @@ mod tests {
         eprintln!(
             "BY streaming selector with constant-p fold: samples={samples}, k16_failures={k16_failures}, k17_state_bits={state_bits}"
         );
-        assert!(k16_failures > 0, "16-limb folded selector unexpectedly exact on all samples");
-        assert!(state_bits < 1152, "constant-p fold did not improve the naive A/c state");
-        assert!(state_bits > 600, "folded selector would already fit the low-scratch target");
+        assert!(
+            k16_failures > 0,
+            "16-limb folded selector unexpectedly exact on all samples"
+        );
+        assert!(
+            state_bits < 1152,
+            "constant-p fold did not improve the naive A/c state"
+        );
+        assert!(
+            state_bits > 600,
+            "folded selector would already fit the low-scratch target"
+        );
     }
 
     #[test]
@@ -2831,7 +3002,10 @@ mod tests {
             2 * 9 * 16
         );
         assert_eq!(c_core_bits, 528);
-        assert!(c_core_bits < 600, "post-tail selector core misses low-scratch target");
+        assert!(
+            c_core_bits < 600,
+            "post-tail selector core misses low-scratch target"
+        );
     }
 
     fn inv_odd_u32_pow2_for_ratio_test(a: u32, bits: usize) -> u32 {
@@ -2871,7 +3045,13 @@ mod tests {
         let degree = anf
             .iter()
             .enumerate()
-            .filter_map(|(i, &c)| if c != 0 { Some(i.count_ones() as usize) } else { None })
+            .filter_map(|(i, &c)| {
+                if c != 0 {
+                    Some(i.count_ones() as usize)
+                } else {
+                    None
+                }
+            })
             .max()
             .unwrap_or(0);
         (degree, density)
@@ -2923,7 +3103,10 @@ mod tests {
             "BY ratio W=32 denominator v2(m01): windows={windows32}, hist={hist32:?}, v<=4={weak32}"
         );
         assert_eq!(windows32, 64 * 17);
-        assert!(weak32 * 3 > windows32, "W=32 unexpectedly makes denominators almost constant");
+        assert!(
+            weak32 * 3 > windows32,
+            "W=32 unexpectedly makes denominators almost constant"
+        );
     }
 
     #[test]
@@ -2985,8 +3168,14 @@ mod tests {
         eprintln!(
             "BY ratio window denominator v2(m01): windows={windows}, hist={hist:?}, weak_v1_v2={weak}"
         );
-        assert!(weak > windows / 3, "m01 high-v2 enough to merit a separate follow-up");
-        assert_eq!(hist[0], 0, "m01 should be even after scaled 16-step windows");
+        assert!(
+            weak > windows / 3,
+            "m01 high-v2 enough to merit a separate follow-up"
+        );
+        assert_eq!(
+            hist[0], 0,
+            "m01 should be even after scaled 16-step windows"
+        );
     }
 
     fn bitlen_u256_for_compact_pair_test(x: U256) -> usize {
@@ -3041,8 +3230,12 @@ mod tests {
         let mut b_win = super::super::B::new();
         let f = b_win.alloc_qubits(WIDTH);
         let g = b_win.alloc_qubits(WIDTH);
-        let coeffs = (0..8).map(|_| b_win.alloc_qubits(CBITS)).collect::<Vec<_>>();
-        let accs = (0..4).map(|_| b_win.alloc_qubits(WIDTH + CBITS)).collect::<Vec<_>>();
+        let coeffs = (0..8)
+            .map(|_| b_win.alloc_qubits(CBITS))
+            .collect::<Vec<_>>();
+        let accs = (0..4)
+            .map(|_| b_win.alloc_qubits(WIDTH + CBITS))
+            .collect::<Vec<_>>();
         let start = b_win.ops.len();
         // Four coeff*source terms form two new rows; four more are the minimal
         // adjugate old-clean terms.  This is still missing table lookup and q.
@@ -3050,17 +3243,43 @@ mod tests {
         emit_variable_coeff_times_acc_lower_bound_for_test(&mut b_win, &g, &coeffs[1], &accs[0]);
         emit_variable_coeff_times_acc_lower_bound_for_test(&mut b_win, &f, &coeffs[2], &accs[1]);
         emit_variable_coeff_times_acc_lower_bound_for_test(&mut b_win, &g, &coeffs[3], &accs[1]);
-        emit_variable_coeff_times_acc_lower_bound_for_test(&mut b_win, &accs[0][..WIDTH], &coeffs[4], &accs[2]);
-        emit_variable_coeff_times_acc_lower_bound_for_test(&mut b_win, &accs[1][..WIDTH], &coeffs[5], &accs[2]);
-        emit_variable_coeff_times_acc_lower_bound_for_test(&mut b_win, &accs[0][..WIDTH], &coeffs[6], &accs[3]);
-        emit_variable_coeff_times_acc_lower_bound_for_test(&mut b_win, &accs[1][..WIDTH], &coeffs[7], &accs[3]);
+        emit_variable_coeff_times_acc_lower_bound_for_test(
+            &mut b_win,
+            &accs[0][..WIDTH],
+            &coeffs[4],
+            &accs[2],
+        );
+        emit_variable_coeff_times_acc_lower_bound_for_test(
+            &mut b_win,
+            &accs[1][..WIDTH],
+            &coeffs[5],
+            &accs[2],
+        );
+        emit_variable_coeff_times_acc_lower_bound_for_test(
+            &mut b_win,
+            &accs[0][..WIDTH],
+            &coeffs[6],
+            &accs[3],
+        );
+        emit_variable_coeff_times_acc_lower_bound_for_test(
+            &mut b_win,
+            &accs[1][..WIDTH],
+            &coeffs[7],
+            &accs[3],
+        );
         let window_lower_ccx = count_ccx(&b_win.ops[start..]);
         eprintln!(
             "BY selected fixed-matrix variable-coeff lower bound: one_coeff_ccx={one_coeff_ccx}, window_lower_ccx={window_lower_ccx}, peak={}q",
             b_win.peak_qubits
         );
-        assert!(one_coeff_ccx > 5_000, "controlled variable coeff multiply unexpectedly cheap");
-        assert!(window_lower_ccx > 40_000, "selected matrix window may still be SOTA-shaped; revisit BY");
+        assert!(
+            one_coeff_ccx > 5_000,
+            "controlled variable coeff multiply unexpectedly cheap"
+        );
+        assert!(
+            window_lower_ccx > 40_000,
+            "selected matrix window may still be SOTA-shaped; revisit BY"
+        );
     }
 
     #[test]
@@ -3081,7 +3300,8 @@ mod tests {
             let mut f = SInt::from_u(SECP256K1_P);
             let mut g = SInt::from_u(x);
             for step in 0..=35 * 16 {
-                let used = bitlen_sint_for_compact_pair_test(f) + bitlen_sint_for_compact_pair_test(g);
+                let used =
+                    bitlen_sint_for_compact_pair_test(f) + bitlen_sint_for_compact_pair_test(g);
                 max_used_by_step[step] = max_used_by_step[step].max(used);
                 if step == 35 * 16 || g.is_zero() {
                     break;
@@ -3105,7 +3325,87 @@ mod tests {
         eprintln!(
             "BY fixed slack schedule: samples={samples}, worst_step={worst_step}, worst_sidecar={worst_deficit} bits"
         );
-        assert!(worst_deficit <= 50, "fixed slack schedule exceeded 50-bit sidecar");
+        assert!(
+            worst_deficit <= 50,
+            "fixed slack schedule exceeded 50-bit sidecar"
+        );
+    }
+
+    #[test]
+    fn denominator_pair_fixed_slack_schedule_holdout_exceeds_50_sidecar() {
+        // The compact denominator-pair point-add row only clears the 5% target
+        // if the 50-bit sidecar is an exact secp fact rather than a training
+        // sample artifact.  Train the fixed per-step width schedule on the
+        // original 8192 traces, then charge unseen holdout traces against that
+        // frozen schedule.  Any unseen width at a step requires a wider fixed
+        // pair area and therefore consumes sidecar/scratch beyond the nominal
+        // 50-bit row.
+        const TRAIN: usize = 8192;
+        const HOLDOUT: usize = 32768;
+        const STEPS: usize = 35 * 16;
+
+        let mut trained_used_by_step = vec![0usize; STEPS + 1];
+        let mut train_sampler = Sampler::new(b"by-pair-fixed-slack-v1", SECP256K1_P);
+        for _ in 0..TRAIN {
+            let x = train_sampler.next();
+            let mut delta = 1i64;
+            let mut f = SInt::from_u(SECP256K1_P);
+            let mut g = SInt::from_u(x);
+            for step in 0..=STEPS {
+                let used =
+                    bitlen_sint_for_compact_pair_test(f) + bitlen_sint_for_compact_pair_test(g);
+                trained_used_by_step[step] = trained_used_by_step[step].max(used);
+                if step == STEPS || g.is_zero() {
+                    break;
+                }
+                divstep_sint_state(&mut delta, &mut f, &mut g);
+            }
+        }
+
+        let mut holdout_worst_sidecar = 0isize;
+        let mut holdout_worst_step = 0usize;
+        let mut holdout_schedule_misses = 0usize;
+        let mut holdout_max_extra_width = 0usize;
+        let mut holdout_sampler = Sampler::new(b"by-pair-fixed-slack-holdout-v1", SECP256K1_P);
+        for _ in 0..HOLDOUT {
+            let x = holdout_sampler.next();
+            let mut delta = 1i64;
+            let mut f = SInt::from_u(SECP256K1_P);
+            let mut g = SInt::from_u(x);
+            for step in 0..=STEPS {
+                let used =
+                    bitlen_sint_for_compact_pair_test(f) + bitlen_sint_for_compact_pair_test(g);
+                if used > trained_used_by_step[step] {
+                    holdout_schedule_misses += 1;
+                    holdout_max_extra_width =
+                        holdout_max_extra_width.max(used - trained_used_by_step[step]);
+                }
+                let fixed_used = trained_used_by_step[step].max(used);
+                let slack = 512isize - fixed_used as isize;
+                let sidecar = step as isize - slack;
+                if sidecar > holdout_worst_sidecar {
+                    holdout_worst_sidecar = sidecar;
+                    holdout_worst_step = step;
+                }
+                if step == STEPS || g.is_zero() {
+                    break;
+                }
+                divstep_sint_state(&mut delta, &mut f, &mut g);
+            }
+        }
+        eprintln!(
+            "BY fixed slack holdout: train={TRAIN}, holdout={HOLDOUT}, worst_step={holdout_worst_step}, worst_sidecar={holdout_worst_sidecar}, schedule_misses={holdout_schedule_misses}, max_extra_width={holdout_max_extra_width}"
+        );
+        println!("METRIC by_fixed_slack_holdout_train_samples={TRAIN}");
+        println!("METRIC by_fixed_slack_holdout_samples={HOLDOUT}");
+        println!("METRIC by_fixed_slack_holdout_worst_step={holdout_worst_step}");
+        println!("METRIC by_fixed_slack_holdout_worst_sidecar={holdout_worst_sidecar}");
+        println!("METRIC by_fixed_slack_holdout_schedule_misses={holdout_schedule_misses}");
+        println!("METRIC by_fixed_slack_holdout_max_extra_width={holdout_max_extra_width}");
+        assert!(
+            holdout_worst_sidecar > 50 || holdout_schedule_misses > 0,
+            "trained compact denominator-pair schedule survived holdout; revisit exact secp tail proof"
+        );
     }
 
     #[test]
@@ -3131,7 +3431,8 @@ mod tests {
                     break;
                 }
                 divstep_sint_state(&mut delta, &mut f, &mut g);
-                let used = bitlen_sint_for_compact_pair_test(f) + bitlen_sint_for_compact_pair_test(g);
+                let used =
+                    bitlen_sint_for_compact_pair_test(f) + bitlen_sint_for_compact_pair_test(g);
                 let slack = 512isize - used as isize;
                 let deficit = (step + 1) as isize - slack;
                 worst_deficit = worst_deficit.max(deficit);
@@ -3143,7 +3444,10 @@ mod tests {
         eprintln!(
             "BY denominator-pair slack+sidecar history: samples={samples}, max_converge={max_converge}, worst_raw_history_deficit={worst_deficit} bits"
         );
-        assert!(worst_deficit > 0, "pair slack unexpectedly stores all raw branch bits");
+        assert!(
+            worst_deficit > 0,
+            "pair slack unexpectedly stores all raw branch bits"
+        );
         assert!(worst_deficit <= 50, "sidecar exceeded the 50-bit target");
     }
 
@@ -3176,7 +3480,8 @@ mod tests {
                         break;
                     }
                     divstep_sint_state(&mut delta, &mut f, &mut g);
-                    let used = bitlen_sint_for_compact_pair_test(f) + bitlen_sint_for_compact_pair_test(g);
+                    let used =
+                        bitlen_sint_for_compact_pair_test(f) + bitlen_sint_for_compact_pair_test(g);
                     let slack = (2 * n) as isize - used as isize;
                     let deficit = (step + 1) as isize - slack;
                     if deficit > worst_deficit {
@@ -3198,7 +3503,10 @@ mod tests {
                 println!("METRIC by_slack_history_toy_n14_worst_deficit={worst_deficit}");
                 println!("METRIC by_slack_history_toy_n14_scaled_to_256={scaled_to_256:.3}");
             }
-            assert!(worst_deficit >= 0, "deficit accounting should not stay negative");
+            assert!(
+                worst_deficit >= 0,
+                "deficit accounting should not stay negative"
+            );
         }
         assert!(
             max_scaled > 120.0,
@@ -3441,9 +3749,18 @@ mod tests {
         println!("METRIC by_first16_carry_plus_fixed_bits={low_gate_persistent}");
         println!("METRIC by_first16_gap_to_lowgate_scratch_bits={gap_to_low_gate}");
         println!("METRIC by_first16_gap_to_lowqubit_scratch_bits={gap_to_low_qubit}");
-        assert!(entropy < 220.0, "first16 pattern history too large for low-gate selector plan");
-        assert!(low_gate_persistent < low_gate_scratch, "carry+first16 history misses 1425q low-gate budget");
-        assert!(low_gate_persistent > low_qubit_scratch, "carry+first16 history would already hit 1175q low-qubit budget");
+        assert!(
+            entropy < 220.0,
+            "first16 pattern history too large for low-gate selector plan"
+        );
+        assert!(
+            low_gate_persistent < low_gate_scratch,
+            "carry+first16 history misses 1425q low-gate budget"
+        );
+        assert!(
+            low_gate_persistent > low_qubit_scratch,
+            "carry+first16 history would already hit 1175q low-qubit budget"
+        );
     }
 
     #[test]
@@ -3477,9 +3794,18 @@ mod tests {
         println!("METRIC by_first16_pattern_q_onepass_ccx={one_pass_pattern_q}");
         println!("METRIC by_first16_pattern_q_remaining_ccx={rem_after_pattern_q}");
         println!("METRIC by_first16_pattern_compute_uncompute_gap_ccx={gap_after_pattern_compute_uncompute}");
-        assert!(rem_after_pattern > 0, "even one-pass first16 pattern generation misses low-gate budget");
-        assert!(rem_after_pattern_q > 0, "pattern+q first16 oracle would already miss low-gate budget");
-        assert!(gap_after_pattern_compute_uncompute > 0, "compute+uncompute pattern unexpectedly fits low-gate margin");
+        assert!(
+            rem_after_pattern > 0,
+            "even one-pass first16 pattern generation misses low-gate budget"
+        );
+        assert!(
+            rem_after_pattern_q > 0,
+            "pattern+q first16 oracle would already miss low-gate budget"
+        );
+        assert!(
+            gap_after_pattern_compute_uncompute > 0,
+            "compute+uncompute pattern unexpectedly fits low-gate margin"
+        );
     }
 
     fn naf_weight_i128_for_by_budget(x: i128) -> usize {
@@ -3504,10 +3830,13 @@ mod tests {
         let wa = naf_weight_i128_for_by_budget(a);
         let wb = naf_weight_i128_for_by_budget(b);
         let raw = wa * width_a + wb * width_b;
-        let free_first = [if wa > 0 { width_a } else { 0 }, if wb > 0 { width_b } else { 0 }]
-            .into_iter()
-            .max()
-            .unwrap_or(0);
+        let free_first = [
+            if wa > 0 { width_a } else { 0 },
+            if wb > 0 { width_b } else { 0 },
+        ]
+        .into_iter()
+        .max()
+        .unwrap_or(0);
         raw.saturating_sub(free_first)
     }
 
@@ -3564,8 +3893,14 @@ mod tests {
         println!("METRIC by_tail_carry_update_lb_max_ccx={max}");
         println!("METRIC by_tail_carry_update_lb_gap_to_remaining_ccx={p99_gap}");
         println!("METRIC by_tail_carry_update_lb_max_gap_to_remaining_ccx={max_gap}");
-        assert!(p99_gap < 0, "even optimistic p99 tail carry lower bound misses low-gate margin");
-        assert!(max_gap < 0, "sampled max tail carry lower bound misses low-gate margin");
+        assert!(
+            p99_gap < 0,
+            "even optimistic p99 tail carry lower bound misses low-gate margin"
+        );
+        assert!(
+            max_gap < 0,
+            "sampled max tail carry lower bound misses low-gate margin"
+        );
     }
 
     fn tail_carry_fresh_update_cost_for_by_budget(mtx: TransitionMatrix) -> usize {
@@ -3616,7 +3951,9 @@ mod tests {
                 let m = matrix_from_branch_bits(delta, &bits);
                 if win >= PREFIX_WINDOWS {
                     let key = (m.m00, m.m01, m.m10, m.m11);
-                    let c = *cache.entry(key).or_insert_with(|| tail_carry_fresh_update_cost_for_by_budget(m));
+                    let c = *cache
+                        .entry(key)
+                        .or_insert_with(|| tail_carry_fresh_update_cost_for_by_budget(m));
                     cost += c;
                 }
                 for _ in 0..W {
@@ -3668,8 +4005,14 @@ mod tests {
         eprintln!(
             "BY projective-normalized streaming selector: samples={samples}, failures={failures}, projected_state_bits={projected_state_bits}"
         );
-        assert!(failures > 0, "projective normalized selector unexpectedly exact on all samples");
-        assert!(projected_state_bits < 1088, "projective normalization would not reduce state");
+        assert!(
+            failures > 0,
+            "projective normalized selector unexpectedly exact on all samples"
+        );
+        assert!(
+            projected_state_bits < 1088,
+            "projective normalization would not reduce state"
+        );
     }
 
     #[test]
@@ -3699,7 +4042,10 @@ mod tests {
         eprintln!(
             "naive variable BY coefficient apply: one_coeff_ccx={one_coeff_ccx}, pair_update_cleanup_ccx≈{pair_update_cleanup_ccx}, two_pair_35_windows≈{approx_two_pair_35:.0}"
         );
-        assert!(approx_two_pair_35 > 3_000_000.0, "naive variable coefficient apply unexpectedly viable");
+        assert!(
+            approx_two_pair_35 > 3_000_000.0,
+            "naive variable coefficient apply unexpectedly viable"
+        );
     }
 
     #[test]
@@ -3736,7 +4082,10 @@ mod tests {
             "BY raw microstep in-place cost model: ccx_per_step={ccx}, approx_550≈{approx_total:.0}, peak={}q",
             b.peak_qubits
         );
-        assert!(approx_total > 1_500_000.0, "raw microsteps unexpectedly competitive; revisit jump need");
+        assert!(
+            approx_total > 1_500_000.0,
+            "raw microsteps unexpectedly competitive; revisit jump need"
+        );
     }
 
     fn signed_i128_mod_p(x: i128, p: U256) -> U256 {
@@ -3744,7 +4093,11 @@ mod tests {
             U256::from(x as u128) % p
         } else {
             let mag = U256::from(x.unsigned_abs());
-            if mag.is_zero() { U256::ZERO } else { p.wrapping_sub(mag % p) }
+            if mag.is_zero() {
+                U256::ZERO
+            } else {
+                p.wrapping_sub(mag % p)
+            }
         }
     }
 
@@ -3784,8 +4137,16 @@ mod tests {
         }
         let mag0 = c0.unsigned_abs();
         let mag1 = c1.unsigned_abs();
-        let top0 = if mag0 == 0 { 0 } else { 127 - mag0.leading_zeros() as usize };
-        let top1 = if mag1 == 0 { 0 } else { 127 - mag1.leading_zeros() as usize };
+        let top0 = if mag0 == 0 {
+            0
+        } else {
+            127 - mag0.leading_zeros() as usize
+        };
+        let top1 = if mag1 == 0 {
+            0
+        } else {
+            127 - mag1.leading_zeros() as usize
+        };
         let top = top0.max(top1);
         for i in 0..=top {
             if ((mag0 >> i) & 1) != 0 {
@@ -3861,6 +4222,11 @@ mod tests {
         let start_halve = b.ops.len();
         super::super::mod_halve_inplace_fast(&mut b, &acc, p);
         let halve_ccx = count_ccx(&b.ops[start_halve..]);
+        println!("METRIC secp_mod_primitive_add_ccx={add_ccx}");
+        println!("METRIC secp_mod_primitive_sub_ccx={sub_ccx}");
+        println!("METRIC secp_mod_primitive_double_ccx={double_ccx}");
+        println!("METRIC secp_mod_primitive_halve_ccx={halve_ccx}");
+        println!("METRIC secp_mod_primitive_peak_qubits={}", b.peak_qubits);
         eprintln!(
             "mod primitive costs for BY rows: add={add_ccx}, sub={sub_ccx}, double={double_ccx}, halve={halve_ccx}, peak={}q",
             b.peak_qubits
@@ -3957,7 +4323,11 @@ mod tests {
         b.free_vec(&m);
     }
 
-    fn set_slice_u512_by<R: sha3::digest::XofReader>(sim: &mut crate::sim::Simulator<R>, qs: &[super::super::QubitId], val: U512) {
+    fn set_slice_u512_by<R: sha3::digest::XofReader>(
+        sim: &mut crate::sim::Simulator<R>,
+        qs: &[super::super::QubitId],
+        val: U512,
+    ) {
         for (i, &q) in qs.iter().enumerate() {
             if val.bit(i) {
                 *sim.qubit_mut(q) |= 1;
@@ -3967,7 +4337,10 @@ mod tests {
         }
     }
 
-    fn get_slice_u512_by<R: sha3::digest::XofReader>(sim: &crate::sim::Simulator<R>, qs: &[super::super::QubitId]) -> U512 {
+    fn get_slice_u512_by<R: sha3::digest::XofReader>(
+        sim: &crate::sim::Simulator<R>,
+        qs: &[super::super::QubitId],
+    ) -> U512 {
         let mut bytes = [0u8; 64];
         for (i, &q) in qs.iter().enumerate() {
             if (sim.qubit(q) & 1) != 0 {
@@ -4039,7 +4412,10 @@ mod tests {
             "batched halve16 top-bit correction: sample_failures={failures}/{samples}, T=1 has m={m_one}, top={top_one}"
         );
         assert_eq!(failures, 0);
-        assert_ne!(top_one, m_one, "expected rare small-T exception disappeared; revisit proof");
+        assert_ne!(
+            top_one, m_one,
+            "expected rare small-T exception disappeared; revisit proof"
+        );
     }
 
     fn emit_approx_highfold_p_for_cost(b: &mut super::super::B, v: &[super::super::QubitId]) {
@@ -4175,7 +4551,11 @@ mod tests {
         }
     }
 
-    fn arith_shift_right_inplace_for_cost(b: &mut super::super::B, v: &[super::super::QubitId], shift: usize) {
+    fn arith_shift_right_inplace_for_cost(
+        b: &mut super::super::B,
+        v: &[super::super::QubitId],
+        shift: usize,
+    ) {
         let n = v.len();
         let sign = b.alloc_qubit();
         b.cx(v[n - 1], sign);
@@ -4307,7 +4687,11 @@ mod tests {
     fn signed_matrix_forward_rows_clean_m_and_match_twos_complement() {
         const WIDTH: usize = 274;
         let mtx = jump_matrix_direct_lowword(16, 16, 1, 1, 3).3;
-        assert!(mtx.m00 < 0 || mtx.m01 < 0 || mtx.m10 < 0 || mtx.m11 < 0, "sample matrix should exercise signs: {:?}", mtx);
+        assert!(
+            mtx.m00 < 0 || mtx.m01 < 0 || mtx.m10 < 0 || mtx.m11 < 0,
+            "sample matrix should exercise signs: {:?}",
+            mtx
+        );
         let mut b = super::super::B::new();
         let x0 = b.alloc_qubits(256);
         let x1 = b.alloc_qubits(256);
@@ -4334,8 +4718,10 @@ mod tests {
             let x1w = u256_to_u512_for_by_tests(c);
             let expected_row = |c0: i128, c1: i128| -> U512 {
                 let t = (x0w * signed_coeff_mod_width_for_test(c0, WIDTH)
-                    + x1w * signed_coeff_mod_width_for_test(c1, WIDTH)) & width_mask;
-                let corr = (t.as_limbs()[0] & low_mask).wrapping_mul((!pinv).wrapping_add(1)) & low_mask;
+                    + x1w * signed_coeff_mod_width_for_test(c1, WIDTH))
+                    & width_mask;
+                let corr =
+                    (t.as_limbs()[0] & low_mask).wrapping_mul((!pinv).wrapping_add(1)) & low_mask;
                 let v = (t + U512::from(corr) * p512) & width_mask;
                 arith_shift_right_mod_width_for_test(v, WIDTH, 16)
             };
@@ -4348,10 +4734,23 @@ mod tests {
             set_slice_u512_by(&mut sim, &x0, x0w);
             set_slice_u512_by(&mut sim, &x1, x1w);
             sim.apply(&ops);
-            assert_eq!(get_slice_u512_by(&sim, &y0), exp0, "signed row0 mismatch for {:?}", mtx);
-            assert_eq!(get_slice_u512_by(&sim, &y1), exp1, "signed row1 mismatch for {:?}", mtx);
+            assert_eq!(
+                get_slice_u512_by(&sim, &y0),
+                exp0,
+                "signed row0 mismatch for {:?}",
+                mtx
+            );
+            assert_eq!(
+                get_slice_u512_by(&sim, &y1),
+                exp1,
+                "signed row1 mismatch for {:?}",
+                mtx
+            );
         }
-        eprintln!("signed BY matrix forward rows: ccx={ccx}, peak={peak}q, matrix={:?}", mtx);
+        eprintln!(
+            "signed BY matrix forward rows: ccx={ccx}, peak={peak}q, matrix={:?}",
+            mtx
+        );
         assert!(ccx < 35_000, "signed forward rows too costly");
         assert!(peak < 2_200, "signed forward row peak too high");
     }
@@ -4440,13 +4839,19 @@ mod tests {
             let got0 = get_slice_u512_by(&sim, &y0);
             let got1 = get_slice_u512_by(&sim, &y1);
             assert_eq!(got0, exp0, "row0 mismatch a={a} got={got0} exp={exp0}");
-            assert_eq!(got1, exp1, "row1 mismatch a={a} c={c} got={got1} exp={exp1}");
+            assert_eq!(
+                got1, exp1,
+                "row1 mismatch a={a} c={c} got={got1} exp={exp1}"
+            );
         }
         eprintln!(
             "fixed positive BY matrix forward rows: ccx={ccx}, peak={}q, matrix={:?}",
             num_qubits, mtx
         );
-        assert!(ccx < 20_000, "forward rows too expensive for BY window budget");
+        assert!(
+            ccx < 20_000,
+            "forward rows too expensive for BY window budget"
+        );
     }
 
     fn emit_positive_triangular_old_cleanup_for_test(
@@ -4548,7 +4953,9 @@ mod tests {
         compute_row_correction_m_from_sources(b, mtx.m00, x0, mtx.m01, x1, &m0, false);
         compute_row_correction_m_from_sources(b, mtx.m10, x0, mtx.m11, x1, &m1, false);
         let (q0, q1) = compute_signed_q_from_m_for_matrix(b, mtx, &m0, &m1);
-        let (z0, z1) = emit_fixed_matrix_old_cleanup_with_mq_for_test(b, mtx, x0, x1, y0, y1, &m0, &m1, &q0, &q1);
+        let (z0, z1) = emit_fixed_matrix_old_cleanup_with_mq_for_test(
+            b, mtx, x0, x1, y0, y1, &m0, &m1, &q0, &q1,
+        );
         (m0, m1, q0, q1, z0, z1)
     }
 
@@ -4564,7 +4971,8 @@ mod tests {
         let y1 = b.alloc_qubits(WIDTH);
         emit_signed_row_scaled_from_sources_for_test(&mut b, mtx.m00, &x0, mtx.m01, &x1, &y0);
         emit_signed_row_scaled_from_sources_for_test(&mut b, mtx.m10, &x0, mtx.m11, &x1, &y1);
-        let (m0, m1, q0, q1, z0, z1) = emit_fixed_matrix_old_cleanup_for_test(&mut b, mtx, &x0, &x1, &y0, &y1);
+        let (m0, m1, q0, q1, z0, z1) =
+            emit_fixed_matrix_old_cleanup_for_test(&mut b, mtx, &x0, &x1, &y0, &y1);
         let ccx = count_ccx(&b.ops);
         let peak = b.peak_qubits;
         let num_qubits = b.next_qubit as usize;
@@ -4584,8 +4992,10 @@ mod tests {
             let x1w = u256_to_u512_for_by_tests(c);
             let expected_row = |c0: i128, c1: i128| -> U512 {
                 let t = (x0w * signed_coeff_mod_width_for_test(c0, WIDTH)
-                    + x1w * signed_coeff_mod_width_for_test(c1, WIDTH)) & width_mask;
-                let corr = (t.as_limbs()[0] & low_mask).wrapping_mul((!pinv).wrapping_add(1)) & low_mask;
+                    + x1w * signed_coeff_mod_width_for_test(c1, WIDTH))
+                    & width_mask;
+                let corr =
+                    (t.as_limbs()[0] & low_mask).wrapping_mul((!pinv).wrapping_add(1)) & low_mask;
                 let v = (t + U512::from(corr) * p512) & width_mask;
                 arith_shift_right_mod_width_for_test(v, WIDTH, 16)
             };
@@ -4611,7 +5021,10 @@ mod tests {
         }
         eprintln!("signed sample BY fixed-matrix replacement: ccx={ccx}, peak={peak}q");
         assert!(ccx < 45_000, "signed fixed-matrix replacement too costly");
-        assert!(peak < 2_700, "signed fixed-matrix replacement peak too high");
+        assert!(
+            peak < 2_700,
+            "signed fixed-matrix replacement peak too high"
+        );
     }
 
     #[test]
@@ -4652,7 +5065,10 @@ mod tests {
             "BY fixed-matrix replacement cost distribution: mean_ccx={mean_cost:.1}, p90_ccx={p90_cost}, max_ccx={max_cost}, p90_peak={p90_peak}q, max_peak={max_peak}q"
         );
         assert!(p90_cost < 45_000, "fixed-matrix replacement p90 too costly");
-        assert!(max_peak < 2_800, "fixed-matrix replacement sample exceeds cap");
+        assert!(
+            max_peak < 2_800,
+            "fixed-matrix replacement sample exceeds cap"
+        );
     }
 
     #[test]
@@ -4681,7 +5097,8 @@ mod tests {
         };
         let row_expected = |c0: i128, x0w: U512, c1: i128, x1w: U512| -> U512 {
             let t = (x0w * signed_coeff_mod_width_for_test(c0, WIDTH)
-                + x1w * signed_coeff_mod_width_for_test(c1, WIDTH)) & width_mask;
+                + x1w * signed_coeff_mod_width_for_test(c1, WIDTH))
+                & width_mask;
             let corr = (t.as_limbs()[0] & low_mask).wrapping_mul(neg_pinv) & low_mask;
             let v = (t + U512::from(corr) * p512) & width_mask;
             arith_shift_right_mod_width_for_test(v, WIDTH, 16)
@@ -4694,8 +5111,14 @@ mod tests {
             assert_eq!(q1_num % W, 0, "q1 integrality failed for {mtx:?}");
             let q0 = q0_num / W;
             let q1 = q1_num / W;
-            assert!((-131_072..131_072).contains(&q0), "q0 needs more than 18 bits: {q0}");
-            assert!((-131_072..131_072).contains(&q1), "q1 needs more than 18 bits: {q1}");
+            assert!(
+                (-131_072..131_072).contains(&q0),
+                "q0 needs more than 18 bits: {q0}"
+            );
+            assert!(
+                (-131_072..131_072).contains(&q1),
+                "q1 needs more than 18 bits: {q1}"
+            );
             (q0, q1)
         };
 
@@ -4720,8 +5143,12 @@ mod tests {
             let m1 = b.alloc_qubits(16);
             let q0 = b.alloc_qubits(18);
             let q1 = b.alloc_qubits(18);
-            emit_signed_row_scaled_from_sources_with_m_for_test(&mut b, mtx.m00, &x0, mtx.m01, &x1, &y0, &m0);
-            emit_signed_row_scaled_from_sources_with_m_for_test(&mut b, mtx.m10, &x0, mtx.m11, &x1, &y1, &m1);
+            emit_signed_row_scaled_from_sources_with_m_for_test(
+                &mut b, mtx.m00, &x0, mtx.m01, &x1, &y0, &m0,
+            );
+            emit_signed_row_scaled_from_sources_with_m_for_test(
+                &mut b, mtx.m10, &x0, mtx.m11, &x1, &y1, &m1,
+            );
             let (z0, z1) = emit_fixed_matrix_old_cleanup_with_mq_for_test(
                 &mut b, mtx, &x0, &x1, &y0, &y1, &m0, &m1, &q0, &q1,
             );
@@ -4785,7 +5212,10 @@ mod tests {
         eprintln!(
             "BY fixed-matrix window with free m/q history: mean_ccx={mean:.1}, p90_ccx={p90}, max_ccx={max}, gap_to_10k={gap:.1}, max_peak={max_peak}q"
         );
-        assert!(mean > target * 1.15, "free m/q window unexpectedly meets the selected-window target");
+        assert!(
+            mean > target * 1.15,
+            "free m/q window unexpectedly meets the selected-window target"
+        );
     }
 
     #[test]
@@ -4832,8 +5262,14 @@ mod tests {
         eprintln!(
             "BY last-shot fixed-matrix/q window budget: mean_ccx={mean:.1}, p90_ccx={p90}, max_ccx={max}, max_peak={max_peak}q, two_denominators≈{two_denominators:.0}, target_per_window≈{target_per_window:.0}"
         );
-        assert!(mean > target_per_window * 1.8, "fixed-matrix window unexpectedly reached SOTA target; wire it immediately");
-        assert!(two_denominators > 1_300_000.0, "two-denominator fixed-window budget unexpectedly fits SOTA margin");
+        assert!(
+            mean > target_per_window * 1.8,
+            "fixed-matrix window unexpectedly reached SOTA target; wire it immediately"
+        );
+        assert!(
+            two_denominators > 1_300_000.0,
+            "two-denominator fixed-window budget unexpectedly fits SOTA margin"
+        );
     }
 
     #[test]
@@ -4847,23 +5283,34 @@ mod tests {
         let two_replay_scaffold = 285_766.0;
         let centered_replay = 873_600.0;
         let windows = 36.0;
-        let budget_per_window = (target_3m - two_replay_scaffold - 2.0 * centered_replay) / (2.0 * windows);
+        let budget_per_window =
+            (target_3m - two_replay_scaffold - 2.0 * centered_replay) / (2.0 * windows);
         let free_mq_mean = 18_138.583;
         let last_shot_mean = 20_323.5;
-        let free_mq_projected = two_replay_scaffold + 2.0 * centered_replay + 2.0 * windows * free_mq_mean;
-        let last_shot_projected = two_replay_scaffold + 2.0 * centered_replay + 2.0 * windows * last_shot_mean;
+        let free_mq_projected =
+            two_replay_scaffold + 2.0 * centered_replay + 2.0 * windows * free_mq_mean;
+        let last_shot_projected =
+            two_replay_scaffold + 2.0 * centered_replay + 2.0 * windows * last_shot_mean;
         let free_mq_gap = free_mq_projected - target_3m;
         let last_shot_gap = last_shot_projected - target_3m;
         let needed_free_mq_reduction = free_mq_mean - budget_per_window;
         println!("METRIC by_3m_fixed_window_budget_per_window_ccx={budget_per_window:.3}");
         println!("METRIC by_3m_free_mq_projected_gap_ccx={free_mq_gap:.3}");
         println!("METRIC by_3m_last_shot_projected_gap_ccx={last_shot_gap:.3}");
-        println!("METRIC by_3m_free_mq_needed_reduction_per_window_ccx={needed_free_mq_reduction:.3}");
+        println!(
+            "METRIC by_3m_free_mq_needed_reduction_per_window_ccx={needed_free_mq_reduction:.3}"
+        );
         eprintln!(
             "BY 3M fixed-window budget: budget_per_window={budget_per_window:.1}, free_mq_projected={free_mq_projected:.0} gap={free_mq_gap:.0}, last_shot_projected={last_shot_projected:.0} gap={last_shot_gap:.0}"
         );
-        assert!(free_mq_gap > 300_000.0, "free m/q fixed-window arithmetic is close enough to revisit for 3M");
-        assert!(needed_free_mq_reduction > 4_000.0, "only a small per-window reduction is needed; try optimizing fixed-window arithmetic");
+        assert!(
+            free_mq_gap > 300_000.0,
+            "free m/q fixed-window arithmetic is close enough to revisit for 3M"
+        );
+        assert!(
+            needed_free_mq_reduction > 4_000.0,
+            "only a small per-window reduction is needed; try optimizing fixed-window arithmetic"
+        );
     }
 
     #[test]
@@ -4877,7 +5324,9 @@ mod tests {
         let dirty = b.alloc_qubits(n - 2);
         let clean2 = [b.alloc_qubit(), b.alloc_qubit()];
         let clean3 = b.alloc_qubit();
-        super::super::venting::ciadd_dirty_3clean_qoffset(&mut b, &target, &dirty, &clean2, clean3, &offset, ctrl);
+        super::super::venting::ciadd_dirty_3clean_qoffset(
+            &mut b, &target, &dirty, &clean2, clean3, &offset, ctrl,
+        );
         let ccx = count_ccx(&b.ops);
         let peak = b.peak_qubits;
         let num_qubits = b.next_qubit as usize;
@@ -4898,10 +5347,26 @@ mod tests {
                     set_slice_u512_by(&mut sim, &offset, U512::from(offset_v));
                     set_slice_u512_by(&mut sim, &dirty, U512::from(dirty_v));
                     sim.apply(&ops);
-                    let expected = if ctrl_v { target_v.wrapping_add(offset_v) & mask } else { target_v & mask };
-                    assert_eq!(get_slice_u512_by(&sim, &target).to::<u64>() & mask, expected, "target mismatch");
-                    assert_eq!(get_slice_u512_by(&sim, &offset).to::<u64>() & mask, offset_v & mask, "offset changed");
-                    assert_eq!(get_slice_u512_by(&sim, &dirty).to::<u64>() & ((1u64 << (n - 2)) - 1), dirty_v, "dirty changed");
+                    let expected = if ctrl_v {
+                        target_v.wrapping_add(offset_v) & mask
+                    } else {
+                        target_v & mask
+                    };
+                    assert_eq!(
+                        get_slice_u512_by(&sim, &target).to::<u64>() & mask,
+                        expected,
+                        "target mismatch"
+                    );
+                    assert_eq!(
+                        get_slice_u512_by(&sim, &offset).to::<u64>() & mask,
+                        offset_v & mask,
+                        "offset changed"
+                    );
+                    assert_eq!(
+                        get_slice_u512_by(&sim, &dirty).to::<u64>() & ((1u64 << (n - 2)) - 1),
+                        dirty_v,
+                        "dirty changed"
+                    );
                     assert_eq!(sim.global_phase() & 1, 0, "phase changed");
                 }
             }
@@ -4929,7 +5394,14 @@ mod tests {
         for k in 0..n {
             b.ccx(ctrl, offset[k], mask[k]);
         }
-        super::super::venting::iadd_dirty_2clean_qoffset(&mut b, &target, &offset[..n - 2], &clean2, &mask, false);
+        super::super::venting::iadd_dirty_2clean_qoffset(
+            &mut b,
+            &target,
+            &offset[..n - 2],
+            &clean2,
+            &mask,
+            false,
+        );
         for k in 0..n {
             b.ccx(ctrl, offset[k], mask[k]);
         }
@@ -4944,14 +5416,32 @@ mod tests {
                     hasher.update(b"by-masked-borrow-qoffset-small-v1");
                     let mut xof = hasher.finalize_xof();
                     let mut sim = crate::sim::Simulator::new(num_qubits, num_bits, &mut xof);
-                    if ctrl_v { *sim.qubit_mut(ctrl) |= 1; }
+                    if ctrl_v {
+                        *sim.qubit_mut(ctrl) |= 1;
+                    }
                     set_slice_u512_by(&mut sim, &target, U512::from(target_v));
                     set_slice_u512_by(&mut sim, &offset, U512::from(offset_v));
                     sim.apply(&ops);
-                    let expected = if ctrl_v { target_v.wrapping_add(offset_v) & maskv } else { target_v & maskv };
-                    assert_eq!(get_slice_u512_by(&sim, &target).to::<u64>() & maskv, expected, "target mismatch");
-                    assert_eq!(get_slice_u512_by(&sim, &offset).to::<u64>() & maskv, offset_v & maskv, "offset changed");
-                    assert_eq!(get_slice_u512_by(&sim, &mask).to::<u64>() & maskv, 0, "mask dirty");
+                    let expected = if ctrl_v {
+                        target_v.wrapping_add(offset_v) & maskv
+                    } else {
+                        target_v & maskv
+                    };
+                    assert_eq!(
+                        get_slice_u512_by(&sim, &target).to::<u64>() & maskv,
+                        expected,
+                        "target mismatch"
+                    );
+                    assert_eq!(
+                        get_slice_u512_by(&sim, &offset).to::<u64>() & maskv,
+                        offset_v & maskv,
+                        "offset changed"
+                    );
+                    assert_eq!(
+                        get_slice_u512_by(&sim, &mask).to::<u64>() & maskv,
+                        0,
+                        "mask dirty"
+                    );
                     assert_eq!(sim.global_phase() & 1, 0, "phase changed");
                 }
             }
@@ -4966,7 +5456,14 @@ mod tests {
         for k in 0..256 {
             b.ccx(ctrl, offset[k], mask[k]);
         }
-        super::super::venting::iadd_dirty_2clean_qoffset(&mut b, &target, &offset[..254], &clean2, &mask, false);
+        super::super::venting::iadd_dirty_2clean_qoffset(
+            &mut b,
+            &target,
+            &offset[..254],
+            &clean2,
+            &mask,
+            false,
+        );
         for k in 0..256 {
             b.ccx(ctrl, offset[k], mask[k]);
         }
@@ -4981,10 +5478,21 @@ mod tests {
         println!("METRIC masked_borrow_qoffset_ccx={ccx}");
         println!("METRIC masked_borrow_qoffset_peak={peak}");
         println!("METRIC masked_borrow_qoffset_div560={div560:.0}");
-        println!("METRIC masked_borrow_qoffset_scratch_with_history={scratch_with_compressed_history}");
-        assert!(ccx < 1_400, "masked-borrow control failed to hit gate target");
-        assert!(div560 < 1_200_000.0, "masked-borrow controlled qoffset not replay-shaped");
-        assert!(scratch_with_compressed_history > 600, "mask unexpectedly fits the 600 scratch target; revisit BY integration");
+        println!(
+            "METRIC masked_borrow_qoffset_scratch_with_history={scratch_with_compressed_history}"
+        );
+        assert!(
+            ccx < 1_400,
+            "masked-borrow control failed to hit gate target"
+        );
+        assert!(
+            div560 < 1_200_000.0,
+            "masked-borrow controlled qoffset not replay-shaped"
+        );
+        assert!(
+            scratch_with_compressed_history > 600,
+            "mask unexpectedly fits the 600 scratch target; revisit BY integration"
+        );
     }
 
     #[test]
@@ -5004,7 +5512,9 @@ mod tests {
         let dirty = b.alloc_qubits(n - 2);
         let clean2 = [b.alloc_qubit(), b.alloc_qubit()];
         let mask = b.alloc_qubit();
-        super::super::venting::ciadd_dirty_3clean_qoffset_stream_mask(&mut b, &target, &dirty, &clean2, mask, &offset, ctrl);
+        super::super::venting::ciadd_dirty_3clean_qoffset_stream_mask(
+            &mut b, &target, &dirty, &clean2, mask, &offset, ctrl,
+        );
         let num_qubits = b.next_qubit as usize;
         let num_bits = b.next_bit as usize;
         let ops = b.ops;
@@ -5016,15 +5526,33 @@ mod tests {
                     hasher.update(b"by-stream-mask-qoffset-small-v1");
                     let mut xof = hasher.finalize_xof();
                     let mut sim = crate::sim::Simulator::new(num_qubits, num_bits, &mut xof);
-                    if ctrl_v { *sim.qubit_mut(ctrl) |= 1; }
+                    if ctrl_v {
+                        *sim.qubit_mut(ctrl) |= 1;
+                    }
                     set_slice_u512_by(&mut sim, &target, U512::from(target_v));
                     set_slice_u512_by(&mut sim, &offset, U512::from(offset_v));
                     set_slice_u512_by(&mut sim, &dirty, U512::from(dirty_v));
                     sim.apply(&ops);
-                    let expected = if ctrl_v { target_v.wrapping_add(offset_v) & maskv } else { target_v & maskv };
-                    assert_eq!(get_slice_u512_by(&sim, &target).to::<u64>() & maskv, expected, "target mismatch ctrl={ctrl_v} target={target_v:x} offset={offset_v:x}");
-                    assert_eq!(get_slice_u512_by(&sim, &offset).to::<u64>() & maskv, offset_v & maskv, "offset changed");
-                    assert_eq!(get_slice_u512_by(&sim, &dirty).to::<u64>() & ((1u64 << (n - 2)) - 1), dirty_v, "dirty changed");
+                    let expected = if ctrl_v {
+                        target_v.wrapping_add(offset_v) & maskv
+                    } else {
+                        target_v & maskv
+                    };
+                    assert_eq!(
+                        get_slice_u512_by(&sim, &target).to::<u64>() & maskv,
+                        expected,
+                        "target mismatch ctrl={ctrl_v} target={target_v:x} offset={offset_v:x}"
+                    );
+                    assert_eq!(
+                        get_slice_u512_by(&sim, &offset).to::<u64>() & maskv,
+                        offset_v & maskv,
+                        "offset changed"
+                    );
+                    assert_eq!(
+                        get_slice_u512_by(&sim, &dirty).to::<u64>() & ((1u64 << (n - 2)) - 1),
+                        dirty_v,
+                        "dirty changed"
+                    );
                     assert_eq!(sim.qubit(mask) & 1, 0, "mask dirty");
                     assert_eq!(sim.global_phase() & 1, 0, "phase changed");
                 }
@@ -5037,7 +5565,9 @@ mod tests {
         let dirty = b.alloc_qubits(254);
         let clean2 = [b.alloc_qubit(), b.alloc_qubit()];
         let mask = b.alloc_qubit();
-        super::super::venting::ciadd_dirty_3clean_qoffset_stream_mask(&mut b, &target, &dirty, &clean2, mask, &offset, ctrl);
+        super::super::venting::ciadd_dirty_3clean_qoffset_stream_mask(
+            &mut b, &target, &dirty, &clean2, mask, &offset, ctrl,
+        );
         let ccx = count_ccx(&b.ops);
         let peak = b.peak_qubits as usize;
         let scaled_microstep_with_this_add = ccx + 256 + 255 + 255;
@@ -5054,9 +5584,18 @@ mod tests {
         println!("METRIC streamed_mask_qoffset_div560={div560:.0}");
         println!("METRIC streamed_mask_qoffset_projected_point_add={projected_point_add}");
         println!("METRIC streamed_mask_qoffset_scratch_with_history={scratch_with_history}");
-        assert!(ccx < 2_650, "streamed-mask qoffset no longer beats the 600q low-qubit gate target");
-        assert!(projected_point_add < 2_700_000, "streamed-mask qoffset misses the Google low-qubit point-add target");
-        assert!(scratch_with_history < 600, "streamed-mask qoffset does not fit 600q scratch model");
+        assert!(
+            ccx < 2_650,
+            "streamed-mask qoffset no longer beats the 600q low-qubit gate target"
+        );
+        assert!(
+            projected_point_add < 2_700_000,
+            "streamed-mask qoffset misses the Google low-qubit point-add target"
+        );
+        assert!(
+            scratch_with_history < 600,
+            "streamed-mask qoffset does not fit 600q scratch model"
+        );
     }
 
     #[test]
@@ -5090,9 +5629,18 @@ mod tests {
         println!("METRIC streamed_qoffset_lowword_selector_ccx={lowword_one_denominator}");
         println!("METRIC streamed_qoffset_projected_with_lowword_selector={projected_with_lowword_one_denominator}");
         println!("METRIC streamed_qoffset_projected_with_tapered_selector={projected_with_tapered_exact}");
-        assert!(remaining_selector_margin < lowword_one_denominator, "cheap lowword selector now fits; revisit BY integration");
-        assert!(projected_with_lowword_one_denominator > 2_700_000, "lowword selector no longer invalidates integration");
-        assert!(projected_with_tapered_exact > 4_000_000, "tapered exact selector unexpectedly SOTA-shaped");
+        assert!(
+            remaining_selector_margin < lowword_one_denominator,
+            "cheap lowword selector now fits; revisit BY integration"
+        );
+        assert!(
+            projected_with_lowword_one_denominator > 2_700_000,
+            "lowword selector no longer invalidates integration"
+        );
+        assert!(
+            projected_with_tapered_exact > 4_000_000,
+            "tapered exact selector unexpectedly SOTA-shaped"
+        );
     }
 
     #[test]
@@ -5127,16 +5675,38 @@ mod tests {
                     hasher.update(b"by-partial-prefix-qoffset-small-v1");
                     let mut xof = hasher.finalize_xof();
                     let mut sim = crate::sim::Simulator::new(num_qubits, num_bits, &mut xof);
-                    if ctrl_v { *sim.qubit_mut(ctrl8) |= 1; }
+                    if ctrl_v {
+                        *sim.qubit_mut(ctrl8) |= 1;
+                    }
                     set_slice_u512_by(&mut sim, &target8, U512::from(target_v));
                     set_slice_u512_by(&mut sim, &offset8, U512::from(offset_v));
                     set_slice_u512_by(&mut sim, &dirty8, U512::from(dirty_v));
                     sim.apply(&ops);
-                    let expected = if ctrl_v { target_v.wrapping_add(offset_v) & maskv } else { target_v & maskv };
-                    assert_eq!(get_slice_u512_by(&sim, &target8).to::<u64>() & maskv, expected, "target mismatch");
-                    assert_eq!(get_slice_u512_by(&sim, &offset8).to::<u64>() & maskv, offset_v & maskv, "offset changed");
-                    assert_eq!(get_slice_u512_by(&sim, &dirty8).to::<u64>() & ((1u64 << (n - 2)) - 1), dirty_v, "dirty changed");
-                    assert_eq!(get_slice_u512_by(&sim, &prefix8), U512::ZERO, "prefix masks not cleared");
+                    let expected = if ctrl_v {
+                        target_v.wrapping_add(offset_v) & maskv
+                    } else {
+                        target_v & maskv
+                    };
+                    assert_eq!(
+                        get_slice_u512_by(&sim, &target8).to::<u64>() & maskv,
+                        expected,
+                        "target mismatch"
+                    );
+                    assert_eq!(
+                        get_slice_u512_by(&sim, &offset8).to::<u64>() & maskv,
+                        offset_v & maskv,
+                        "offset changed"
+                    );
+                    assert_eq!(
+                        get_slice_u512_by(&sim, &dirty8).to::<u64>() & ((1u64 << (n - 2)) - 1),
+                        dirty_v,
+                        "dirty changed"
+                    );
+                    assert_eq!(
+                        get_slice_u512_by(&sim, &prefix8),
+                        U512::ZERO,
+                        "prefix masks not cleared"
+                    );
                     assert_eq!(sim.qubit(stream8) & 1, 0, "stream mask not cleared");
                     assert_eq!(sim.global_phase() & 1, 0, "phase changed");
                 }
@@ -5176,7 +5746,9 @@ mod tests {
         let decoder = 1_776usize * harness_windows;
         let projected_gap = |cost: usize| -> isize {
             let scaled_step = cost + 256 + 255 + 255;
-            (scaffold_after_div + lowword_selector + decoder + scaled_step * harness_cutoff_steps) as isize - 2_700_000
+            (scaffold_after_div + lowword_selector + decoder + scaled_step * harness_cutoff_steps)
+                as isize
+                - 2_700_000
         };
         let gap32 = projected_gap(cost32);
         let gap48 = projected_gap(cost48);
@@ -5202,8 +5774,14 @@ mod tests {
         eprintln!(
             "BY partial-prefix qoffset costs: {costs:?}, windows={harness_windows}, selector={lowword_selector}, decoder={decoder}, scratch32={scratch32}, gap32={gap32}, scratch48={scratch48}, gap48={gap48}, scratch64={scratch64}, gap64={gap64}, scratch80={scratch80}, gap80={gap80}"
         );
-        assert!(scratch32 < 600, "32 prefix masks no longer fit scratch budget");
-        assert!(gap32 < 0, "32 prefix masks do not close the harness-scale BY lowword near-miss");
+        assert!(
+            scratch32 < 600,
+            "32 prefix masks no longer fit scratch budget"
+        );
+        assert!(
+            gap32 < 0,
+            "32 prefix masks do not close the harness-scale BY lowword near-miss"
+        );
     }
 
     #[test]
@@ -5238,19 +5816,51 @@ mod tests {
                             hasher.update(&(n as u64).to_le_bytes());
                             hasher.update(&(prefix_len as u64).to_le_bytes());
                             let mut xof = hasher.finalize_xof();
-                            let mut sim = crate::sim::Simulator::new(num_qubits, num_bits, &mut xof);
-                            if ctrl_v { *sim.qubit_mut(ctrl) |= 1; }
+                            let mut sim =
+                                crate::sim::Simulator::new(num_qubits, num_bits, &mut xof);
+                            if ctrl_v {
+                                *sim.qubit_mut(ctrl) |= 1;
+                            }
                             set_slice_u512_by(&mut sim, &target, U512::from(target_v));
                             set_slice_u512_by(&mut sim, &offset, U512::from(offset_v));
                             set_slice_u512_by(&mut sim, &dirty, U512::from(dirty_v));
                             sim.apply(&ops);
-                            let expected = if ctrl_v { target_v.wrapping_add(offset_v) & maskv } else { target_v & maskv };
-                            assert_eq!(get_slice_u512_by(&sim, &target).to::<u64>() & maskv, expected, "target mismatch n={n} prefix={prefix_len}");
-                            assert_eq!(get_slice_u512_by(&sim, &offset).to::<u64>() & maskv, offset_v & maskv, "offset changed n={n} prefix={prefix_len}");
-                            assert_eq!(get_slice_u512_by(&sim, &dirty).to::<u64>() & ((1u64 << (n - 2)) - 1), dirty_v, "dirty changed n={n} prefix={prefix_len}");
-                            assert_eq!(get_slice_u512_by(&sim, &prefix), U512::ZERO, "prefix masks dirty n={n} prefix={prefix_len}");
-                            assert_eq!(sim.qubit(stream) & 1, 0, "stream mask dirty n={n} prefix={prefix_len}");
-                            assert_eq!(sim.global_phase() & 1, 0, "phase changed n={n} prefix={prefix_len}");
+                            let expected = if ctrl_v {
+                                target_v.wrapping_add(offset_v) & maskv
+                            } else {
+                                target_v & maskv
+                            };
+                            assert_eq!(
+                                get_slice_u512_by(&sim, &target).to::<u64>() & maskv,
+                                expected,
+                                "target mismatch n={n} prefix={prefix_len}"
+                            );
+                            assert_eq!(
+                                get_slice_u512_by(&sim, &offset).to::<u64>() & maskv,
+                                offset_v & maskv,
+                                "offset changed n={n} prefix={prefix_len}"
+                            );
+                            assert_eq!(
+                                get_slice_u512_by(&sim, &dirty).to::<u64>()
+                                    & ((1u64 << (n - 2)) - 1),
+                                dirty_v,
+                                "dirty changed n={n} prefix={prefix_len}"
+                            );
+                            assert_eq!(
+                                get_slice_u512_by(&sim, &prefix),
+                                U512::ZERO,
+                                "prefix masks dirty n={n} prefix={prefix_len}"
+                            );
+                            assert_eq!(
+                                sim.qubit(stream) & 1,
+                                0,
+                                "stream mask dirty n={n} prefix={prefix_len}"
+                            );
+                            assert_eq!(
+                                sim.global_phase() & 1,
+                                0,
+                                "phase changed n={n} prefix={prefix_len}"
+                            );
                         }
                     }
                 }
@@ -5280,7 +5890,10 @@ mod tests {
             );
             let cost = count_ccx(&b.ops);
             let step = cost + 256 + 255 + 255;
-            let gap = (scaffold_after_div + lowword_selector + decoder + step * harness_cutoff_steps) as isize - 2_700_000;
+            let gap =
+                (scaffold_after_div + lowword_selector + decoder + step * harness_cutoff_steps)
+                    as isize
+                    - 2_700_000;
             if scratch_base + prefix_len <= 600 && gap < best_gap {
                 best_prefix = prefix_len;
                 best_cost = cost;
@@ -5295,7 +5908,10 @@ mod tests {
         eprintln!(
             "BY partial-prefix qoffset wide validation passed; best_under600 prefix={best_prefix}, cost={best_cost}, scratch={scratch_best}, gap={best_gap}"
         );
-        assert!(best_gap < -100_000, "best under-600 prefix no longer has robust margin");
+        assert!(
+            best_gap < -100_000,
+            "best under-600 prefix no longer has robust margin"
+        );
     }
 
     #[test]
@@ -5320,7 +5936,14 @@ mod tests {
             b.cx(pattern_tmp[i], pattern_hist[i]);
         }
         for i in (0..W).rev() {
-            emit_2adic_by_branch_step_reverse_for_test(&mut b, &f, &g, &delta, pattern_tmp[i], a_tmp[i]);
+            emit_2adic_by_branch_step_reverse_for_test(
+                &mut b,
+                &f,
+                &g,
+                &delta,
+                pattern_tmp[i],
+                a_tmp[i],
+            );
         }
         let lowword_oracle_peak = b.peak_qubits as usize;
         let lowword_oracle_ccx = count_ccx(&b.ops);
@@ -5337,15 +5960,23 @@ mod tests {
         let scheduled_peak = selector_peak_with_reuse.max(replay_peak);
         println!("METRIC by_partial_prefix_schedule_lowword_oracle_peak={lowword_oracle_peak}");
         println!("METRIC by_partial_prefix_schedule_lowword_oracle_ccx={lowword_oracle_ccx}");
-        println!("METRIC by_partial_prefix_schedule_selector_peak_reuse={selector_peak_with_reuse}");
+        println!(
+            "METRIC by_partial_prefix_schedule_selector_peak_reuse={selector_peak_with_reuse}"
+        );
         println!("METRIC by_partial_prefix_schedule_selector_peak_no_reuse={selector_peak_without_reuse}");
         println!("METRIC by_partial_prefix_schedule_replay_peak={replay_peak}");
         println!("METRIC by_partial_prefix_schedule_peak={scheduled_peak}");
         eprintln!(
             "BY partial-prefix scratch schedule: lowword_peak={lowword_oracle_peak}, selector_reuse={selector_peak_with_reuse}, selector_no_reuse={selector_peak_without_reuse}, replay={replay_peak}, scheduled={scheduled_peak}"
         );
-        assert!(selector_peak_without_reuse > 600, "temp reuse is no longer required; simplify the schedule");
-        assert!(scheduled_peak <= 600, "partial-prefix qoffset scratch schedule no longer fits strict 600");
+        assert!(
+            selector_peak_without_reuse > 600,
+            "temp reuse is no longer required; simplify the schedule"
+        );
+        assert!(
+            scheduled_peak <= 600,
+            "partial-prefix qoffset scratch schedule no longer fits strict 600"
+        );
     }
 
     #[test]
@@ -5377,8 +6008,8 @@ mod tests {
             - pair1_scale_loop
             - pair2_scale_loop
             - pair2_product_mul;
-        let two_den_total = two_replay_scaffold
-            + 2 * (step * steps + selector_per_den + decoder_per_den) as isize;
+        let two_den_total =
+            two_replay_scaffold + 2 * (step * steps + selector_per_den + decoder_per_den) as isize;
         let two_den_gap = two_den_total - 2_700_000;
         let missing_assumption_swing = two_den_total - one_div_total as isize;
         println!("METRIC by_partial_prefix_one_div_total={one_div_total}");
@@ -5386,12 +6017,20 @@ mod tests {
         println!("METRIC by_partial_prefix_two_den_scaffold={two_replay_scaffold}");
         println!("METRIC by_partial_prefix_two_den_total={two_den_total}");
         println!("METRIC by_partial_prefix_two_den_gap_ccx={two_den_gap}");
-        println!("METRIC by_partial_prefix_missing_second_den_swing_ccx={missing_assumption_swing}");
+        println!(
+            "METRIC by_partial_prefix_missing_second_den_swing_ccx={missing_assumption_swing}"
+        );
         eprintln!(
             "BY partial-prefix adversarial two-den ledger: one_div_total={one_div_total} gap={one_div_gap}, two_den_total={two_den_total} gap={two_den_gap}, swing={missing_assumption_swing}"
         );
-        assert!(one_div_gap < 0, "one-DIV optimistic model no longer fits; update prior tests");
-        assert!(two_den_gap > 500_000, "two-denominator promotion might fit; revisit before demoting");
+        assert!(
+            one_div_gap < 0,
+            "one-DIV optimistic model no longer fits; update prior tests"
+        );
+        assert!(
+            two_den_gap > 500_000,
+            "two-denominator promotion might fit; revisit before demoting"
+        );
     }
 
     #[test]
@@ -5399,26 +6038,40 @@ mod tests {
         // After the two-denominator ledger, the obvious escape is to use the
         // one-DIV partial-prefix primitive in a slope-coordinate/Strategy-E
         // point-add map.  That route still needs an in-place variable multiply
-        // to convert the carried slope to affine y.  Even granting a future
-        // schoolbook-like product-clean multiply, the partial-prefix DIV body is
-        // too expensive for the Strategy-E budget.
-        let partial_prefix_one_div_total = 2_533_964usize;
+        // to convert the carried slope to affine y.  With the measured
+        // prefix-90 qoffset primitive, a future schoolbook-like product-clean
+        // multiply would fit a relaxed 3M Strategy-E budget, but it still
+        // misses the 2.7M low-qubit target and current product-clean
+        // primitives are themselves a second denominator path.
+        let partial_prefix_one_div_total = 2_394_316usize;
         let one_div_scaffold_from_by_model = 642_716usize;
         let partial_prefix_div_body = partial_prefix_one_div_total - one_div_scaffold_from_by_model;
         let strategy_e_non_div_scaffold = 942_750usize;
         let known_product_clean = 1_145_760usize;
         let hypothetical_schoolbook_product_clean = 180_000usize;
-        let current_product_total = strategy_e_non_div_scaffold + partial_prefix_div_body + known_product_clean;
-        let hypothetical_product_total = strategy_e_non_div_scaffold + partial_prefix_div_body + hypothetical_schoolbook_product_clean;
+        let current_product_total =
+            strategy_e_non_div_scaffold + partial_prefix_div_body + known_product_clean;
+        let hypothetical_product_total = strategy_e_non_div_scaffold
+            + partial_prefix_div_body
+            + hypothetical_schoolbook_product_clean;
         let current_gap = current_product_total as isize - 2_700_000;
         let hypothetical_gap = hypothetical_product_total as isize - 2_700_000;
+        let relaxed_3m_gap = hypothetical_product_total as isize - 3_000_000;
         println!("METRIC by_partial_prefix_strategy_e_div_body_ccx={partial_prefix_div_body}");
         println!("METRIC by_partial_prefix_strategy_e_current_product_gap_ccx={current_gap}");
         println!("METRIC by_partial_prefix_strategy_e_hyp_product_gap_ccx={hypothetical_gap}");
+        println!("METRIC by_partial_prefix_strategy_e_hyp_product_gap_to_3m_ccx={relaxed_3m_gap}");
         eprintln!(
-            "partial-prefix one-DIV in Strategy E: div_body={partial_prefix_div_body}, current_total={current_product_total} gap={current_gap}, hypothetical_total={hypothetical_product_total} gap={hypothetical_gap}"
+            "partial-prefix one-DIV in Strategy E: div_body={partial_prefix_div_body}, current_total={current_product_total} gap={current_gap}, hypothetical_total={hypothetical_product_total} gap={hypothetical_gap}, gap3m={relaxed_3m_gap}"
         );
-        assert!(hypothetical_gap > 0, "partial-prefix DIV plus schoolbook product would make Strategy E viable; revisit");
+        assert!(
+            hypothetical_gap > 0,
+            "partial-prefix DIV plus schoolbook product would make Strategy E hit 2.7M; revisit"
+        );
+        assert!(
+            relaxed_3m_gap < 0,
+            "partial-prefix DIV plus schoolbook product no longer fits 3M; update Strategy E risk"
+        );
     }
 
     #[test]
@@ -5436,7 +6089,8 @@ mod tests {
         let measured_decoder = 1_776usize * 36usize;
         let measured_lowword_selector = 5_952usize * 36usize;
         let max_div_body_for_3m = target_3m - strategy_e_non_div_scaffold - known_product_clean;
-        let selector_budget_after_replay = max_div_body_for_3m as isize - best_fixed_control_replay as isize;
+        let selector_budget_after_replay =
+            max_div_body_for_3m as isize - best_fixed_control_replay as isize;
         let decoder_only_gap = (strategy_e_non_div_scaffold
             + known_product_clean
             + best_fixed_control_replay
@@ -5448,11 +6102,10 @@ mod tests {
             + measured_decoder
             + measured_lowword_selector) as isize
             - target_3m as isize;
-        let partial_prefix_div_body = 1_891_248usize;
-        let partial_prefix_gap = (strategy_e_non_div_scaffold
-            + known_product_clean
-            + partial_prefix_div_body) as isize
-            - target_3m as isize;
+        let partial_prefix_div_body = 1_751_600usize;
+        let partial_prefix_gap =
+            (strategy_e_non_div_scaffold + known_product_clean + partial_prefix_div_body) as isize
+                - target_3m as isize;
         println!("METRIC strategy_e_3m_max_div_body_ccx={max_div_body_for_3m}");
         println!("METRIC strategy_e_3m_selector_budget_after_fixed_replay_ccx={selector_budget_after_replay}");
         println!("METRIC strategy_e_3m_decoder_only_gap_ccx={decoder_only_gap}");
@@ -5461,9 +6114,15 @@ mod tests {
         eprintln!(
             "Strategy E 3M risk ledger: max_div_body={max_div_body_for_3m}, selector_budget_after_replay={selector_budget_after_replay}, decoder_only_gap={decoder_only_gap}, lowword_gap={lowword_gap}, partial_prefix_gap={partial_prefix_gap}"
         );
-        assert!(selector_budget_after_replay < measured_decoder as isize, "fixed replay plus measured decoder now fits under 3M; revisit Strategy E");
-        assert!(lowword_gap > 0, "measured lowword selector would make Strategy E <3M; wire a toy schedule next");
-        assert!(partial_prefix_gap > 0, "partial-prefix DIV is enough for Strategy E under 3M; revisit");
+        assert!(
+            selector_budget_after_replay < measured_decoder as isize,
+            "fixed replay plus measured decoder now fits under 3M; revisit Strategy E"
+        );
+        assert!(
+            lowword_gap > 0,
+            "measured lowword selector would make Strategy E <3M; wire a toy schedule next"
+        );
+        assert!(partial_prefix_gap > 0, "partial-prefix DIV with current product-clean is enough for Strategy E under 3M; revisit");
     }
 
     #[test]
@@ -5493,23 +6152,55 @@ mod tests {
         let optimistic_two_den_gap = optimistic_two_den_total - target_3m;
         let current_two_den_gap = current_two_den_total - target_3m;
         let missing_second_selector_swing = selector_decoder_per_den;
-        let partial_prefix_div_body = 1_891_248isize;
-        let product_clean_budget_after_partial_prefix = target_3m - strategy_e_non_div_scaffold - partial_prefix_div_body;
+        let partial_prefix_div_body = 1_751_600isize;
+        let product_clean_budget_after_partial_prefix =
+            target_3m - strategy_e_non_div_scaffold - partial_prefix_div_body;
+        let target_five_percent = 3_876_762isize;
+        let partial_prefix_current_without_second_selector = strategy_e_non_div_scaffold
+            + partial_prefix_div_body
+            + current_product_clean_div_replay;
+        let partial_prefix_current_with_second_selector =
+            partial_prefix_current_without_second_selector + selector_decoder_per_den;
+        let partial_prefix_current_without_second_selector_gap =
+            partial_prefix_current_without_second_selector - target_five_percent;
+        let partial_prefix_current_with_second_selector_gap =
+            partial_prefix_current_with_second_selector - target_five_percent;
         println!("METRIC strategy_e_second_den_selector_decoder_ccx={selector_decoder_per_den}");
-        println!("METRIC strategy_e_forgotten_second_selector_gap_ccx={forgotten_second_selector_gap}");
+        println!(
+            "METRIC strategy_e_forgotten_second_selector_gap_ccx={forgotten_second_selector_gap}"
+        );
         println!("METRIC strategy_e_optimistic_two_den_gap_to_3m_ccx={optimistic_two_den_gap}");
         println!("METRIC strategy_e_current_two_den_gap_to_3m_ccx={current_two_den_gap}");
-        println!("METRIC strategy_e_missing_second_selector_swing_ccx={missing_second_selector_swing}");
-        println!("METRIC strategy_e_product_clean_budget_after_partial_prefix_ccx={product_clean_budget_after_partial_prefix}");
-        eprintln!(
-            "Strategy E current product-clean risk: forgotten_second_selector_total={forgotten_second_selector_total} gap={forgotten_second_selector_gap}, optimistic_two_den_total={optimistic_two_den_total} gap={optimistic_two_den_gap}, current_two_den_total={current_two_den_total} gap={current_two_den_gap}"
+        println!(
+            "METRIC strategy_e_missing_second_selector_swing_ccx={missing_second_selector_swing}"
         );
-        assert!(forgotten_second_selector_gap < 0, "missing-second-selector trap no longer looks tempting; update note");
-        assert!(optimistic_two_den_gap > 0, "even charging two selectors, optimistic Strategy E fits 3M; revisit");
-        assert!(product_clean_budget_after_partial_prefix < 180_000, "partial-prefix Strategy E can afford a schoolbook-like product-clean multiply under 3M");
+        println!("METRIC strategy_e_product_clean_budget_after_partial_prefix_ccx={product_clean_budget_after_partial_prefix}");
+        println!("METRIC strategy_e_partial_prefix_current_without_second_selector_gap_to_5pct={partial_prefix_current_without_second_selector_gap}");
+        println!("METRIC strategy_e_partial_prefix_current_with_second_selector_gap_to_5pct={partial_prefix_current_with_second_selector_gap}");
+        eprintln!(
+            "Strategy E current product-clean risk: forgotten_second_selector_total={forgotten_second_selector_total} gap={forgotten_second_selector_gap}, optimistic_two_den_total={optimistic_two_den_total} gap={optimistic_two_den_gap}, current_two_den_total={current_two_den_total} gap={current_two_den_gap}, partial_prefix_current_without_second_selector_gap5={partial_prefix_current_without_second_selector_gap}, with_second_selector_gap5={partial_prefix_current_with_second_selector_gap}"
+        );
+        assert!(
+            forgotten_second_selector_gap < 0,
+            "missing-second-selector trap no longer looks tempting; update note"
+        );
+        assert!(
+            optimistic_two_den_gap > 0,
+            "even charging two selectors, optimistic Strategy E fits 3M; revisit"
+        );
+        assert!(product_clean_budget_after_partial_prefix > 180_000, "partial-prefix Strategy E can no longer afford a schoolbook-like product-clean multiply under 3M");
+        assert!(
+            partial_prefix_current_without_second_selector_gap < 0,
+            "partial-prefix current-product trap no longer crosses the 5% threshold; update risk"
+        );
+        assert!(
+            partial_prefix_current_with_second_selector_gap > 0,
+            "partial-prefix current-product Strategy E clears 5% even after second selector; wire it"
+        );
     }
 
-    fn secp_curve_for_strategy_e_share_test() -> crate::weierstrass_elliptic_curve::WeierstrassEllipticCurve {
+    fn secp_curve_for_strategy_e_share_test(
+    ) -> crate::weierstrass_elliptic_curve::WeierstrassEllipticCurve {
         crate::weierstrass_elliptic_curve::WeierstrassEllipticCurve {
             modulus: SECP256K1_P,
             a: U256::from(0),
@@ -5517,26 +6208,35 @@ mod tests {
             gx: U256::from_str_radix(
                 "79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798",
                 16,
-            ).unwrap(),
+            )
+            .unwrap(),
             gy: U256::from_str_radix(
                 "483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8",
                 16,
-            ).unwrap(),
+            )
+            .unwrap(),
             order: U256::from_str_radix(
                 "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141",
                 16,
-            ).unwrap(),
+            )
+            .unwrap(),
         }
     }
 
     fn rand_scalar_for_strategy_e_share_test(rng: &mut u64, order: U256) -> U256 {
         let mut limbs = [0u64; 4];
         for limb in &mut limbs {
-            *rng = rng.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            *rng = rng
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
             *limb = *rng;
         }
         let x = U256::from_limbs(limbs) % order;
-        if x.is_zero() { U256::from(1u64) } else { x }
+        if x.is_zero() {
+            U256::from(1u64)
+        } else {
+            x
+        }
     }
 
     fn by_branch_cases_for_strategy_e_share_test(g0: U256, p: U256, iters: usize) -> Vec<u8> {
@@ -5568,9 +6268,13 @@ mod tests {
         out
     }
 
-    fn mutual_information_millibits_for_strategy_e_share_test<const N: usize>(counts: [[usize; N]; N]) -> f64 {
+    fn mutual_information_millibits_for_strategy_e_share_test<const N: usize>(
+        counts: [[usize; N]; N],
+    ) -> f64 {
         let total: usize = counts.iter().flatten().sum();
-        if total == 0 { return 0.0; }
+        if total == 0 {
+            return 0.0;
+        }
         let mut rows = [0usize; N];
         let mut cols = [0usize; N];
         for i in 0..N {
@@ -5584,7 +6288,9 @@ mod tests {
         for i in 0..N {
             for j in 0..N {
                 let c = counts[i][j];
-                if c == 0 { continue; }
+                if c == 0 {
+                    continue;
+                }
                 let pxy = c as f64 / total_f;
                 let px = rows[i] as f64 / total_f;
                 let py = cols[j] as f64 / total_f;
@@ -5621,10 +6327,14 @@ mod tests {
                 continue;
             }
             let (rx, ry) = curve.add(px, py, qx, qy);
-            if rx.is_zero() && ry.is_zero() { continue; }
+            if rx.is_zero() && ry.is_zero() {
+                continue;
+            }
             let dx = subm(px, qx, p);
             let prod_den = subm(rx, qx, p);
-            if dx.is_zero() || prod_den.is_zero() { continue; }
+            if dx.is_zero() || prod_den.is_zero() {
+                continue;
+            }
             let a = by_branch_cases_for_strategy_e_share_test(dx, p, iters);
             let b = by_branch_cases_for_strategy_e_share_test(prod_den, p, iters);
             for i in 0..iters {
@@ -5632,16 +6342,22 @@ mod tests {
                 let ob = (b[i] != 0) as usize;
                 odd_counts[oa][ob] += 1;
                 case_counts[a[i] as usize][b[i] as usize] += 1;
-                if oa == ob { odd_match += 1; }
-                if a[i] == b[i] { case_match += 1; }
+                if oa == ob {
+                    odd_match += 1;
+                }
+                if a[i] == b[i] {
+                    case_match += 1;
+                }
             }
             samples += 1;
         }
         let total = samples * iters;
         let odd_match_ppm = odd_match * 1_000_000usize / total;
         let case_match_ppm = case_match * 1_000_000usize / total;
-        let odd_mi_millibits = mutual_information_millibits_for_strategy_e_share_test::<2>(odd_counts);
-        let case_mi_millibits = mutual_information_millibits_for_strategy_e_share_test::<3>(case_counts);
+        let odd_mi_millibits =
+            mutual_information_millibits_for_strategy_e_share_test::<2>(odd_counts);
+        let case_mi_millibits =
+            mutual_information_millibits_for_strategy_e_share_test::<3>(case_counts);
         println!("METRIC strategy_e_branch_share_samples={samples}");
         println!("METRIC strategy_e_branch_odd_match_ppm={odd_match_ppm}");
         println!("METRIC strategy_e_branch_case_match_ppm={case_match_ppm}");
@@ -5650,8 +6366,14 @@ mod tests {
         eprintln!(
             "Strategy E branch sharing probe: samples={samples}, odd_match_ppm={odd_match_ppm}, case_match_ppm={case_match_ppm}, odd_mi_millibits={odd_mi_millibits:.3}, case_mi_millibits={case_mi_millibits:.3}, odd_counts={odd_counts:?}, case_counts={case_counts:?}"
         );
-        assert!(odd_mi_millibits < 10.0, "pair1/product odd controls show exploitable correlation; investigate sharing");
-        assert!(case_mi_millibits < 10.0, "pair1/product branch cases show exploitable correlation; investigate sharing");
+        assert!(
+            odd_mi_millibits < 10.0,
+            "pair1/product odd controls show exploitable correlation; investigate sharing"
+        );
+        assert!(
+            case_mi_millibits < 10.0,
+            "pair1/product branch cases show exploitable correlation; investigate sharing"
+        );
     }
 
     #[test]
@@ -5682,10 +6404,14 @@ mod tests {
                 continue;
             }
             let (rx, ry) = curve.add(px, py, qx, qy);
-            if rx.is_zero() && ry.is_zero() { continue; }
+            if rx.is_zero() && ry.is_zero() {
+                continue;
+            }
             let in_y_den = addm(py, qy, p);
             let out_y_den = subm(ry, qy, p);
-            if in_y_den.is_zero() || out_y_den.is_zero() { continue; }
+            if in_y_den.is_zero() || out_y_den.is_zero() {
+                continue;
+            }
             let a = by_branch_cases_for_strategy_e_share_test(in_y_den, p, iters);
             let b = by_branch_cases_for_strategy_e_share_test(out_y_den, p, iters);
             for i in 0..iters {
@@ -5693,16 +6419,22 @@ mod tests {
                 let ob = (b[i] != 0) as usize;
                 odd_counts[oa][ob] += 1;
                 case_counts[a[i] as usize][b[i] as usize] += 1;
-                if oa == ob { odd_match += 1; }
-                if a[i] == b[i] { case_match += 1; }
+                if oa == ob {
+                    odd_match += 1;
+                }
+                if a[i] == b[i] {
+                    case_match += 1;
+                }
             }
             samples += 1;
         }
         let total = samples * iters;
         let odd_match_ppm = odd_match * 1_000_000usize / total;
         let case_match_ppm = case_match * 1_000_000usize / total;
-        let odd_mi_millibits = mutual_information_millibits_for_strategy_e_share_test::<2>(odd_counts);
-        let case_mi_millibits = mutual_information_millibits_for_strategy_e_share_test::<3>(case_counts);
+        let odd_mi_millibits =
+            mutual_information_millibits_for_strategy_e_share_test::<2>(odd_counts);
+        let case_mi_millibits =
+            mutual_information_millibits_for_strategy_e_share_test::<3>(case_counts);
         println!("METRIC endomorphism_y_branch_share_samples={samples}");
         println!("METRIC endomorphism_y_branch_odd_match_ppm={odd_match_ppm}");
         println!("METRIC endomorphism_y_branch_case_match_ppm={case_match_ppm}");
@@ -5713,6 +6445,174 @@ mod tests {
         );
         assert!(odd_mi_millibits < 10.0, "endomorphism y-denominator odd controls show exploitable correlation; investigate sharing");
         assert!(case_mi_millibits < 10.0, "endomorphism y-denominator branch cases show exploitable correlation; investigate sharing");
+    }
+
+    #[test]
+    fn secp_endomorphism_beta_scaled_denominator_does_not_reuse_by_branches() {
+        // Another secp-only sharing attempt: the j=0 automorphism maps
+        // x -> beta*x and turns an affine denominator dx into beta*dx.  Since
+        // inverse(beta*dx)=beta^-1*inverse(dx), a shared BY branch stream would
+        // let one denominator computation serve the whole endomorphism orbit.
+        // Check the exact branch cases before granting that reuse.
+        let p = SECP256K1_P;
+        let beta = U256::from_str_radix(
+            "7AE96A2B657C07106E64479EAC3434E99CF0497512F58995C1396C28719501EE",
+            16,
+        )
+        .expect("valid secp256k1 beta");
+        assert_eq!(beta.mul_mod(beta, p).mul_mod(beta, p), U256::from(1u64));
+        let iters = 576usize;
+        let target_samples = 256usize;
+        let mut sampler = Sampler::new(b"secp-beta-branch-share-v1", p);
+        let mut samples = 0usize;
+        let mut odd_counts = [[0usize; 2]; 2];
+        let mut case_counts = [[0usize; 3]; 3];
+        let mut odd_match = 0usize;
+        let mut case_match = 0usize;
+        while samples < target_samples {
+            let x = sampler.next();
+            if x.is_zero() {
+                continue;
+            }
+            let bx = beta.mul_mod(x, p);
+            if bx.is_zero() || bx == x {
+                continue;
+            }
+            let a = by_branch_cases_for_strategy_e_share_test(x, p, iters);
+            let b = by_branch_cases_for_strategy_e_share_test(bx, p, iters);
+            for i in 0..iters {
+                let oa = (a[i] != 0) as usize;
+                let ob = (b[i] != 0) as usize;
+                odd_counts[oa][ob] += 1;
+                case_counts[a[i] as usize][b[i] as usize] += 1;
+                if oa == ob {
+                    odd_match += 1;
+                }
+                if a[i] == b[i] {
+                    case_match += 1;
+                }
+            }
+            samples += 1;
+        }
+        let total = samples * iters;
+        let odd_match_ppm = odd_match * 1_000_000usize / total;
+        let case_match_ppm = case_match * 1_000_000usize / total;
+        let odd_mi_millibits =
+            mutual_information_millibits_for_strategy_e_share_test::<2>(odd_counts);
+        let case_mi_millibits =
+            mutual_information_millibits_for_strategy_e_share_test::<3>(case_counts);
+        println!("METRIC secp_beta_branch_share_samples={samples}");
+        println!("METRIC secp_beta_branch_odd_match_ppm={odd_match_ppm}");
+        println!("METRIC secp_beta_branch_case_match_ppm={case_match_ppm}");
+        println!("METRIC secp_beta_branch_odd_mi_millibits={odd_mi_millibits:.3}");
+        println!("METRIC secp_beta_branch_case_mi_millibits={case_mi_millibits:.3}");
+        eprintln!(
+            "secp beta-scaled denominator branch sharing probe: samples={samples}, odd_match_ppm={odd_match_ppm}, case_match_ppm={case_match_ppm}, odd_mi_millibits={odd_mi_millibits:.3}, case_mi_millibits={case_mi_millibits:.3}, odd_counts={odd_counts:?}, case_counts={case_counts:?}"
+        );
+        assert!(odd_mi_millibits < 10.0, "beta-scaled odd controls show exploitable correlation; investigate endomorphism branch reuse");
+        assert!(case_mi_millibits < 10.0, "beta-scaled branch cases show exploitable correlation; investigate endomorphism branch reuse");
+    }
+
+    #[test]
+    fn secp_endomorphism_xonly_numerator_has_real_gate_cost() {
+        // The j=0 identity
+        //   lambda = (Px^2 + Px*Qx + Qx^2)/(Py+Qy)
+        // is useful only if the y-denominator route deletes another expensive
+        // object.  In the ordinary affine add, the numerator Py-Qy is already
+        // present after the initial subtraction.  The endomorphism numerator is
+        // an actual quadratic expression in the live x lane.  Measure a
+        // conservative lower-bound construction that computes only
+        // Px^2 + Px*Qx, omitting the cheap constant Qx^2 and any uncompute.
+        let curve = secp_curve_for_strategy_e_share_test();
+        let p = SECP256K1_P;
+        let qx = curve.gx;
+        let mut b = super::super::B::new();
+        let x = b.alloc_qubits(256);
+        let numerator = b.alloc_qubits(256);
+        let start = b.ops.len();
+        super::super::squaring_add_to_acc_schoolbook(&mut b, &numerator, &x, p);
+        let after_square = b.ops.len();
+        super::super::mul_by_const_acc_exact_adds_fast_shifts(&mut b, &x, qx, &numerator, p, false);
+        let square_ccx = count_ccx(&b.ops[start..after_square]);
+        let lower_oneway_ccx = count_ccx(&b.ops[start..]);
+        let lower_roundtrip_ccx = 2 * lower_oneway_ccx;
+        println!("METRIC secp_endomorphism_xonly_numerator_square_ccx={square_ccx}");
+        println!("METRIC secp_endomorphism_xonly_numerator_oneway_lower_ccx={lower_oneway_ccx}");
+        println!(
+            "METRIC secp_endomorphism_xonly_numerator_roundtrip_lower_ccx={lower_roundtrip_ccx}"
+        );
+        eprintln!(
+            "secp endomorphism x-only numerator lower bound: square_ccx={square_ccx}, oneway={lower_oneway_ccx}, roundtrip={lower_roundtrip_ccx}, peak={}q",
+            b.peak_qubits
+        );
+        assert!(
+            lower_roundtrip_ccx > 200_000,
+            "endomorphism quadratic numerator became cheap enough to revisit without denominator deletion"
+        );
+    }
+
+    #[test]
+    fn secp_endomorphism_constants_are_not_sparse_multiplier_escape() {
+        // A remaining secp-only hope is that the automorphism constants make an
+        // orbit-scaled denominator/numerator route unusually cheap.  Measure
+        // the existing exact-adds/fast-shifts constant multiplier on the actual
+        // secp constants: beta, beta^2, Gx, and Gy.  If beta were dramatically
+        // cheaper than a generic generator coordinate, beta-scaled coordinates
+        // might deserve a production integration pass despite the branch-stream
+        // blocker above.
+        let curve = secp_curve_for_strategy_e_share_test();
+        let p = SECP256K1_P;
+        let beta = U256::from_str_radix(
+            "7AE96A2B657C07106E64479EAC3434E99CF0497512F58995C1396C28719501EE",
+            16,
+        )
+        .expect("valid secp256k1 beta");
+        let beta2 = beta.mul_mod(beta, p);
+        assert_eq!(beta.mul_mod(beta2, p), U256::from(1u64));
+
+        fn popcount_u256(x: U256) -> usize {
+            (0..256).filter(|&i| super::super::bit(x, i)).count()
+        }
+
+        fn const_mul_ccx(c: U256, p: U256) -> (usize, usize) {
+            let mut b = super::super::B::new();
+            let x = b.alloc_qubits(256);
+            let acc = b.alloc_qubits(256);
+            let start = b.ops.len();
+            super::super::mul_by_const_acc_exact_adds_fast_shifts(&mut b, &x, c, &acc, p, false);
+            (count_ccx(&b.ops[start..]), b.peak_qubits as usize)
+        }
+
+        let beta_pop = popcount_u256(beta);
+        let beta2_pop = popcount_u256(beta2);
+        let gx_pop = popcount_u256(curve.gx);
+        let gy_pop = popcount_u256(curve.gy);
+        let (beta_ccx, beta_peak) = const_mul_ccx(beta, p);
+        let (beta2_ccx, beta2_peak) = const_mul_ccx(beta2, p);
+        let (gx_ccx, gx_peak) = const_mul_ccx(curve.gx, p);
+        let (gy_ccx, gy_peak) = const_mul_ccx(curve.gy, p);
+        let best_generator_ccx = gx_ccx.min(gy_ccx);
+        let beta_saving = best_generator_ccx as isize - beta_ccx as isize;
+        println!("METRIC secp_constmul_beta_popcount={beta_pop}");
+        println!("METRIC secp_constmul_beta2_popcount={beta2_pop}");
+        println!("METRIC secp_constmul_gx_popcount={gx_pop}");
+        println!("METRIC secp_constmul_gy_popcount={gy_pop}");
+        println!("METRIC secp_constmul_beta_ccx={beta_ccx}");
+        println!("METRIC secp_constmul_beta2_ccx={beta2_ccx}");
+        println!("METRIC secp_constmul_gx_ccx={gx_ccx}");
+        println!("METRIC secp_constmul_gy_ccx={gy_ccx}");
+        println!("METRIC secp_constmul_beta_peak_qubits={beta_peak}");
+        println!("METRIC secp_constmul_beta2_peak_qubits={beta2_peak}");
+        println!("METRIC secp_constmul_gx_peak_qubits={gx_peak}");
+        println!("METRIC secp_constmul_gy_peak_qubits={gy_peak}");
+        println!("METRIC secp_constmul_beta_saving_vs_best_generator_ccx={beta_saving}");
+        eprintln!(
+            "secp endomorphism constants constmul: beta pop={beta_pop} ccx={beta_ccx} peak={beta_peak}q; beta2 pop={beta2_pop} ccx={beta2_ccx} peak={beta2_peak}q; Gx pop={gx_pop} ccx={gx_ccx} peak={gx_peak}q; Gy pop={gy_pop} ccx={gy_ccx} peak={gy_peak}q; beta_saving_vs_best_generator={beta_saving}"
+        );
+        assert!(
+            beta_ccx > 350_000 && beta_saving < 10_000,
+            "secp beta constant multiplication became cheap enough to revisit endomorphism orbit scaling"
+        );
     }
 
     #[test]
@@ -5746,7 +6646,99 @@ mod tests {
         println!("METRIC partial_mask_qoffset_interpolated_add_ccx={interpolated_add_ccx}");
         println!("METRIC partial_mask_qoffset_projected_point_add={projected}");
         assert!(mask_budget < 100);
-        assert!(projected > 2_700_000, "linear partial-mask model would already hit low-qubit SOTA");
+        assert!(
+            projected > 2_700_000,
+            "linear partial-mask model would already hit low-qubit SOTA"
+        );
+    }
+
+    #[test]
+    fn partial_mask_controlled_qoffset_measured_sweep_funds_one_div_but_not_pointadd() {
+        // Measure the actual partial-mask primitive instead of relying on the
+        // linear interpolation above.  The raw-pattern BY route can afford
+        // about 90 extra clean mask bits; surprisingly, the measured prefix-90
+        // primitive is much better than the linear model and funds one
+        // lowword-selector replay.  This is still only a one-denominator local
+        // result: affine point-add needs two exact denominator paths unless a
+        // separate algebraic deletion/cleanup is proven.
+        const N: usize = 256;
+        const CLEAN_MASK_BUDGET: usize = 90;
+        const REQUIRED_ADD_CCX: usize = 2_639;
+        const NON_ADD_STEP_OVERHEAD: usize = 256 + 255 + 255;
+        const SCAFFOLD_AFTER_DIV: usize = 642_716;
+        const BRANCH_DECODE_MARGIN: usize = 150_000;
+        const GOOGLE_LOW_QUBIT_TOFFOLI: usize = 2_700_000;
+        const RECORDED_TWO_DENOMINATOR_LEDGER: usize = 4_068_262;
+
+        let mut best_affordable = None::<(usize, usize, usize)>;
+        let mut best_any = None::<(usize, usize, usize)>;
+        for prefix in [0usize, 8, 16, 32, 48, 64, 80, 90, 96, 128, 192, 256] {
+            let mut b = super::super::B::new();
+            let ctrl = b.alloc_qubit();
+            let target = b.alloc_qubits(N);
+            let offset = b.alloc_qubits(N);
+            let dirty = b.alloc_qubits(N - 2);
+            let clean2 = [b.alloc_qubit(), b.alloc_qubit()];
+            let stream_mask = b.alloc_qubit();
+            let prefix_masks = b.alloc_qubits(prefix);
+            super::super::venting::ciadd_dirty_3clean_qoffset_partial_mask(
+                &mut b,
+                &target,
+                &dirty,
+                &clean2,
+                stream_mask,
+                &prefix_masks,
+                &offset,
+                ctrl,
+            );
+            let ccx = count_ccx(&b.ops);
+            let peak = b.peak_qubits as usize;
+            let projected =
+                SCAFFOLD_AFTER_DIV + BRANCH_DECODE_MARGIN + (ccx + NON_ADD_STEP_OVERHEAD) * 560;
+            eprintln!(
+                "partial-mask qoffset measured prefix={prefix}: ccx={ccx}, peak={peak}, projected={projected}"
+            );
+            println!("METRIC partial_mask_qoffset_prefix{prefix}_ccx={ccx}");
+            println!("METRIC partial_mask_qoffset_prefix{prefix}_peak={peak}");
+            println!("METRIC partial_mask_qoffset_prefix{prefix}_projected={projected}");
+            if prefix <= CLEAN_MASK_BUDGET {
+                if best_affordable
+                    .map(|(_, old_ccx, _)| ccx < old_ccx)
+                    .unwrap_or(true)
+                {
+                    best_affordable = Some((prefix, ccx, projected));
+                }
+            }
+            if best_any
+                .map(|(_, old_ccx, _)| ccx < old_ccx)
+                .unwrap_or(true)
+            {
+                best_any = Some((prefix, ccx, projected));
+            }
+        }
+
+        let (best_prefix, best_ccx, best_projected) =
+            best_affordable.expect("missing affordable partial-mask row");
+        let (best_any_prefix, best_any_ccx, best_any_projected) =
+            best_any.expect("missing partial-mask rows");
+        println!("METRIC partial_mask_qoffset_best_affordable_prefix={best_prefix}");
+        println!("METRIC partial_mask_qoffset_best_affordable_ccx={best_ccx}");
+        println!("METRIC partial_mask_qoffset_best_affordable_projected={best_projected}");
+        println!("METRIC partial_mask_qoffset_best_any_prefix={best_any_prefix}");
+        println!("METRIC partial_mask_qoffset_best_any_ccx={best_any_ccx}");
+        println!("METRIC partial_mask_qoffset_best_any_projected={best_any_projected}");
+        assert!(
+            best_ccx < REQUIRED_ADD_CCX,
+            "affordable partial-mask qoffset add no longer funds even the one-DIV replay"
+        );
+        assert!(
+            best_projected < GOOGLE_LOW_QUBIT_TOFFOLI,
+            "affordable partial-mask qoffset one-DIV projection no longer beats the low-qubit target"
+        );
+        assert!(
+            RECORDED_TWO_DENOMINATOR_LEDGER > GOOGLE_LOW_QUBIT_TOFFOLI,
+            "two-denominator point-add ledger now fits; promote the partial-mask BY route"
+        );
     }
 
     #[test]
@@ -5758,7 +6750,9 @@ mod tests {
         let dirty = b.alloc_qubits(254);
         let clean2 = [b.alloc_qubit(), b.alloc_qubit()];
         let clean3 = b.alloc_qubit();
-        super::super::venting::ciadd_dirty_3clean_qoffset(&mut b, &target, &dirty, &clean2, clean3, &offset, ctrl);
+        super::super::venting::ciadd_dirty_3clean_qoffset(
+            &mut b, &target, &dirty, &clean2, clean3, &offset, ctrl,
+        );
         let ccx = count_ccx(&b.ops);
         let peak = b.peak_qubits as usize;
         let scaled_microstep_with_this_add = ccx + 256 + 255 + 255;
@@ -5767,9 +6761,19 @@ mod tests {
             "naive controlled dirty qoffset add: ccx={ccx}, peak={peak}q, dirty={}q, clean=3q, scaled_step≈{scaled_microstep_with_this_add}, div560≈{div560:.0}",
             dirty.len()
         );
-        assert_eq!(peak, 1 + target.len() + offset.len() + dirty.len() + 3, "unexpected hidden clean workspace");
-        assert!(ccx > 3_000, "naive controlled dirty qoffset unexpectedly cheap; revisit BY cmod_add rewrite");
-        assert!(div560 > 2_000_000.0, "naive controlled dirty qoffset would be SOTA-shaped after all");
+        assert_eq!(
+            peak,
+            1 + target.len() + offset.len() + dirty.len() + 3,
+            "unexpected hidden clean workspace"
+        );
+        assert!(
+            ccx > 3_000,
+            "naive controlled dirty qoffset unexpectedly cheap; revisit BY cmod_add rewrite"
+        );
+        assert!(
+            div560 > 2_000_000.0,
+            "naive controlled dirty qoffset would be SOTA-shaped after all"
+        );
     }
 
     #[test]
@@ -5784,15 +6788,24 @@ mod tests {
         let offset = b.alloc_qubits(256);
         let dirty = b.alloc_qubits(254);
         let clean2 = [b.alloc_qubit(), b.alloc_qubit()];
-        super::super::venting::iadd_dirty_2clean_qoffset(&mut b, &target, &dirty, &clean2, &offset, false);
+        super::super::venting::iadd_dirty_2clean_qoffset(
+            &mut b, &target, &dirty, &clean2, &offset, false,
+        );
         let ccx = count_ccx(&b.ops);
         let peak = b.peak_qubits as usize;
         eprintln!(
             "dirty quantum-offset add substrate: ccx={ccx}, peak={peak}q, dirty={}q, clean=2q",
             dirty.len()
         );
-        assert!(ccx < 1_000, "dirty qoffset add too expensive for cmod_add rewrite substrate");
-        assert_eq!(peak, target.len() + offset.len() + dirty.len() + 2, "unexpected hidden clean workspace");
+        assert!(
+            ccx < 1_000,
+            "dirty qoffset add too expensive for cmod_add rewrite substrate"
+        );
+        assert_eq!(
+            peak,
+            target.len() + offset.len() + dirty.len() + 2,
+            "unexpected hidden clean workspace"
+        );
     }
 
     #[test]
@@ -5813,8 +6826,14 @@ mod tests {
         eprintln!(
             "BY compressed-pattern scratch model: current_scratch≈{current_scratch}, target_no_clean_temp≈{target_scratch}, local_workspace_now={current_local_workspace}"
         );
-        assert!(current_scratch > 1_000, "current clean-temp implementation already fits 600 scratch; update model");
-        assert!(target_scratch <= 620, "no-clean-temp target no longer near 600 scratch");
+        assert!(
+            current_scratch > 1_000,
+            "current clean-temp implementation already fits 600 scratch; update model"
+        );
+        assert!(
+            target_scratch <= 620,
+            "no-clean-temp target no longer near 600 scratch"
+        );
     }
 
     #[test]
@@ -5828,48 +6847,55 @@ mod tests {
         let current_total = 4_111_918.0;
         let non_inv_scaffold = 942_750.0;
         let deleted_pair1_muls = 149_889.0 + 150_145.0;
-        let two_replay_scaffold = non_inv_scaffold
-            - deleted_pair1_muls
-            - 407.0 * 255.0
-            - 404.0 * 255.0
-            - 150_145.0;
+        let two_replay_scaffold =
+            non_inv_scaffold - deleted_pair1_muls - 407.0 * 255.0 - 404.0 * 255.0 - 150_145.0;
         let fast_raw_replay = 1_145_760.0;
         let decoded_forward_replay = 1_207_920.0;
         let clean_decoded_replay = 1_270_080.0;
         let clean_two_replay_total = two_replay_scaffold + 2.0 * clean_decoded_replay;
         let forward_only_two_replay_total = two_replay_scaffold + 2.0 * decoded_forward_replay;
         let fixed_control_replay = 800_900.0; // measured fixed branch-numerator lower target.
-        let fixed_control_two_replay_with_300k_branch = two_replay_scaffold + 2.0 * fixed_control_replay + 300_000.0;
+        let fixed_control_two_replay_with_300k_branch =
+            two_replay_scaffold + 2.0 * fixed_control_replay + 300_000.0;
         eprintln!(
             "clean BY two-replay budget: scaffold≈{two_replay_scaffold:.0}, forward_only≈{forward_only_two_replay_total:.0}, clean≈{clean_two_replay_total:.0}, fixed_control_plus300k_branch≈{fixed_control_two_replay_with_300k_branch:.0}"
         );
-        assert!(forward_only_two_replay_total > 2_690_000.0, "current forward-only decoded replay has large hidden margin; update model");
+        assert!(
+            forward_only_two_replay_total > 2_690_000.0,
+            "current forward-only decoded replay has large hidden margin; update model"
+        );
         assert!(clean_two_replay_total > 2_700_000.0, "current clean decoded replay already beats 2.7M; denominator generation is the only blocker");
-        assert!(fixed_control_two_replay_with_300k_branch < 2_200_000.0, "fixed-control replay target no longer has low-gate margin");
+        assert!(
+            fixed_control_two_replay_with_300k_branch < 2_200_000.0,
+            "fixed-control replay target no longer has low-gate margin"
+        );
     }
 
     #[test]
     fn centered_signed_replay_budget_hits_google_if_parity_and_denominator_are_folded() {
         let non_inv_scaffold = 942_750.0;
         let deleted_pair1_muls = 149_889.0 + 150_145.0;
-        let two_replay_scaffold = non_inv_scaffold
-            - deleted_pair1_muls
-            - 407.0 * 255.0
-            - 404.0 * 255.0
-            - 150_145.0;
+        let two_replay_scaffold =
+            non_inv_scaffold - deleted_pair1_muls - 407.0 * 255.0 - 404.0 * 255.0 - 150_145.0;
         let centered_replay = 873_600.0;
         let tapered_den_compute_per_denominator = 303_828.0;
         let naive_parity_cleanup_per_replay = 725_760.0;
-        let folded_parity_selected_denominator = two_replay_scaffold
-            + 2.0 * centered_replay
-            + 2.0 * tapered_den_compute_per_denominator;
-        let naive_parity_total = folded_parity_selected_denominator + 2.0 * naive_parity_cleanup_per_replay;
+        let folded_parity_selected_denominator =
+            two_replay_scaffold + 2.0 * centered_replay + 2.0 * tapered_den_compute_per_denominator;
+        let naive_parity_total =
+            folded_parity_selected_denominator + 2.0 * naive_parity_cleanup_per_replay;
         eprintln!(
             "centered signed BY budget: scaffold≈{two_replay_scaffold:.0}, two_replay≈{:.0}, +selected_den≈{folded_parity_selected_denominator:.0}, naive_parity≈{naive_parity_total:.0}",
             2.0 * centered_replay
         );
-        assert!(folded_parity_selected_denominator < 2_700_000.0, "centered replay no longer has low-qubit SOTA margin with selected denominator");
-        assert!(naive_parity_total > 3_500_000.0, "naive parity cleanup unexpectedly acceptable");
+        assert!(
+            folded_parity_selected_denominator < 2_700_000.0,
+            "centered replay no longer has low-qubit SOTA margin with selected denominator"
+        );
+        assert!(
+            naive_parity_total > 3_500_000.0,
+            "naive parity cleanup unexpectedly acceptable"
+        );
     }
 
     #[test]
@@ -5889,7 +6915,8 @@ mod tests {
         let low_scratch_vented_by_div = 3_318.0 * 560.0; // measured with KAL_VENT_MODADD=1.
         let branch_decode_margin = 150_000.0;
         let fast_projected = scaffold_after_div + fast_by_div + branch_decode_margin;
-        let low_scratch_projected = scaffold_after_div + low_scratch_vented_by_div + branch_decode_margin;
+        let low_scratch_projected =
+            scaffold_after_div + low_scratch_vented_by_div + branch_decode_margin;
         let two_replay_scaffold = current_total
             - current_two_kaliski
             - deleted_pair1_muls
@@ -5901,9 +6928,18 @@ mod tests {
         eprintln!(
             "BY DIV with pair1 mul deletion: scaffold_after_div≈{scaffold_after_div:.0}, fast_projected≈{fast_projected:.0}, low_scratch_vented_projected≈{low_scratch_projected:.0}, two_fast_replays≈{two_fast_replays:.0}"
         );
-        assert!(fast_projected < 2_100_000.0, "fast BY DIV no longer reaches low-gate target band");
-        assert!(low_scratch_projected < 2_700_000.0, "low-scratch vented BY DIV no longer beats 2.7M");
-        assert!(two_fast_replays < 2_700_000.0, "two fast BY replays no longer beat 2.7M");
+        assert!(
+            fast_projected < 2_100_000.0,
+            "fast BY DIV no longer reaches low-gate target band"
+        );
+        assert!(
+            low_scratch_projected < 2_700_000.0,
+            "low-scratch vented BY DIV no longer beats 2.7M"
+        );
+        assert!(
+            two_fast_replays < 2_700_000.0,
+            "two fast BY replays no longer beat 2.7M"
+        );
     }
 
     #[test]
@@ -5938,8 +6974,14 @@ mod tests {
         eprintln!(
             "naive BY 2-adic branch generator: step≈{branch_gen_step:.0}, one_compute_uncompute≈{one_generator_compute_uncompute:.0}, two_generators≈{two_generators:.0}, projected≈{projected_with_naive_generators:.0}"
         );
-        assert!(one_generator_compute_uncompute > 2_000_000.0, "naive generator unexpectedly cheap; revisit integration");
-        assert!(projected_with_naive_generators > current_total, "naive branch generation would already be a saving; model is stale");
+        assert!(
+            one_generator_compute_uncompute > 2_000_000.0,
+            "naive generator unexpectedly cheap; revisit integration"
+        );
+        assert!(
+            projected_with_naive_generators > current_total,
+            "naive branch generation would already be a saving; model is stale"
+        );
     }
 
     #[test]
@@ -5958,8 +7000,14 @@ mod tests {
         eprintln!(
             "scaled-BY DIV point-add budget: scaffold≈{non_inv_scaffold:.0}, div≈{scaled_by_div:.0}, margin≈{branch_decode_margin:.0}, projected≈{projected:.0}"
         );
-        assert!(projected < 2_700_000.0, "scaled BY DIV would not beat Google low-qubit Toffoli target");
-        assert!(projected < current_total - 1_500_000.0, "scaled BY DIV lacks inversion-sized saving");
+        assert!(
+            projected < 2_700_000.0,
+            "scaled BY DIV would not beat Google low-qubit Toffoli target"
+        );
+        assert!(
+            projected < current_total - 1_500_000.0,
+            "scaled BY DIV lacks inversion-sized saving"
+        );
     }
 
     #[test]
@@ -6020,9 +7068,18 @@ mod tests {
         eprintln!(
             "BY branch-pattern entropy: H≈{entropy_sum:.1} bits, p99≈{p99:.1}, p999≈{p999:.1}, fail>520≈{fail_520:.4}, fixed_distinct_bits={fixed_bits}"
         );
-        assert!(entropy_sum < 500.0, "branch-pattern entropy too high for compressed history");
-        assert!(p99 < 510.0, "branch-pattern p99 too high for 600-scratch target");
-        assert!(fixed_bits < 560, "fixed per-window pattern IDs do not compress raw history");
+        assert!(
+            entropy_sum < 500.0,
+            "branch-pattern entropy too high for compressed history"
+        );
+        assert!(
+            p99 < 510.0,
+            "branch-pattern p99 too high for 600-scratch target"
+        );
+        assert!(
+            fixed_bits < 560,
+            "fixed per-window pattern IDs do not compress raw history"
+        );
     }
 
     #[test]
@@ -6039,10 +7096,8 @@ mod tests {
         const W: usize = 16;
         const WINDOWS: usize = 35;
         let samples = 10_000usize;
-        let mut sampler =
-            Sampler::new(b"by-branch-pattern-fixed-id-decoder-v1", SECP256K1_P);
-        let mut counts: Vec<HashMap<u16, usize>> =
-            (0..WINDOWS).map(|_| HashMap::new()).collect();
+        let mut sampler = Sampler::new(b"by-branch-pattern-fixed-id-decoder-v1", SECP256K1_P);
+        let mut counts: Vec<HashMap<u16, usize>> = (0..WINDOWS).map(|_| HashMap::new()).collect();
         for _ in 0..samples {
             let x = sampler.next();
             let mut delta = 1i64;
@@ -6074,11 +7129,10 @@ mod tests {
         let two_fast_replay_with_pattern_decode = 2_637_286usize;
         let remaining_to_2700k = 2_700_000usize - two_fast_replay_with_pattern_decode;
         let row_floor_gap =
-            two_fast_replay_with_pattern_decode as isize + distinct_rows as isize
-                - 2_700_000isize;
-        let bit_floor_gap =
-            two_fast_replay_with_pattern_decode as isize + nonzero_pattern_bits as isize
-                - 2_700_000isize;
+            two_fast_replay_with_pattern_decode as isize + distinct_rows as isize - 2_700_000isize;
+        let bit_floor_gap = two_fast_replay_with_pattern_decode as isize
+            + nonzero_pattern_bits as isize
+            - 2_700_000isize;
         println!("METRIC by_branch_pattern_fixed_id_samples={samples}");
         println!("METRIC by_branch_pattern_fixed_id_bits={fixed_id_bits}");
         println!("METRIC by_branch_pattern_fixed_id_distinct_rows={distinct_rows}");
@@ -6280,24 +7334,23 @@ mod tests {
                 usize::BITS as usize - (v - 1).leading_zeros() as usize
             }
         };
-        let seq_rank_bits =
-            |seqs: &[Vec<(usize, u16, i64)>],
-             groups: &BTreeMap<(usize, u16, i64), BTreeSet<u16>>|
-             -> (usize, usize, usize) {
-                let mut rows = Vec::with_capacity(seqs.len());
-                for seq in seqs {
-                    let mut bits = 0usize;
-                    for key in seq {
-                        bits += ceil_log2(groups.get(key).expect("post-delta key").len());
-                    }
-                    rows.push(bits);
+        let seq_rank_bits = |seqs: &[Vec<(usize, u16, i64)>],
+                             groups: &BTreeMap<(usize, u16, i64), BTreeSet<u16>>|
+         -> (usize, usize, usize) {
+            let mut rows = Vec::with_capacity(seqs.len());
+            for seq in seqs {
+                let mut bits = 0usize;
+                for key in seq {
+                    bits += ceil_log2(groups.get(key).expect("post-delta key").len());
                 }
-                rows.sort_unstable();
-                let p99 = rows[rows.len() * 99 / 100];
-                let max = *rows.last().unwrap();
-                let mean_milli = rows.iter().sum::<usize>() * 1_000 / rows.len().max(1);
-                (p99, max, mean_milli)
-            };
+                rows.push(bits);
+            }
+            rows.sort_unstable();
+            let p99 = rows[rows.len() * 99 / 100];
+            let max = *rows.last().unwrap();
+            let mean_milli = rows.iter().sum::<usize>() * 1_000 / rows.len().max(1);
+            (p99, max, mean_milli)
+        };
 
         const W: usize = 16;
         const WINDOWS: usize = 35;
@@ -6334,7 +7387,10 @@ mod tests {
         let sample_max_choices = sample_groups.values().map(BTreeSet::len).max().unwrap_or(0);
         let (sample_rank_p99, sample_rank_max, sample_rank_mean_milli) =
             seq_rank_bits(&sample_seqs, &sample_groups);
-        println!("METRIC by_raw_pattern_postdelta_sample_keys={}", sample_groups.len());
+        println!(
+            "METRIC by_raw_pattern_postdelta_sample_keys={}",
+            sample_groups.len()
+        );
         println!("METRIC by_raw_pattern_postdelta_sample_ambiguous_keys={sample_ambiguous}");
         println!("METRIC by_raw_pattern_postdelta_sample_max_a_choices={sample_max_choices}");
         println!("METRIC by_raw_pattern_postdelta_sample_rank_p99={sample_rank_p99}");
@@ -6385,7 +7441,10 @@ mod tests {
             let ambiguous = groups.values().filter(|v| v.len() > 1).count();
             let max_choices = groups.values().map(BTreeSet::len).max().unwrap_or(0);
             let (rank_p99, rank_max, rank_mean_milli) = seq_rank_bits(&seqs, &groups);
-            println!("METRIC by_raw_pattern_postdelta_toy_n{n}_keys={}", groups.len());
+            println!(
+                "METRIC by_raw_pattern_postdelta_toy_n{n}_keys={}",
+                groups.len()
+            );
             println!("METRIC by_raw_pattern_postdelta_toy_n{n}_ambiguous_keys={ambiguous}");
             println!("METRIC by_raw_pattern_postdelta_toy_n{n}_max_a_choices={max_choices}");
             println!("METRIC by_raw_pattern_postdelta_toy_n{n}_rank_p99={rank_p99}");
@@ -6399,8 +7458,12 @@ mod tests {
             largest_toy_max_choices = largest_toy_max_choices.max(max_choices);
             largest_toy_rank_p99 = largest_toy_rank_p99.max(rank_p99);
         }
-        println!("METRIC by_raw_pattern_postdelta_toy_largest_ambiguous_keys={largest_toy_ambiguous}");
-        println!("METRIC by_raw_pattern_postdelta_toy_largest_max_a_choices={largest_toy_max_choices}");
+        println!(
+            "METRIC by_raw_pattern_postdelta_toy_largest_ambiguous_keys={largest_toy_ambiguous}"
+        );
+        println!(
+            "METRIC by_raw_pattern_postdelta_toy_largest_max_a_choices={largest_toy_max_choices}"
+        );
         println!("METRIC by_raw_pattern_postdelta_toy_largest_rank_p99={largest_toy_rank_p99}");
 
         assert!(
@@ -6453,8 +7516,7 @@ mod tests {
         let samples = 10_000usize;
         let mut sampler = Sampler::new(b"by-raw-pattern-neighbor-a-v1", SECP256K1_P);
         let mut next_rows = BTreeMap::<(usize, u16, u16, u16, i64), BTreeSet<u16>>::new();
-        let mut two_sided_rows =
-            BTreeMap::<(usize, u16, u16, u16, i64), BTreeSet<u16>>::new();
+        let mut two_sided_rows = BTreeMap::<(usize, u16, u16, u16, i64), BTreeSet<u16>>::new();
         for _ in 0..samples {
             let x = sampler.next();
             let mut delta = 1i64;
@@ -6481,7 +7543,11 @@ mod tests {
                 delta_outs.push(delta);
             }
             for idx in 0..WINDOWS {
-                let prev = if idx == 0 { NO_PATTERN } else { patterns[idx - 1] };
+                let prev = if idx == 0 {
+                    NO_PATTERN
+                } else {
+                    patterns[idx - 1]
+                };
                 let next = if idx + 1 == WINDOWS {
                     NO_PATTERN
                 } else {
@@ -6497,8 +7563,7 @@ mod tests {
                     .insert(a_masks[idx]);
             }
         }
-        let (sample_next_keys, sample_next_ambiguous, sample_next_max_choices) =
-            stats(&next_rows);
+        let (sample_next_keys, sample_next_ambiguous, sample_next_max_choices) = stats(&next_rows);
         let (sample_twosided_keys, sample_twosided_ambiguous, sample_twosided_max_choices) =
             stats(&two_sided_rows);
         println!("METRIC by_raw_pattern_neighbor_sample_next_keys={sample_next_keys}");
@@ -6531,8 +7596,7 @@ mod tests {
         for &(n, p, w) in &cases {
             let windows = (2 * n).div_ceil(w);
             let mut next_rows = BTreeMap::<(usize, u16, u16, u16, i64), BTreeSet<u16>>::new();
-            let mut two_sided_rows =
-                BTreeMap::<(usize, u16, u16, u16, i64), BTreeSet<u16>>::new();
+            let mut two_sided_rows = BTreeMap::<(usize, u16, u16, u16, i64), BTreeSet<u16>>::new();
             for x in 1..p {
                 let mut delta = 1i64;
                 let mut f = SInt::from_u(U256::from(p as u64));
@@ -6558,7 +7622,11 @@ mod tests {
                     delta_outs.push(delta);
                 }
                 for idx in 0..windows {
-                    let prev = if idx == 0 { NO_PATTERN } else { patterns[idx - 1] };
+                    let prev = if idx == 0 {
+                        NO_PATTERN
+                    } else {
+                        patterns[idx - 1]
+                    };
                     let next = if idx + 1 == windows {
                         NO_PATTERN
                     } else {
@@ -6575,8 +7643,7 @@ mod tests {
                 }
             }
             let (next_keys, next_ambiguous, next_max_choices) = stats(&next_rows);
-            let (twosided_keys, twosided_ambiguous, twosided_max_choices) =
-                stats(&two_sided_rows);
+            let (twosided_keys, twosided_ambiguous, twosided_max_choices) = stats(&two_sided_rows);
             println!("METRIC by_raw_pattern_neighbor_toy_n{n}_next_keys={next_keys}");
             println!(
                 "METRIC by_raw_pattern_neighbor_toy_n{n}_next_ambiguous_keys={next_ambiguous}"
@@ -6595,8 +7662,7 @@ mod tests {
                 "BY raw-pattern neighbor A cleanup toy: n={n}, w={w}, next ambiguous={next_ambiguous}/{next_keys}, max={next_max_choices}; two-sided ambiguous={twosided_ambiguous}/{twosided_keys}, max={twosided_max_choices}"
             );
             largest_toy_next_ambiguous = largest_toy_next_ambiguous.max(next_ambiguous);
-            largest_toy_twosided_ambiguous =
-                largest_toy_twosided_ambiguous.max(twosided_ambiguous);
+            largest_toy_twosided_ambiguous = largest_toy_twosided_ambiguous.max(twosided_ambiguous);
             largest_toy_twosided_max_choices =
                 largest_toy_twosided_max_choices.max(twosided_max_choices);
         }
@@ -6633,6 +7699,87 @@ mod tests {
     }
 
     #[test]
+    fn secp_twosided_pattern_context_large_sample_collides() {
+        // Secp256k1-specific stress for the raw-pattern parser signal that
+        // looked better on real trajectories than on exact toy fields:
+        // (window index, previous pattern, current pattern, next pattern,
+        // post-window delta) recovered the A mask on 10k sampled denominators.
+        // A larger sample collides, so this is a negative guardrail: the route
+        // still needs rank/checkpoint state and is not a free selector.
+        use std::collections::HashMap;
+
+        const W: usize = 16;
+        const WINDOWS: usize = 35;
+        const NO_PATTERN: u16 = u16::MAX;
+        const SAMPLES: usize = 200_000;
+
+        let mut rows = HashMap::<(usize, u16, u16, u16, i64), u16>::new();
+        let mut collisions = 0usize;
+        let mut sampler = Sampler::new(b"by-raw-pattern-neighbor-large-v1", SECP256K1_P);
+        for _ in 0..SAMPLES {
+            let x = sampler.next();
+            let mut delta = 1i64;
+            let mut f = SInt::from_u(SECP256K1_P);
+            let mut g = SInt::from_u(x);
+            let mut patterns = [0u16; WINDOWS];
+            let mut a_masks = [0u16; WINDOWS];
+            let mut delta_outs = [0i64; WINDOWS];
+            for idx in 0..WINDOWS {
+                let mut pattern = 0u16;
+                let mut a_mask = 0u16;
+                for bit in 0..W {
+                    let odd = g.bit0();
+                    if odd {
+                        pattern |= 1u16 << bit;
+                    }
+                    if odd && delta > 0 {
+                        a_mask |= 1u16 << bit;
+                    }
+                    divstep_sint_state(&mut delta, &mut f, &mut g);
+                }
+                patterns[idx] = pattern;
+                a_masks[idx] = a_mask;
+                delta_outs[idx] = delta;
+            }
+            for idx in 0..WINDOWS {
+                let prev = if idx == 0 {
+                    NO_PATTERN
+                } else {
+                    patterns[idx - 1]
+                };
+                let next = if idx + 1 == WINDOWS {
+                    NO_PATTERN
+                } else {
+                    patterns[idx + 1]
+                };
+                let key = (idx, prev, patterns[idx], next, delta_outs[idx]);
+                match rows.insert(key, a_masks[idx]) {
+                    Some(old) if old != a_masks[idx] => {
+                        collisions += 1;
+                        rows.insert(key, old);
+                    }
+                    Some(old) => {
+                        rows.insert(key, old);
+                    }
+                    None => {}
+                }
+            }
+        }
+
+        println!("METRIC by_twosided_pattern_large_samples={SAMPLES}");
+        println!("METRIC by_twosided_pattern_large_keys={}", rows.len());
+        println!("METRIC by_twosided_pattern_large_collisions={collisions}");
+        eprintln!(
+            "BY twosided pattern-context large sample: samples={SAMPLES}, keys={}, collisions={collisions}",
+            rows.len()
+        );
+        assert!(
+            collisions > 0,
+            "two-sided pattern context stayed injective on larger secp sample; revisit parser route"
+        );
+    }
+
+    #[test]
     fn actual_matrix_sequence_entropy_supports_sub600_history_target() {
         // Storing raw 22-bit (delta,h) keys costs 770 bits for 35 windows, but
         // actual secp256k1 trajectories are highly non-uniform, especially near
@@ -6645,7 +7792,8 @@ mod tests {
         let samples = 10_000usize;
         let mut sampler = Sampler::new(b"by-matrix-sequence-entropy-v1", SECP256K1_P);
         let mut seqs: Vec<Vec<TransitionMatrix>> = Vec::with_capacity(samples);
-        let mut counts: Vec<HashMap<TransitionMatrix, usize>> = (0..WINDOWS).map(|_| HashMap::new()).collect();
+        let mut counts: Vec<HashMap<TransitionMatrix, usize>> =
+            (0..WINDOWS).map(|_| HashMap::new()).collect();
         for _ in 0..samples {
             let x = sampler.next();
             let mut delta = 1i64;
@@ -6688,9 +7836,15 @@ mod tests {
         eprintln!(
             "BY matrix-sequence entropy: H≈{entropy_sum:.1} bits, p99_len≈{p99:.1}, p999_len≈{p999:.1}, fail>550≈{fail_550:.4}"
         );
-        assert!(entropy_sum < 520.0, "matrix history entropy too high for sub600 target");
+        assert!(
+            entropy_sum < 520.0,
+            "matrix history entropy too high for sub600 target"
+        );
         assert!(p99 < 540.0, "p99 matrix history code length too high");
-        assert!(fail_550 < 0.01, "550-bit matrix history would exceed 1% failure tolerance");
+        assert!(
+            fail_550 < 0.01,
+            "550-bit matrix history would exceed 1% failure tolerance"
+        );
     }
 
     fn toy_by_matrix_sequence(n: usize, p: u16, x: u16, w: usize) -> Vec<TransitionMatrix> {
@@ -6711,7 +7865,11 @@ mod tests {
         seq
     }
 
-    fn by_matrix_sequence_rank_parity_anf_stats_for_test(n: usize, p: u16, w: usize) -> (usize, usize, usize, usize) {
+    fn by_matrix_sequence_rank_parity_anf_stats_for_test(
+        n: usize,
+        p: u16,
+        w: usize,
+    ) -> (usize, usize, usize, usize) {
         use std::collections::{BTreeMap, BTreeSet};
         let size = 1usize << n;
         let mut seqs = Vec::with_capacity(p as usize - 1);
@@ -6747,7 +7905,13 @@ mod tests {
         let degree = anf
             .iter()
             .enumerate()
-            .filter_map(|(i, &c)| if c != 0 { Some(i.count_ones() as usize) } else { None })
+            .filter_map(|(i, &c)| {
+                if c != 0 {
+                    Some(i.count_ones() as usize)
+                } else {
+                    None
+                }
+            })
             .max()
             .unwrap_or(0);
         (degree, density, distinct_count, rank_bits)
@@ -6783,8 +7947,14 @@ mod tests {
 
     fn mat2_mul_i128(a: [[i128; 2]; 2], b: [[i128; 2]; 2]) -> [[i128; 2]; 2] {
         [
-            [a[0][0] * b[0][0] + a[0][1] * b[1][0], a[0][0] * b[0][1] + a[0][1] * b[1][1]],
-            [a[1][0] * b[0][0] + a[1][1] * b[1][0], a[1][0] * b[0][1] + a[1][1] * b[1][1]],
+            [
+                a[0][0] * b[0][0] + a[0][1] * b[1][0],
+                a[0][0] * b[0][1] + a[0][1] * b[1][1],
+            ],
+            [
+                a[1][0] * b[0][0] + a[1][1] * b[1][0],
+                a[1][0] * b[0][1] + a[1][1] * b[1][1],
+            ],
         ]
     }
 
@@ -6824,7 +7994,9 @@ mod tests {
                         break;
                     }
                 }
-                let Some((i, j)) = pos else { return (u, m, v); };
+                let Some((i, j)) = pos else {
+                    return (u, m, v);
+                };
                 if i != 0 {
                     m.swap(0, i);
                     u.swap(0, i);
@@ -6934,12 +8106,17 @@ mod tests {
             let ui = mat2_inv_unimodular_for_test(u);
             let vi = mat2_inv_unimodular_for_test(v);
             max_uv = max_uv.max(mat2_max_abs_i128(u)).max(mat2_max_abs_i128(v));
-            max_uvi = max_uvi.max(mat2_max_abs_i128(ui)).max(mat2_max_abs_i128(vi));
+            max_uvi = max_uvi
+                .max(mat2_max_abs_i128(ui))
+                .max(mat2_max_abs_i128(vi));
         }
         eprintln!(
             "BY Smith factorization: diag_hist={diag_hist:?}, max_UV_entry={max_uv}, max_inverse_entry={max_uvi}"
         );
-        assert!(max_uvi > (1i128 << W), "naive SNF unexpectedly gave uniformly small factors");
+        assert!(
+            max_uvi > (1i128 << W),
+            "naive SNF unexpectedly gave uniformly small factors"
+        );
     }
 
     fn gcd_i128_for_test(mut a: i128, mut b: i128) -> i128 {
@@ -7031,8 +8208,15 @@ mod tests {
                     if h[0][1].abs() > (1i128 << 15) {
                         continue;
                     }
-                    let score = mat2_max_abs_i128(u).max(mat2_max_abs_i128(v)).max(h[0][1].abs());
-                    if best.as_ref().map_or(true, |(best_score, _, _, _): &(i128, _, _, _)| score < *best_score) {
+                    let score = mat2_max_abs_i128(u)
+                        .max(mat2_max_abs_i128(v))
+                        .max(h[0][1].abs());
+                    if best
+                        .as_ref()
+                        .map_or(true, |(best_score, _, _, _): &(i128, _, _, _)| {
+                            score < *best_score
+                        })
+                    {
                         best = Some((score, u, h, v));
                     }
                 }
@@ -7088,7 +8272,11 @@ mod tests {
             if a.abs() >= c.abs() {
                 let q = a / c;
                 assert_ne!(q, 0, "Euclid quotient unexpectedly zero for {m:?}");
-                let op = RowOp2ForTest::Add { dst: 0, src: 1, k: -q };
+                let op = RowOp2ForTest::Add {
+                    dst: 0,
+                    src: 1,
+                    k: -q,
+                };
                 apply_row_op_to_mat_for_test(&mut m, op);
                 ops.push(op);
             } else {
@@ -7098,7 +8286,10 @@ mod tests {
             }
         }
         assert_eq!(m[1][0], 0, "Euclid reduction failed: {m:?}");
-        assert!(m[0][0] == 1 || m[0][0] == -1, "bad pivot after reduction: {m:?}");
+        assert!(
+            m[0][0] == 1 || m[0][0] == -1,
+            "bad pivot after reduction: {m:?}"
+        );
         if m[0][0] == -1 {
             let op = RowOp2ForTest::Neg { row: 0 };
             apply_row_op_to_mat_for_test(&mut m, op);
@@ -7106,7 +8297,10 @@ mod tests {
         }
         assert_eq!(m[0][0], 1);
         let d = m[1][1];
-        assert!(d == 1 || d == -1, "bad lower diagonal after reduction: {m:?}");
+        assert!(
+            d == 1 || d == -1,
+            "bad lower diagonal after reduction: {m:?}"
+        );
         if m[0][1] != 0 {
             let k = -m[0][1] / d;
             let op = RowOp2ForTest::Add { dst: 0, src: 1, k };
@@ -7143,8 +8337,12 @@ mod tests {
         p: U256,
     ) {
         match op {
-            RowOp2ForTest::Add { dst: 0, src: 1, k } => emit_mod_shear_small_coeff_for_test(b, x0, x1, k, p),
-            RowOp2ForTest::Add { dst: 1, src: 0, k } => emit_mod_shear_small_coeff_for_test(b, x1, x0, k, p),
+            RowOp2ForTest::Add { dst: 0, src: 1, k } => {
+                emit_mod_shear_small_coeff_for_test(b, x0, x1, k, p)
+            }
+            RowOp2ForTest::Add { dst: 1, src: 0, k } => {
+                emit_mod_shear_small_coeff_for_test(b, x1, x0, k, p)
+            }
             RowOp2ForTest::Add { .. } => unreachable!("invalid 2-row op"),
             RowOp2ForTest::Swap => {
                 for i in 0..x0.len() {
@@ -7214,10 +8412,11 @@ mod tests {
         }
         p99_scores.sort_unstable();
         let p99 = p99_scores[p99_scores.len() * 99 / 100];
-        eprintln!(
-            "BY Hermite in-place factorization: p99_coeff={p99}, max_coeff={max_coeff}"
+        eprintln!("BY Hermite in-place factorization: p99_coeff={p99}, max_coeff={max_coeff}");
+        assert!(
+            max_coeff <= (1i128 << W),
+            "Hermite factors exceeded w-bit coefficient scale"
         );
-        assert!(max_coeff <= (1i128 << W), "Hermite factors exceeded w-bit coefficient scale");
     }
 
     fn inv_pow2_mod_p_for_test(w: usize, p: U256) -> U256 {
@@ -7257,7 +8456,10 @@ mod tests {
         const W: usize = 16;
         let p_mod = SECP256K1_P;
         let pmat = jump_matrix_direct_lowword(W, W, 1, 1, 3).3;
-        assert_eq!((pmat.m00, pmat.m01, pmat.m10, pmat.m11), (-8192, 24576, -3, 1));
+        assert_eq!(
+            (pmat.m00, pmat.m01, pmat.m10, pmat.m11),
+            (-8192, 24576, -3, 1)
+        );
         let p = [[pmat.m00, pmat.m01], [pmat.m10, pmat.m11]];
         let (u, h, v) = hermite_scaled_window_factor_for_test(p).expect("Hermite factor");
         assert_eq!(mat2_mul_i128(mat2_mul_i128(u, p), v), h);
@@ -7269,7 +8471,8 @@ mod tests {
         let mut b = super::super::B::new();
         let x0 = b.alloc_qubits(256);
         let x1 = b.alloc_qubits(256);
-        let (factor_ops, max_shear, _) = emit_fixed_hermite_inplace_window_for_test(&mut b, pmat, &x0, &x1, p_mod);
+        let (factor_ops, max_shear, _) =
+            emit_fixed_hermite_inplace_window_for_test(&mut b, pmat, &x0, &x1, p_mod);
         let ccx = count_ccx(&b.ops);
         let peak = b.peak_qubits;
         let num_qubits = b.next_qubit as usize;
@@ -7296,14 +8499,28 @@ mod tests {
             set_slice_u512_by(&mut sim, &x0, u256_to_u512_for_by_tests(a));
             set_slice_u512_by(&mut sim, &x1, u256_to_u512_for_by_tests(c));
             sim.apply(&ops);
-            assert_eq!(get_slice_u512_by(&sim, &x0), u256_to_u512_for_by_tests(exp0), "row0 mismatch");
-            assert_eq!(get_slice_u512_by(&sim, &x1), u256_to_u512_for_by_tests(exp1), "row1 mismatch");
+            assert_eq!(
+                get_slice_u512_by(&sim, &x0),
+                u256_to_u512_for_by_tests(exp0),
+                "row0 mismatch"
+            );
+            assert_eq!(
+                get_slice_u512_by(&sim, &x1),
+                u256_to_u512_for_by_tests(exp1),
+                "row1 mismatch"
+            );
         }
         eprintln!(
             "BY fixed Hermite in-place modular window: ccx={ccx}, peak={peak}q, e={e}, factor_ops={factor_ops}, max_shear={max_shear}"
         );
-        assert!(peak < 1_600, "in-place Hermite window lost scratch advantage");
-        assert!(ccx < 80_000, "fixed Hermite in-place sample window too costly");
+        assert!(
+            peak < 1_600,
+            "in-place Hermite window lost scratch advantage"
+        );
+        assert!(
+            ccx < 80_000,
+            "fixed Hermite in-place sample window too costly"
+        );
     }
 
     fn emit_fixed_branch_numerator_scaled_window_for_test(
@@ -7361,7 +8578,9 @@ mod tests {
         let mut b = super::super::B::new();
         let x0 = b.alloc_qubits(256);
         let x1 = b.alloc_qubits(256);
-        let cases = emit_fixed_branch_numerator_scaled_window_for_test(&mut b, delta, &bits, &x0, &x1, p_mod);
+        let cases = emit_fixed_branch_numerator_scaled_window_for_test(
+            &mut b, delta, &bits, &x0, &x1, p_mod,
+        );
         let ccx = count_ccx(&b.ops);
         let peak = b.peak_qubits;
         let num_qubits = b.next_qubit as usize;
@@ -7387,14 +8606,28 @@ mod tests {
             set_slice_u512_by(&mut sim, &x0, u256_to_u512_for_by_tests(a));
             set_slice_u512_by(&mut sim, &x1, u256_to_u512_for_by_tests(c));
             sim.apply(&ops);
-            assert_eq!(get_slice_u512_by(&sim, &x0), u256_to_u512_for_by_tests(exp0), "row0 mismatch");
-            assert_eq!(get_slice_u512_by(&sim, &x1), u256_to_u512_for_by_tests(exp1), "row1 mismatch");
+            assert_eq!(
+                get_slice_u512_by(&sim, &x0),
+                u256_to_u512_for_by_tests(exp0),
+                "row0 mismatch"
+            );
+            assert_eq!(
+                get_slice_u512_by(&sim, &x1),
+                u256_to_u512_for_by_tests(exp1),
+                "row1 mismatch"
+            );
         }
         eprintln!(
             "BY fixed branch-numerator scaled window: ccx={ccx}, peak={peak}q, cases={cases:?}, matrix={pmat:?}"
         );
-        assert!(peak < 1_200, "branch-numerator fixed window lost scratch advantage");
-        assert!(ccx < 35_000, "branch-numerator fixed window not cheaper than Hermite sample");
+        assert!(
+            peak < 1_200,
+            "branch-numerator fixed window lost scratch advantage"
+        );
+        assert!(
+            ccx < 35_000,
+            "branch-numerator fixed window not cheaper than Hermite sample"
+        );
     }
 
     #[test]
@@ -7426,7 +8659,10 @@ mod tests {
             "BY naive quantum-controlled branch-numerator replay: window_ccx={ccx}, approx35≈{approx35:.0}, peak={}q",
             b.peak_qubits
         );
-        assert!(approx35 > 2_500_000.0, "naive controlled branch replay unexpectedly SOTA-shaped");
+        assert!(
+            approx35 > 2_500_000.0,
+            "naive controlled branch replay unexpectedly SOTA-shaped"
+        );
     }
 
     fn emit_cmod_neg_for_test(
@@ -7506,7 +8742,10 @@ mod tests {
         super::super::cadd_nbit_const(b, v, U256::from(1u64), ctrl);
     }
 
-    fn emit_logical_shift_right_even_for_test(b: &mut super::super::B, v: &[super::super::QubitId]) {
+    fn emit_logical_shift_right_even_for_test(
+        b: &mut super::super::B,
+        v: &[super::super::QubitId],
+    ) {
         // Reversible rotation that equals logical `/2` on the promised even
         // subspace because the old low bit is zero and rotates into the top.
         for i in 0..v.len() - 1 {
@@ -7514,7 +8753,10 @@ mod tests {
         }
     }
 
-    fn emit_arithmetic_shift_right_even_for_test(b: &mut super::super::B, v: &[super::super::QubitId]) {
+    fn emit_arithmetic_shift_right_even_for_test(
+        b: &mut super::super::B,
+        v: &[super::super::QubitId],
+    ) {
         // Reversible arithmetic `/2` on sign-extended even signed values. The
         // logical rotate puts the promised zero low bit in the top position;
         // duplicate the old sign bit (now at n-2) into that known-zero slot.
@@ -7524,7 +8766,10 @@ mod tests {
         }
     }
 
-    fn emit_arithmetic_shift_left_even_inverse_for_test(b: &mut super::super::B, v: &[super::super::QubitId]) {
+    fn emit_arithmetic_shift_left_even_inverse_for_test(
+        b: &mut super::super::B,
+        v: &[super::super::QubitId],
+    ) {
         if v.len() >= 2 {
             b.cx(v[v.len() - 2], v[v.len() - 1]);
         }
@@ -7546,7 +8791,10 @@ mod tests {
         b.free(nz);
     }
 
-    fn emit_logical_shift_left_even_inverse_for_test(b: &mut super::super::B, v: &[super::super::QubitId]) {
+    fn emit_logical_shift_left_even_inverse_for_test(
+        b: &mut super::super::B,
+        v: &[super::super::QubitId],
+    ) {
         for i in (0..v.len() - 1).rev() {
             b.swap(v[i], v[i + 1]);
         }
@@ -7889,7 +9137,9 @@ mod tests {
     ) {
         let n = a.len();
         assert_eq!(n, acc.len());
-        if n == 0 { return; }
+        if n == 0 {
+            return;
+        }
         if n == 1 {
             b.cx(c_in, acc[0]);
             b.cx(a[0], acc[0]);
@@ -7935,7 +9185,9 @@ mod tests {
     ) {
         let n = a.len();
         assert_eq!(n, acc.len());
-        if n == 0 { return; }
+        if n == 0 {
+            return;
+        }
         if n == 1 {
             b.cx(a[0], acc[0]);
             b.cx(c_in, acc[0]);
@@ -8000,7 +9252,9 @@ mod tests {
         ctrl: super::super::QubitId,
     ) {
         let f = b.alloc_qubits(acc.len());
-        for i in 0..acc.len() { b.ccx(ctrl, a[i], f[i]); }
+        for i in 0..acc.len() {
+            b.ccx(ctrl, a[i], f[i]);
+        }
         add_nbit_qq_fast_negphase_for_test(b, &f, acc);
         for i in 0..acc.len() {
             let m = b.alloc_bit();
@@ -8017,7 +9271,9 @@ mod tests {
         ctrl: super::super::QubitId,
     ) {
         let f = b.alloc_qubits(acc.len());
-        for i in 0..acc.len() { b.ccx(ctrl, a[i], f[i]); }
+        for i in 0..acc.len() {
+            b.ccx(ctrl, a[i], f[i]);
+        }
         sub_nbit_qq_fast_negphase_for_test(b, &f, acc);
         for i in 0..acc.len() {
             let m = b.alloc_bit();
@@ -8034,7 +9290,9 @@ mod tests {
         ctrl: super::super::QubitId,
     ) {
         let f = b.alloc_qubits(acc.len());
-        for i in 0..acc.len() { b.ccx(ctrl, a[i], f[i]); }
+        for i in 0..acc.len() {
+            b.ccx(ctrl, a[i], f[i]);
+        }
         add_nbit_qq_fast_negphase_for_test(b, &f, acc);
         for i in 0..acc.len() {
             let m = b.alloc_bit();
@@ -8052,7 +9310,9 @@ mod tests {
         ctrl: super::super::QubitId,
     ) {
         let f = b.alloc_qubits(acc.len());
-        for i in 0..acc.len() { b.ccx(ctrl, a[i], f[i]); }
+        for i in 0..acc.len() {
+            b.ccx(ctrl, a[i], f[i]);
+        }
         sub_nbit_qq_fast_negphase_for_test(b, &f, acc);
         for i in 0..acc.len() {
             let m = b.alloc_bit();
@@ -8309,7 +9569,12 @@ mod tests {
             emit_signed_controlled_add_for_test(b, s, r, odd_ctrl);
         }
         if exact_parity_const {
-            emit_signed_redundant_halve_centered_live_parity_exact_const_for_test(b, s, parity_hist, p);
+            emit_signed_redundant_halve_centered_live_parity_exact_const_for_test(
+                b,
+                s,
+                parity_hist,
+                p,
+            );
         } else {
             emit_signed_redundant_halve_centered_live_parity_for_test(b, s, parity_hist, p);
         }
@@ -8327,7 +9592,12 @@ mod tests {
         exact_parity_const: bool,
     ) {
         if exact_parity_const {
-            emit_signed_redundant_unhalve_centered_with_parity_exact_const_for_test(b, s, parity_hist, p);
+            emit_signed_redundant_unhalve_centered_with_parity_exact_const_for_test(
+                b,
+                s,
+                parity_hist,
+                p,
+            );
         } else {
             emit_signed_redundant_unhalve_centered_with_parity_for_test(b, s, parity_hist, p);
         }
@@ -8372,7 +9642,12 @@ mod tests {
         parity_hist: super::super::QubitId,
         p: U256,
     ) {
-        emit_signed_redundant_unhalve_centered_with_parity_exact_const_for_test(b, s, parity_hist, p);
+        emit_signed_redundant_unhalve_centered_with_parity_exact_const_for_test(
+            b,
+            s,
+            parity_hist,
+            p,
+        );
         emit_signed_controlled_sub_negboth_for_test(b, s, r, odd_ctrl);
         emit_twos_complement_cneg_exact_for_test(b, s, a_ctrl);
         for i in 0..r.len() {
@@ -8406,7 +9681,12 @@ mod tests {
         parity_hist: super::super::QubitId,
         p: U256,
     ) {
-        emit_signed_redundant_unhalve_centered_with_parity_exact_const_for_test(b, s, parity_hist, p);
+        emit_signed_redundant_unhalve_centered_with_parity_exact_const_for_test(
+            b,
+            s,
+            parity_hist,
+            p,
+        );
         emit_signed_controlled_sub_negcarry_for_test(b, s, r, odd_ctrl);
         emit_twos_complement_cneg_exact_for_test(b, s, a_ctrl);
         for i in 0..r.len() {
@@ -8440,7 +9720,12 @@ mod tests {
         parity_hist: super::super::QubitId,
         p: U256,
     ) {
-        emit_signed_redundant_unhalve_centered_with_parity_exact_const_for_test(b, s, parity_hist, p);
+        emit_signed_redundant_unhalve_centered_with_parity_exact_const_for_test(
+            b,
+            s,
+            parity_hist,
+            p,
+        );
         emit_signed_controlled_sub_negcopy_for_test(b, s, r, odd_ctrl);
         emit_twos_complement_cneg_exact_for_test(b, s, a_ctrl);
         for i in 0..r.len() {
@@ -8482,7 +9767,11 @@ mod tests {
         super::super::mod_halve_inplace_fast(b, s, p);
     }
 
-    fn a_mask_from_pattern_and_delta_for_test(pattern: u16, w: usize, mut delta: i64) -> (u16, i64) {
+    fn a_mask_from_pattern_and_delta_for_test(
+        pattern: u16,
+        w: usize,
+        mut delta: i64,
+    ) -> (u16, i64) {
         let mut a_mask = 0u16;
         for i in 0..w {
             let odd = ((pattern >> i) & 1) != 0;
@@ -8539,7 +9828,11 @@ mod tests {
 
     fn twos_u512_for_delta(delta: i64, width: usize) -> U512 {
         let modulus = 1i128 << width;
-        let v = if delta < 0 { modulus + delta as i128 } else { delta as i128 };
+        let v = if delta < 0 {
+            modulus + delta as i128
+        } else {
+            delta as i128
+        };
         U512::from(v as u128)
     }
 
@@ -8576,18 +9869,41 @@ mod tests {
             set_slice_u512_by(&mut sim, &pattern, U512::from(pat));
             set_slice_u512_by(&mut sim, &delta, twos_u512_for_delta(d0, DBITS));
             sim.apply(&ops[..forward_ops_len]);
-            assert_eq!(get_slice_u512_by(&sim, &a_bits), U512::from(exp_a), "A-mask mismatch for {pat:#x}/{d0}");
-            assert_eq!(get_slice_u512_by(&sim, &delta), twos_u512_for_delta(exp_delta, DBITS), "delta mismatch for {pat:#x}/{d0}");
+            assert_eq!(
+                get_slice_u512_by(&sim, &a_bits),
+                U512::from(exp_a),
+                "A-mask mismatch for {pat:#x}/{d0}"
+            );
+            assert_eq!(
+                get_slice_u512_by(&sim, &delta),
+                twos_u512_for_delta(exp_delta, DBITS),
+                "delta mismatch for {pat:#x}/{d0}"
+            );
             sim.apply(&ops[forward_ops_len..]);
-            assert_eq!(get_slice_u512_by(&sim, &pattern), U512::from(pat), "pattern changed");
-            assert_eq!(get_slice_u512_by(&sim, &delta), twos_u512_for_delta(d0, DBITS), "delta did not restore");
-            assert_eq!(get_slice_u512_by(&sim, &a_bits), U512::ZERO, "A scratch not cleaned");
+            assert_eq!(
+                get_slice_u512_by(&sim, &pattern),
+                U512::from(pat),
+                "pattern changed"
+            );
+            assert_eq!(
+                get_slice_u512_by(&sim, &delta),
+                twos_u512_for_delta(d0, DBITS),
+                "delta did not restore"
+            );
+            assert_eq!(
+                get_slice_u512_by(&sim, &a_bits),
+                U512::ZERO,
+                "A scratch not cleaned"
+            );
             assert_eq!(sim.global_phase() & 1, 0, "phase garbage");
         }
         eprintln!(
             "BY reversible pattern+delta decoder: forward_ccx={forward_ccx}, roundtrip_ccx={total_ccx}, peak={peak}q"
         );
-        assert!(forward_ccx < 2_000, "pattern decoder synthesis exceeds budget");
+        assert!(
+            forward_ccx < 2_000,
+            "pattern decoder synthesis exceeds budget"
+        );
     }
 
     #[test]
@@ -8608,7 +9924,10 @@ mod tests {
         eprintln!(
             "BY pattern decoder budget: delta_bits={delta_bits}, per_step≈{per_step}, total≈{total} CCX"
         );
-        assert!(total < 30_000, "pattern decoder exceeds reserved branch/decode margin");
+        assert!(
+            total < 30_000,
+            "pattern decoder exceeds reserved branch/decode margin"
+        );
     }
 
     #[test]
@@ -8635,7 +9954,9 @@ mod tests {
                 }
             }
             let (got_a, got_delta) = a_mask_from_pattern_and_delta_for_test(pattern, W, delta);
-            let direct_delta = jump_matrix_direct_lowword(W, W, delta, f_low, g_low).3.delta_final;
+            let direct_delta = jump_matrix_direct_lowword(W, W, delta, f_low, g_low)
+                .3
+                .delta_final;
             assert_eq!(got_a, expected_a, "A-mask reconstruction failed");
             assert_eq!(got_delta, direct_delta, "final delta reconstruction failed");
         }
@@ -8719,7 +10040,11 @@ mod tests {
         set_slice_u512_by(&mut sim, &delta, U512::from(1u64));
         sim.apply(&ops);
         for (i, &(odd_e, a_e)) in expected.iter().enumerate() {
-            assert_eq!((sim.qubit(odd[i]) & 1) != 0, odd_e, "odd mismatch at step {i}");
+            assert_eq!(
+                (sim.qubit(odd[i]) & 1) != 0,
+                odd_e,
+                "odd mismatch at step {i}"
+            );
             assert_eq!((sim.qubit(a[i]) & 1) != 0, a_e, "A mismatch at step {i}");
         }
         eprintln!(
@@ -8767,11 +10092,19 @@ mod tests {
             };
             SInt { neg: true, mag }
         } else {
-            SInt { neg: false, mag: residue }
+            SInt {
+                neg: false,
+                mag: residue,
+            }
         }
     }
 
-    fn divstep_sint_state_truncated_for_test(delta: &mut i64, f: &mut SInt, g: &mut SInt, bits: usize) {
+    fn divstep_sint_state_truncated_for_test(
+        delta: &mut i64,
+        f: &mut SInt,
+        g: &mut SInt,
+        bits: usize,
+    ) {
         divstep_sint_state(delta, f, g);
         *f = truncate_sint_bits_for_test(*f, bits);
         *g = truncate_sint_bits_for_test(*g, bits);
@@ -8811,7 +10144,12 @@ mod tests {
                         first_bad = Some(step);
                     }
                     divstep_sint_state(&mut d_full, &mut f_full, &mut g_full);
-                    divstep_sint_state_truncated_for_test(&mut d_local, &mut f_local, &mut g_local, bits);
+                    divstep_sint_state_truncated_for_test(
+                        &mut d_local,
+                        &mut f_local,
+                        &mut g_local,
+                        bits,
+                    );
                 }
                 if let Some(step) = first_bad {
                     failures += 1;
@@ -8819,14 +10157,24 @@ mod tests {
                 }
             }
             let rate = failures as f64 / SAMPLES as f64;
-            let mean_first = if failures == 0 { STEPS as f64 } else { first_mismatch_sum as f64 / failures as f64 };
+            let mean_first = if failures == 0 {
+                STEPS as f64
+            } else {
+                first_mismatch_sum as f64 / failures as f64
+            };
             failure_rates.push(rate);
             eprintln!(
                 "BY fixed-precision branch curve: bits={bits}, mismatch_rate={rate:.4}, mean_first_mismatch={mean_first:.1}"
             );
         }
-        assert!(failure_rates[0] > 0.99, "64-bit branch state unexpectedly accurate");
-        assert!(failure_rates[6] > 0.99, "256-bit branch state would be an approximate shortcut; revisit");
+        assert!(
+            failure_rates[0] > 0.99,
+            "64-bit branch state unexpectedly accurate"
+        );
+        assert!(
+            failure_rates[6] > 0.99,
+            "256-bit branch state would be an approximate shortcut; revisit"
+        );
     }
 
     fn divstep_i128_exact_for_test(delta: &mut i64, f: &mut i128, g: &mut i128) {
@@ -8923,7 +10271,10 @@ mod tests {
         eprintln!(
             "BY consumed lowword window algebra: samples={SAMPLES}, max_abs_q={max_abs_q}, max_abs_new={max_abs_new}"
         );
-        assert!(max_abs_q < (1i128 << 17), "lowword quotient correction larger than expected");
+        assert!(
+            max_abs_q < (1i128 << 17),
+            "lowword quotient correction larger than expected"
+        );
     }
 
     #[test]
@@ -8969,8 +10320,14 @@ mod tests {
         eprintln!(
             "BY tapered fixed-matrix denominator budget: mean_compute≈{mean_compute:.0}, max_compute={max_compute}, mean_compute_uncompute≈{mean_compute_uncompute:.0}, max_peak={max_peak}q"
         );
-        assert!(mean_compute < 450_000.0, "fixed-matrix tapered denominator no longer beats per-bit replay");
-        assert!(mean_compute_uncompute < 900_000.0, "denominator compute+uncompute too large for BY SOTA budget");
+        assert!(
+            mean_compute < 450_000.0,
+            "fixed-matrix tapered denominator no longer beats per-bit replay"
+        );
+        assert!(
+            mean_compute_uncompute < 900_000.0,
+            "denominator compute+uncompute too large for BY SOTA budget"
+        );
     }
 
     #[test]
@@ -8999,8 +10356,14 @@ mod tests {
             "BY full-width denominator controlled microstep window: window_ccx={window_ccx}, compute35≈{compute_35:.0}, compute_uncompute≈{compute_uncompute:.0}, peak={}q",
             b.peak_qubits
         );
-        assert!(window_ccx > 20_000, "full-width denominator replay unexpectedly beats fixed-window target");
-        assert!(compute_uncompute > 1_500_000.0, "direct denominator replay might be SOTA-shaped; revisit");
+        assert!(
+            window_ccx > 20_000,
+            "full-width denominator replay unexpectedly beats fixed-window target"
+        );
+        assert!(
+            compute_uncompute > 1_500_000.0,
+            "direct denominator replay might be SOTA-shaped; revisit"
+        );
     }
 
     #[test]
@@ -9027,7 +10390,14 @@ mod tests {
             b.cx(pattern_tmp[i], pattern_hist[i]);
         }
         for i in (0..W).rev() {
-            emit_2adic_by_branch_step_reverse_for_test(&mut b, &f, &g, &delta, pattern_tmp[i], a_tmp[i]);
+            emit_2adic_by_branch_step_reverse_for_test(
+                &mut b,
+                &f,
+                &g,
+                &delta,
+                pattern_tmp[i],
+                a_tmp[i],
+            );
         }
         let ccx = count_ccx(&b.ops);
         let peak = b.peak_qubits;
@@ -9058,16 +10428,29 @@ mod tests {
             sim.apply(&ops);
             assert_eq!(get_slice_u512_by(&sim, &f), U512::from(f0), "f changed");
             assert_eq!(get_slice_u512_by(&sim, &g), U512::from(g0), "g changed");
-            assert_eq!(get_slice_u512_by(&sim, &delta), twos_u512_for_delta(d0, DBITS), "delta changed");
-            assert_eq!(get_slice_u512_by(&sim, &pattern_tmp), U512::ZERO, "pattern tmp dirty");
+            assert_eq!(
+                get_slice_u512_by(&sim, &delta),
+                twos_u512_for_delta(d0, DBITS),
+                "delta changed"
+            );
+            assert_eq!(
+                get_slice_u512_by(&sim, &pattern_tmp),
+                U512::ZERO,
+                "pattern tmp dirty"
+            );
             assert_eq!(get_slice_u512_by(&sim, &a_tmp), U512::ZERO, "A tmp dirty");
-            assert_eq!(get_slice_u512_by(&sim, &pattern_hist), U512::from(exp_pat), "pattern mismatch");
+            assert_eq!(
+                get_slice_u512_by(&sim, &pattern_hist),
+                U512::from(exp_pat),
+                "pattern mismatch"
+            );
             assert_eq!(sim.global_phase() & 1, 0, "phase garbage");
         }
-        eprintln!(
-            "BY lowword 16-step pattern oracle: ccx={ccx}, peak={peak}q"
+        eprintln!("BY lowword 16-step pattern oracle: ccx={ccx}, peak={peak}q");
+        assert!(
+            ccx < 25_000,
+            "lowword pattern oracle too expensive for windowed DIV"
         );
-        assert!(ccx < 25_000, "lowword pattern oracle too expensive for windowed DIV");
         assert!(peak < 150, "lowword pattern oracle unexpectedly wide");
     }
 
@@ -9094,13 +10477,27 @@ mod tests {
             let a_tmp = b.alloc_qubits(w);
             let pattern_hist = b.alloc_qubits(w);
             for i in 0..w {
-                emit_2adic_by_branch_step_for_test(&mut b, &f, &g, &delta, pattern_tmp[i], a_tmp[i]);
+                emit_2adic_by_branch_step_for_test(
+                    &mut b,
+                    &f,
+                    &g,
+                    &delta,
+                    pattern_tmp[i],
+                    a_tmp[i],
+                );
             }
             for i in 0..w {
                 b.cx(pattern_tmp[i], pattern_hist[i]);
             }
             for i in (0..w).rev() {
-                emit_2adic_by_branch_step_reverse_for_test(&mut b, &f, &g, &delta, pattern_tmp[i], a_tmp[i]);
+                emit_2adic_by_branch_step_reverse_for_test(
+                    &mut b,
+                    &f,
+                    &g,
+                    &delta,
+                    pattern_tmp[i],
+                    a_tmp[i],
+                );
             }
             let oracle_ccx = count_ccx(&b.ops);
 
@@ -9122,11 +10519,26 @@ mod tests {
         }
         let best = *totals.iter().min_by_key(|entry| entry.4).unwrap();
         println!("METRIC scratch600_lowword_selector_best_w={}", best.0);
-        println!("METRIC scratch600_lowword_selector_best_oracle_ccx={}", best.1);
-        println!("METRIC scratch600_lowword_selector_best_decode_ccx={}", best.2);
-        println!("METRIC scratch600_lowword_selector_best_total_ccx={}", best.3);
-        println!("METRIC scratch600_lowword_selector_best_projected_toffoli={}", best.4);
-        println!("METRIC scratch600_lowword_selector_best_gap_to_2700k={}", best.5);
+        println!(
+            "METRIC scratch600_lowword_selector_best_oracle_ccx={}",
+            best.1
+        );
+        println!(
+            "METRIC scratch600_lowword_selector_best_decode_ccx={}",
+            best.2
+        );
+        println!(
+            "METRIC scratch600_lowword_selector_best_total_ccx={}",
+            best.3
+        );
+        println!(
+            "METRIC scratch600_lowword_selector_best_projected_toffoli={}",
+            best.4
+        );
+        println!(
+            "METRIC scratch600_lowword_selector_best_gap_to_2700k={}",
+            best.5
+        );
         for (w, oracle, decode, total, projected, gap) in totals {
             if w == 8 {
                 println!("METRIC scratch600_lowword_selector_w8_oracle_ccx={oracle}");
@@ -9185,7 +10597,10 @@ mod tests {
         println!("METRIC scratch600_w4_full_pair_compute_excess_ccx={compute_excess}");
         println!("METRIC scratch600_w4_full_pair_roundtrip_excess_ccx={roundtrip_excess}");
         println!("METRIC scratch600_w4_full_pair_peak_q={}", b.peak_qubits);
-        assert!(compute_excess > 800_000, "naive full-pair plumbing might fit the w4 slack; revisit BY integration");
+        assert!(
+            compute_excess > 800_000,
+            "naive full-pair plumbing might fit the w4 slack; revisit BY integration"
+        );
     }
 
     #[test]
@@ -9242,7 +10657,10 @@ mod tests {
         println!("METRIC scratch600_w4_fixed_matrix_compute_excess_ccx={compute_excess}");
         println!("METRIC scratch600_w4_fixed_matrix_roundtrip_excess_ccx={roundtrip_excess}");
         println!("METRIC scratch600_w4_fixed_matrix_peak_q={max_peak}");
-        assert!(compute_excess > 250_000, "fixed-matrix w4 denominator update might fit; revisit selector integration");
+        assert!(
+            compute_excess > 250_000,
+            "fixed-matrix w4 denominator update might fit; revisit selector integration"
+        );
     }
 
     #[test]
@@ -9268,13 +10686,27 @@ mod tests {
             let a_tmp = b.alloc_qubits(w);
             let pattern_hist = b.alloc_qubits(w);
             for i in 0..w {
-                emit_2adic_by_branch_step_for_test(&mut b, &f, &g, &delta, pattern_tmp[i], a_tmp[i]);
+                emit_2adic_by_branch_step_for_test(
+                    &mut b,
+                    &f,
+                    &g,
+                    &delta,
+                    pattern_tmp[i],
+                    a_tmp[i],
+                );
             }
             for i in 0..w {
                 b.cx(pattern_tmp[i], pattern_hist[i]);
             }
             for i in (0..w).rev() {
-                emit_2adic_by_branch_step_reverse_for_test(&mut b, &f, &g, &delta, pattern_tmp[i], a_tmp[i]);
+                emit_2adic_by_branch_step_reverse_for_test(
+                    &mut b,
+                    &f,
+                    &g,
+                    &delta,
+                    pattern_tmp[i],
+                    a_tmp[i],
+                );
             }
             let oracle_ccx = count_ccx(&b.ops);
 
@@ -9315,16 +10747,35 @@ mod tests {
             eprintln!(
                 "BY tiny lowword selector w={w}: selector={selector_total}, projected={projected}, selector_slack={selector_slack}, fixed_matrix_compute={compute_ccx}, update_excess={update_excess}"
             );
-            rows.push((w, selector_total, projected, selector_slack, compute_ccx, update_excess));
+            rows.push((
+                w,
+                selector_total,
+                projected,
+                selector_slack,
+                compute_ccx,
+                update_excess,
+            ));
         }
 
         let best = *rows.iter().min_by_key(|row| row.5).unwrap();
         println!("METRIC scratch600_tiny_lowword_best_w={}", best.0);
-        println!("METRIC scratch600_tiny_lowword_best_selector_ccx={}", best.1);
+        println!(
+            "METRIC scratch600_tiny_lowword_best_selector_ccx={}",
+            best.1
+        );
         println!("METRIC scratch600_tiny_lowword_best_projected={}", best.2);
-        println!("METRIC scratch600_tiny_lowword_best_selector_slack={}", best.3);
-        println!("METRIC scratch600_tiny_lowword_best_fixed_matrix_compute={}", best.4);
-        println!("METRIC scratch600_tiny_lowword_best_update_excess={}", best.5);
+        println!(
+            "METRIC scratch600_tiny_lowword_best_selector_slack={}",
+            best.3
+        );
+        println!(
+            "METRIC scratch600_tiny_lowword_best_fixed_matrix_compute={}",
+            best.4
+        );
+        println!(
+            "METRIC scratch600_tiny_lowword_best_update_excess={}",
+            best.5
+        );
         for (w, selector, projected, slack, compute, excess) in rows {
             if w == 1 {
                 println!("METRIC scratch600_tiny_lowword_w1_selector_ccx={selector}");
@@ -9374,7 +10825,14 @@ mod tests {
             b.cx(g[i], q1_hist[i]);
         }
         for i in (0..W).rev() {
-            emit_signed_by_branch_step_reverse_for_test(&mut b, &f, &g, &delta, pattern_tmp[i], a_tmp[i]);
+            emit_signed_by_branch_step_reverse_for_test(
+                &mut b,
+                &f,
+                &g,
+                &delta,
+                pattern_tmp[i],
+                a_tmp[i],
+            );
         }
         let ccx = count_ccx(&b.ops);
         let peak = b.peak_qubits;
@@ -9397,7 +10855,9 @@ mod tests {
             let q1 = (m.m10 * low_f + m.m11 * low_g) / scale;
             let mut exp_pat = 0u16;
             for (i, bit) in bits.iter().enumerate() {
-                if *bit { exp_pat |= 1u16 << i; }
+                if *bit {
+                    exp_pat |= 1u16 << i;
+                }
             }
             let mut hasher = sha3::Shake128::default();
             hasher.update(b"by-lowword-pattern-q-oracle-v1");
@@ -9407,20 +10867,49 @@ mod tests {
             set_slice_u512_by(&mut sim, &g, twos_u512_for_delta(low_g as i64, QBITS));
             set_slice_u512_by(&mut sim, &delta, twos_u512_for_delta(d0, DBITS));
             sim.apply(&ops);
-            assert_eq!(get_slice_u512_by(&sim, &f), twos_u512_for_delta(low_f as i64, QBITS), "f not restored");
-            assert_eq!(get_slice_u512_by(&sim, &g), twos_u512_for_delta(low_g as i64, QBITS), "g not restored");
-            assert_eq!(get_slice_u512_by(&sim, &delta), twos_u512_for_delta(d0, DBITS), "delta not restored");
-            assert_eq!(get_slice_u512_by(&sim, &pattern_tmp), U512::ZERO, "pattern tmp dirty");
+            assert_eq!(
+                get_slice_u512_by(&sim, &f),
+                twos_u512_for_delta(low_f as i64, QBITS),
+                "f not restored"
+            );
+            assert_eq!(
+                get_slice_u512_by(&sim, &g),
+                twos_u512_for_delta(low_g as i64, QBITS),
+                "g not restored"
+            );
+            assert_eq!(
+                get_slice_u512_by(&sim, &delta),
+                twos_u512_for_delta(d0, DBITS),
+                "delta not restored"
+            );
+            assert_eq!(
+                get_slice_u512_by(&sim, &pattern_tmp),
+                U512::ZERO,
+                "pattern tmp dirty"
+            );
             assert_eq!(get_slice_u512_by(&sim, &a_tmp), U512::ZERO, "A tmp dirty");
-            assert_eq!(get_slice_u512_by(&sim, &pattern_hist), U512::from(exp_pat), "pattern mismatch");
-            assert_eq!(get_slice_u512_by(&sim, &q0_hist), twos_u512_for_delta(q0 as i64, QBITS), "q0 mismatch");
-            assert_eq!(get_slice_u512_by(&sim, &q1_hist), twos_u512_for_delta(q1 as i64, QBITS), "q1 mismatch");
+            assert_eq!(
+                get_slice_u512_by(&sim, &pattern_hist),
+                U512::from(exp_pat),
+                "pattern mismatch"
+            );
+            assert_eq!(
+                get_slice_u512_by(&sim, &q0_hist),
+                twos_u512_for_delta(q0 as i64, QBITS),
+                "q0 mismatch"
+            );
+            assert_eq!(
+                get_slice_u512_by(&sim, &q1_hist),
+                twos_u512_for_delta(q1 as i64, QBITS),
+                "q1 mismatch"
+            );
             assert_eq!(sim.global_phase() & 1, 0, "phase garbage");
         }
-        eprintln!(
-            "BY lowword pattern+q oracle: ccx={ccx}, peak={peak}q, qbits={QBITS}"
+        eprintln!("BY lowword pattern+q oracle: ccx={ccx}, peak={peak}q, qbits={QBITS}");
+        assert!(
+            ccx < 18_000,
+            "pattern+q oracle too expensive for denominator window"
         );
-        assert!(ccx < 18_000, "pattern+q oracle too expensive for denominator window");
         assert!(peak < 300, "pattern+q oracle unexpectedly wide");
     }
 
@@ -9469,24 +10958,8 @@ mod tests {
         add_signed_shifted_term_for_cost(b, &q1, &y1, 0, false);
 
         let sgn = det_sign_pow2(mtx, w);
-        emit_consumed_high_cleanup_row_for_cost(
-            b,
-            sgn * mtx.m11,
-            &y0,
-            -sgn * mtx.m01,
-            &y1,
-            &h0,
-            w,
-        );
-        emit_consumed_high_cleanup_row_for_cost(
-            b,
-            -sgn * mtx.m10,
-            &y0,
-            sgn * mtx.m00,
-            &y1,
-            &h1,
-            w,
-        );
+        emit_consumed_high_cleanup_row_for_cost(b, sgn * mtx.m11, &y0, -sgn * mtx.m01, &y1, &h0, w);
+        emit_consumed_high_cleanup_row_for_cost(b, -sgn * mtx.m10, &y0, sgn * mtx.m00, &y1, &h1, w);
 
         let _ = (h0, h1, q0, q1, y0, y1);
     }
@@ -9523,7 +10996,9 @@ mod tests {
                 let (_, _, _, mtx) = jump_matrix_direct_lowword(W, W, delta, f_low, g_low);
                 if high_width > 0 {
                     let mut b = super::super::B::new();
-                    emit_consumed_high_pair_update_with_q_for_cost(&mut b, mtx, high_width, W, QBITS);
+                    emit_consumed_high_pair_update_with_q_for_cost(
+                        &mut b, mtx, high_width, W, QBITS,
+                    );
                     sample_ccx += count_ccx(&b.ops);
                     sample_peak = sample_peak.max(b.peak_qubits as usize);
                 }
@@ -9560,7 +11035,14 @@ mod tests {
             bq.cx(g[i], q1_hist[i]);
         }
         for i in (0..W).rev() {
-            emit_signed_by_branch_step_reverse_for_test(&mut bq, &f, &g, &delta, pattern_tmp[i], a_tmp[i]);
+            emit_signed_by_branch_step_reverse_for_test(
+                &mut bq,
+                &f,
+                &g,
+                &delta,
+                pattern_tmp[i],
+                a_tmp[i],
+            );
         }
         let q_oracle_window = count_ccx(&bq.ops);
         let q_oracle_total = q_oracle_window * 35;
@@ -9575,7 +11057,9 @@ mod tests {
         let optimistic_gap = optimistic_pointadd as isize - 2_700_000isize;
         println!("METRIC by_consumed_high_update_mean_compute_ccx={mean_compute:.3}");
         println!("METRIC by_consumed_high_update_max_compute_ccx={max_compute}");
-        println!("METRIC by_consumed_high_update_compute_uncompute_ccx={optimistic_compute_uncompute}");
+        println!(
+            "METRIC by_consumed_high_update_compute_uncompute_ccx={optimistic_compute_uncompute}"
+        );
         println!("METRIC by_consumed_high_update_max_peak_q={max_peak}");
         println!("METRIC by_consumed_high_q_oracle_window_ccx={q_oracle_window}");
         println!("METRIC by_consumed_high_q_oracle_total_ccx={q_oracle_total}");
@@ -9706,10 +11190,19 @@ mod tests {
         }
         let best = *rows.iter().min_by_key(|row| row.6).unwrap();
         println!("METRIC by_tiny_consumed_high_best_w={}", best.0);
-        println!("METRIC by_tiny_consumed_high_best_q_oracle_window={}", best.1);
-        println!("METRIC by_tiny_consumed_high_best_q_oracle_total={}", best.2);
+        println!(
+            "METRIC by_tiny_consumed_high_best_q_oracle_window={}",
+            best.1
+        );
+        println!(
+            "METRIC by_tiny_consumed_high_best_q_oracle_total={}",
+            best.2
+        );
         println!("METRIC by_tiny_consumed_high_best_compute_ccx={}", best.3);
-        println!("METRIC by_tiny_consumed_high_best_compute_uncompute_ccx={}", best.4);
+        println!(
+            "METRIC by_tiny_consumed_high_best_compute_uncompute_ccx={}",
+            best.4
+        );
         println!("METRIC by_tiny_consumed_high_best_pointadd={}", best.5);
         println!("METRIC by_tiny_consumed_high_best_gap_to_2700k={}", best.6);
         println!("METRIC by_tiny_consumed_high_best_peak_q={}", best.7);
@@ -9779,7 +11272,11 @@ mod tests {
             assert_eq!(sim.qubit(odd[i]) & 1, 0, "odd history not clean at {i}");
             assert_eq!(sim.qubit(a[i]) & 1, 0, "A history not clean at {i}");
         }
-        assert_eq!(sim.global_phase() & 1, 0, "phase garbage in self-cleaning branch history");
+        assert_eq!(
+            sim.global_phase() & 1,
+            0,
+            "phase garbage in self-cleaning branch history"
+        );
         eprintln!(
             "BY denominator branch history self-clean: steps={STEPS}, width={W}, ccx={ccx}, peak={peak}q"
         );
@@ -9812,8 +11309,14 @@ mod tests {
             "tapered 2-adic BY branch generator: compute_ccx={ccx}, compute_uncompute={compute_uncompute}, two_denominators={two_denominators}, peak={}q",
             b.peak_qubits
         );
-        assert!(ccx < 2_000_000, "tapering failed to reduce the direct generator");
-        assert!(two_denominators > 2_000_000, "tapered direct generator unexpectedly fits SOTA margin");
+        assert!(
+            ccx < 2_000_000,
+            "tapering failed to reduce the direct generator"
+        );
+        assert!(
+            two_denominators > 2_000_000,
+            "tapered direct generator unexpectedly fits SOTA margin"
+        );
     }
 
     #[test]
@@ -9844,7 +11347,9 @@ mod tests {
         let u = b.alloc_qubits(256);
         let s = b.alloc_qubits(256);
         for i in (0..560).rev() {
-            emit_scaled_by_controlled_microstep_inverse_negr_for_test(&mut b, &u, &s, odd[i], a_ctrl[i], p);
+            emit_scaled_by_controlled_microstep_inverse_negr_for_test(
+                &mut b, &u, &s, odd[i], a_ctrl[i], p,
+            );
         }
         let ccx = count_ccx(&b.ops);
         let peak = b.peak_qubits;
@@ -9870,8 +11375,15 @@ mod tests {
         sim.apply(&ops);
         let got_u = get_slice_u512_by(&sim, &u);
         let p512 = u256_to_u512_for_by_tests(p);
-        assert!(got_u == U512::ZERO || got_u == p512, "u=-r was not logical zero: {got_u}");
-        assert_eq!(get_slice_u512_by(&sim, &s), u256_to_u512_for_by_tests(expected_s), "product output mismatch");
+        assert!(
+            got_u == U512::ZERO || got_u == p512,
+            "u=-r was not logical zero: {got_u}"
+        );
+        assert_eq!(
+            get_slice_u512_by(&sim, &s),
+            u256_to_u512_for_by_tests(expected_s),
+            "product output mismatch"
+        );
         eprintln!(
             "BY inverse scaled 560-step neg-r product-clean scaffold: ccx={ccx}, peak={peak}q"
         );
@@ -9910,7 +11422,9 @@ mod tests {
         let r = b.alloc_qubits(256);
         let s = b.alloc_qubits(256);
         for i in (0..560).rev() {
-            emit_scaled_by_controlled_microstep_inverse_for_test(&mut b, &r, &s, odd[i], a_ctrl[i], p);
+            emit_scaled_by_controlled_microstep_inverse_for_test(
+                &mut b, &r, &s, odd[i], a_ctrl[i], p,
+            );
         }
         let ccx = count_ccx(&b.ops);
         let peak = b.peak_qubits;
@@ -9936,11 +11450,16 @@ mod tests {
         sim.apply(&ops);
         let got_r = get_slice_u512_by(&sim, &r);
         let p512 = u256_to_u512_for_by_tests(p);
-        assert!(got_r == U512::ZERO || got_r == p512, "lam/r was not logical zero: {got_r}");
-        assert_eq!(get_slice_u512_by(&sim, &s), u256_to_u512_for_by_tests(expected_s), "product output mismatch");
-        eprintln!(
-            "BY inverse scaled 560-step product-clean scaffold: ccx={ccx}, peak={peak}q"
+        assert!(
+            got_r == U512::ZERO || got_r == p512,
+            "lam/r was not logical zero: {got_r}"
         );
+        assert_eq!(
+            get_slice_u512_by(&sim, &s),
+            u256_to_u512_for_by_tests(expected_s),
+            "product output mismatch"
+        );
+        eprintln!("BY inverse scaled 560-step product-clean scaffold: ccx={ccx}, peak={peak}q");
         assert!(ccx < 1_400_000, "inverse scaled BY cleanup too costly");
     }
 
@@ -9988,14 +11507,20 @@ mod tests {
         let mut max_exec = 0u64;
         while samples < 32 {
             let x = sampler.next();
-            let Some((controls, _)) = controls_for_560_sample_for_test(x, p) else { continue; };
+            let Some((controls, _)) = controls_for_560_sample_for_test(x, p) else {
+                continue;
+            };
             let mut hasher = sha3::Shake128::default();
             hasher.update(b"by-executed-fast-replay-sim-v1");
             let mut xof = hasher.finalize_xof();
             let mut sim = crate::sim::Simulator::new(num_qubits, num_bits, &mut xof);
             for (i, &(odd_v, a_v)) in controls.iter().enumerate() {
-                if odd_v { *sim.qubit_mut(odd[i]) |= 1; }
-                if a_v { *sim.qubit_mut(a[i]) |= 1; }
+                if odd_v {
+                    *sim.qubit_mut(odd[i]) |= 1;
+                }
+                if a_v {
+                    *sim.qubit_mut(a[i]) |= 1;
+                }
             }
             set_slice_u512_by(&mut sim, &s, u256_to_u512_for_by_tests(x));
             sim.apply(&ops);
@@ -10009,7 +11534,10 @@ mod tests {
         eprintln!(
             "BY fast replay Toffoli accounting: static={static_ccx}, mean_per_shot={mean_per_shot:.1}, max_per_shot={max_per_shot:.1}, samples={samples}"
         );
-        assert!((mean_per_shot - static_ccx as f64).abs() < 1.0, "quantum branch controls unexpectedly reduce Toffoli accounting");
+        assert!(
+            (mean_per_shot - static_ccx as f64).abs() < 1.0,
+            "quantum branch controls unexpectedly reduce Toffoli accounting"
+        );
     }
 
     #[test]
@@ -10053,7 +11581,8 @@ mod tests {
         };
         let mut b = super::super::B::new();
         let pattern = b.alloc_qubits(560);
-        let delta_starts: Vec<Vec<super::super::QubitId>> = (0..35).map(|_| b.alloc_qubits(10)).collect();
+        let delta_starts: Vec<Vec<super::super::QubitId>> =
+            (0..35).map(|_| b.alloc_qubits(10)).collect();
         let delta_work = b.alloc_qubits(10);
         let a_window = b.alloc_qubits(16);
         let r = b.alloc_qubits(256);
@@ -10108,19 +11637,47 @@ mod tests {
         set_slice_u512_by(&mut sim, &r, U512::ZERO);
         set_slice_u512_by(&mut sim, &s, u256_to_u512_for_by_tests(addm(y, x, p)));
         sim.apply(&ops);
-        assert_eq!(get_slice_u512_by(&sim, &r), u256_to_u512_for_by_tests(exp_r), "r mismatch");
-        assert_eq!(get_slice_u512_by(&sim, &s), u256_to_u512_for_by_tests(exp_s), "s mismatch");
-        let plus_one = if f_final.is_one_pos() { exp_r } else { negm(exp_r, p) };
-        let quotient = subm(plus_one, U256::from(1u64), p);
-        assert_eq!(quotient, mulm(y, fermat_modinv(x, p), p), "tagged quotient mismatch");
-        assert_eq!(get_slice_u512_by(&sim, &a_window), U512::ZERO, "A window scratch not clean");
-        assert_eq!(get_slice_u512_by(&sim, &delta_work), U512::ZERO, "delta work not clean");
-        let phase = sim.global_phase() & 1;
-        eprintln!(
-            "BY window-local exact-cneg replay: ccx={ccx}, peak={peak}q, phase={phase}"
+        assert_eq!(
+            get_slice_u512_by(&sim, &r),
+            u256_to_u512_for_by_tests(exp_r),
+            "r mismatch"
         );
-        assert_eq!(phase, 0, "exact A-controlled negation did not fix early A-clear phase");
-        assert!(ccx < 1_550_000, "exact-cneg window-local replay too expensive to keep alive");
+        assert_eq!(
+            get_slice_u512_by(&sim, &s),
+            u256_to_u512_for_by_tests(exp_s),
+            "s mismatch"
+        );
+        let plus_one = if f_final.is_one_pos() {
+            exp_r
+        } else {
+            negm(exp_r, p)
+        };
+        let quotient = subm(plus_one, U256::from(1u64), p);
+        assert_eq!(
+            quotient,
+            mulm(y, fermat_modinv(x, p), p),
+            "tagged quotient mismatch"
+        );
+        assert_eq!(
+            get_slice_u512_by(&sim, &a_window),
+            U512::ZERO,
+            "A window scratch not clean"
+        );
+        assert_eq!(
+            get_slice_u512_by(&sim, &delta_work),
+            U512::ZERO,
+            "delta work not clean"
+        );
+        let phase = sim.global_phase() & 1;
+        eprintln!("BY window-local exact-cneg replay: ccx={ccx}, peak={peak}q, phase={phase}");
+        assert_eq!(
+            phase, 0,
+            "exact A-controlled negation did not fix early A-clear phase"
+        );
+        assert!(
+            ccx < 1_550_000,
+            "exact-cneg window-local replay too expensive to keep alive"
+        );
     }
 
     #[test]
@@ -10148,8 +11705,14 @@ mod tests {
         eprintln!(
             "BY exact scaled microstep: exact_ccx={exact_ccx}, fast_ccx={fast_ccx}, approx560≈{approx560:.0}, peak={exact_peak}q"
         );
-        assert!(exact_ccx > fast_ccx + 1_000, "exact microstep tax unexpectedly small");
-        assert!(approx560 > 2_000_000.0, "exact replay might be SOTA-shaped; revisit window-local clear");
+        assert!(
+            exact_ccx > fast_ccx + 1_000,
+            "exact microstep tax unexpectedly small"
+        );
+        assert!(
+            approx560 > 2_000_000.0,
+            "exact replay might be SOTA-shaped; revisit window-local clear"
+        );
     }
 
     #[test]
@@ -10203,7 +11766,8 @@ mod tests {
 
         let mut b = super::super::B::new();
         let pattern = b.alloc_qubits(560);
-        let delta_starts: Vec<Vec<super::super::QubitId>> = (0..35).map(|_| b.alloc_qubits(10)).collect();
+        let delta_starts: Vec<Vec<super::super::QubitId>> =
+            (0..35).map(|_| b.alloc_qubits(10)).collect();
         let delta_work = b.alloc_qubits(10);
         let a_window = b.alloc_qubits(16);
         let r = b.alloc_qubits(256);
@@ -10258,22 +11822,56 @@ mod tests {
         set_slice_u512_by(&mut sim, &r, U512::ZERO);
         set_slice_u512_by(&mut sim, &s, u256_to_u512_for_by_tests(addm(y, x, p)));
         sim.apply(&ops);
-        assert_eq!(get_slice_u512_by(&sim, &r), u256_to_u512_for_by_tests(exp_r), "r mismatch");
-        assert_eq!(get_slice_u512_by(&sim, &s), u256_to_u512_for_by_tests(exp_s), "s mismatch");
-        let plus_one = if f_final.is_one_pos() { exp_r } else { negm(exp_r, p) };
+        assert_eq!(
+            get_slice_u512_by(&sim, &r),
+            u256_to_u512_for_by_tests(exp_r),
+            "r mismatch"
+        );
+        assert_eq!(
+            get_slice_u512_by(&sim, &s),
+            u256_to_u512_for_by_tests(exp_s),
+            "s mismatch"
+        );
+        let plus_one = if f_final.is_one_pos() {
+            exp_r
+        } else {
+            negm(exp_r, p)
+        };
         let quotient = subm(plus_one, U256::from(1u64), p);
-        assert_eq!(quotient, mulm(y, fermat_modinv(x, p), p), "tagged quotient mismatch");
-        assert_eq!(get_slice_u512_by(&sim, &a_window), U512::ZERO, "A window scratch not clean");
-        assert_eq!(get_slice_u512_by(&sim, &delta_work), U512::ZERO, "delta work not clean");
+        assert_eq!(
+            quotient,
+            mulm(y, fermat_modinv(x, p), p),
+            "tagged quotient mismatch"
+        );
+        assert_eq!(
+            get_slice_u512_by(&sim, &a_window),
+            U512::ZERO,
+            "A window scratch not clean"
+        );
+        assert_eq!(
+            get_slice_u512_by(&sim, &delta_work),
+            U512::ZERO,
+            "delta work not clean"
+        );
         for (win, &d) in boundary_delta.iter().enumerate() {
-            assert_eq!(get_slice_u512_by(&sim, &delta_starts[win]), twos_u512_for_delta(d, 10), "boundary delta changed");
+            assert_eq!(
+                get_slice_u512_by(&sim, &delta_starts[win]),
+                twos_u512_for_delta(d, 10),
+                "boundary delta changed"
+            );
         }
         let phase = sim.global_phase() & 1;
         eprintln!(
             "BY window-local A-clear phase failure: ccx={ccx}, peak={peak}q, boundary_delta_bits=350, phase={phase}"
         );
-        assert_ne!(phase, 0, "window-local A clearing unexpectedly phase-clean; revisit low-scratch schedule");
-        assert!(peak < 2_300, "window-local schedule did not reduce peak enough to be worth revisiting");
+        assert_ne!(
+            phase, 0,
+            "window-local A clearing unexpectedly phase-clean; revisit low-scratch schedule"
+        );
+        assert!(
+            peak < 2_300,
+            "window-local schedule did not reduce peak enough to be worth revisiting"
+        );
     }
 
     #[test]
@@ -10298,7 +11896,9 @@ mod tests {
             let mut controls = Vec::with_capacity(560);
             let mut boundary_delta = Vec::with_capacity(35);
             for step in 0..560 {
-                if step % 16 == 0 { boundary_delta.push(delta); }
+                if step % 16 == 0 {
+                    boundary_delta.push(delta);
+                }
                 let odd = g.bit0();
                 let a = delta > 0 && odd;
                 controls.push((odd, a));
@@ -10322,13 +11922,16 @@ mod tests {
         let mut b = super::super::B::new();
         let pattern = b.alloc_qubits(560);
         let red_flags = b.alloc_qubits(560);
-        let delta_starts: Vec<Vec<super::super::QubitId>> = (0..35).map(|_| b.alloc_qubits(10)).collect();
+        let delta_starts: Vec<Vec<super::super::QubitId>> =
+            (0..35).map(|_| b.alloc_qubits(10)).collect();
         let delta_work = b.alloc_qubits(10);
         let a_window = b.alloc_qubits(16);
         let r = b.alloc_qubits(256);
         let s = b.alloc_qubits(256);
         for win in 0..35 {
-            for i in 0..10 { b.cx(delta_starts[win][i], delta_work[i]); }
+            for i in 0..10 {
+                b.cx(delta_starts[win][i], delta_work[i]);
+            }
             emit_pattern_delta_decode_window_for_test(
                 &mut b,
                 &pattern[win * 16..win * 16 + 16],
@@ -10353,7 +11956,9 @@ mod tests {
                 &delta_work,
                 &a_window,
             );
-            for i in 0..10 { b.cx(delta_starts[win][i], delta_work[i]); }
+            for i in 0..10 {
+                b.cx(delta_starts[win][i], delta_work[i]);
+            }
         }
         let ccx = count_ccx(&b.ops);
         let peak = b.peak_qubits;
@@ -10365,7 +11970,9 @@ mod tests {
         let mut xof = hasher.finalize_xof();
         let mut sim = crate::sim::Simulator::new(num_qubits, num_bits, &mut xof);
         for (i, &(odd_v, _)) in controls.iter().enumerate() {
-            if odd_v { *sim.qubit_mut(pattern[i]) |= 1; }
+            if odd_v {
+                *sim.qubit_mut(pattern[i]) |= 1;
+            }
         }
         for (win, &d) in boundary_delta.iter().enumerate() {
             set_slice_u512_by(&mut sim, &delta_starts[win], twos_u512_for_delta(d, 10));
@@ -10373,22 +11980,58 @@ mod tests {
         set_slice_u512_by(&mut sim, &r, U512::ZERO);
         set_slice_u512_by(&mut sim, &s, u256_to_u512_for_by_tests(addm(y, x, p)));
         sim.apply(&ops);
-        assert_eq!(get_slice_u512_by(&sim, &r), u256_to_u512_for_by_tests(exp_r), "r mismatch");
-        assert_eq!(get_slice_u512_by(&sim, &s), u256_to_u512_for_by_tests(exp_s), "s mismatch");
-        let plus_one = if f_final.is_one_pos() { exp_r } else { negm(exp_r, p) };
+        assert_eq!(
+            get_slice_u512_by(&sim, &r),
+            u256_to_u512_for_by_tests(exp_r),
+            "r mismatch"
+        );
+        assert_eq!(
+            get_slice_u512_by(&sim, &s),
+            u256_to_u512_for_by_tests(exp_s),
+            "s mismatch"
+        );
+        let plus_one = if f_final.is_one_pos() {
+            exp_r
+        } else {
+            negm(exp_r, p)
+        };
         let quotient = subm(plus_one, U256::from(1u64), p);
-        assert_eq!(quotient, mulm(y, fermat_modinv(x, p), p), "tagged quotient mismatch");
-        assert_eq!(get_slice_u512_by(&sim, &a_window), U512::ZERO, "A window scratch not clean");
-        assert_eq!(get_slice_u512_by(&sim, &delta_work), U512::ZERO, "delta work not clean");
+        assert_eq!(
+            quotient,
+            mulm(y, fermat_modinv(x, p), p),
+            "tagged quotient mismatch"
+        );
+        assert_eq!(
+            get_slice_u512_by(&sim, &a_window),
+            U512::ZERO,
+            "A window scratch not clean"
+        );
+        assert_eq!(
+            get_slice_u512_by(&sim, &delta_work),
+            U512::ZERO,
+            "delta work not clean"
+        );
         let red_nonzero = red_flags.iter().any(|&q| (sim.qubit(q) & 1) != 0);
         let phase = sim.global_phase() & 1;
         eprintln!(
             "BY live reduction flags + window-local A clear: ccx={ccx}, peak={peak}q, phase={phase}, flags_nonzero={red_nonzero}"
         );
-        assert!(red_nonzero, "live reduction flags unexpectedly clean already");
-        assert_eq!(phase, 0, "live reduction flags did not fix early A-clear phase");
-        assert!(ccx < 1_140_000, "live-flag window-local replay lost target Toffoli band");
-        assert!(peak < 2_850, "live-flag window-local replay exceeds current cap");
+        assert!(
+            red_nonzero,
+            "live reduction flags unexpectedly clean already"
+        );
+        assert_eq!(
+            phase, 0,
+            "live reduction flags did not fix early A-clear phase"
+        );
+        assert!(
+            ccx < 1_140_000,
+            "live-flag window-local replay lost target Toffoli band"
+        );
+        assert!(
+            peak < 2_850,
+            "live-flag window-local replay exceeds current cap"
+        );
     }
 
     #[test]
@@ -10479,20 +12122,50 @@ mod tests {
         set_slice_u512_by(&mut sim, &r, U512::ZERO);
         set_slice_u512_by(&mut sim, &s, u256_to_u512_for_by_tests(addm(y, x, p)));
         sim.apply(&ops);
-        assert_eq!(get_slice_u512_by(&sim, &r), u256_to_u512_for_by_tests(exp_r), "r mismatch");
-        assert_eq!(get_slice_u512_by(&sim, &s), u256_to_u512_for_by_tests(exp_s), "s mismatch");
+        assert_eq!(
+            get_slice_u512_by(&sim, &r),
+            u256_to_u512_for_by_tests(exp_r),
+            "r mismatch"
+        );
+        assert_eq!(
+            get_slice_u512_by(&sim, &s),
+            u256_to_u512_for_by_tests(exp_s),
+            "s mismatch"
+        );
         assert_eq!(exp_s, U256::ZERO, "bottom tagged channel did not zero");
-        let plus_one = if f_final.is_one_pos() { exp_r } else { negm(exp_r, p) };
+        let plus_one = if f_final.is_one_pos() {
+            exp_r
+        } else {
+            negm(exp_r, p)
+        };
         let quotient = subm(plus_one, U256::from(1u64), p);
-        assert_eq!(quotient, mulm(y, fermat_modinv(x, p), p), "tagged quotient mismatch");
-        assert_eq!(get_slice_u512_by(&sim, &a_hist), U512::ZERO, "A history not cleaned");
-        assert_eq!(get_slice_u512_by(&sim, &delta), U512::from(1u64), "delta not restored");
+        assert_eq!(
+            quotient,
+            mulm(y, fermat_modinv(x, p), p),
+            "tagged quotient mismatch"
+        );
+        assert_eq!(
+            get_slice_u512_by(&sim, &a_hist),
+            U512::ZERO,
+            "A history not cleaned"
+        );
+        assert_eq!(
+            get_slice_u512_by(&sim, &delta),
+            U512::from(1u64),
+            "delta not restored"
+        );
         assert_eq!(sim.global_phase() & 1, 0, "phase garbage");
         eprintln!(
             "BY pattern-decoder 560-step tagged-DIV scaffold: decode_ccx={decode_forward_ccx}, replay_plus_decode_ccx={replay_plus_decode_ccx}, roundtrip_ccx={ccx}, peak={peak}q"
         );
-        assert!(ccx < 1_300_000, "decoded pattern scaffold exceeded integration margin");
-        assert!(peak < 2_700, "decoded pattern scaffold too wide for current cap");
+        assert!(
+            ccx < 1_300_000,
+            "decoded pattern scaffold exceeded integration margin"
+        );
+        assert!(
+            peak < 2_700,
+            "decoded pattern scaffold too wide for current cap"
+        );
     }
 
     #[test]
@@ -10575,12 +12248,28 @@ mod tests {
         set_slice_u512_by(&mut sim, &r, U512::ZERO);
         set_slice_u512_by(&mut sim, &s, u256_to_u512_for_by_tests(addm(y, x, p)));
         sim.apply(&ops);
-        assert_eq!(get_slice_u512_by(&sim, &r), u256_to_u512_for_by_tests(exp_r), "r mismatch");
-        assert_eq!(get_slice_u512_by(&sim, &s), u256_to_u512_for_by_tests(exp_s), "s mismatch");
+        assert_eq!(
+            get_slice_u512_by(&sim, &r),
+            u256_to_u512_for_by_tests(exp_r),
+            "r mismatch"
+        );
+        assert_eq!(
+            get_slice_u512_by(&sim, &s),
+            u256_to_u512_for_by_tests(exp_s),
+            "s mismatch"
+        );
         assert_eq!(exp_s, U256::ZERO, "bottom tagged channel did not zero");
-        let plus_one = if f_final.is_one_pos() { exp_r } else { negm(exp_r, p) };
+        let plus_one = if f_final.is_one_pos() {
+            exp_r
+        } else {
+            negm(exp_r, p)
+        };
         let quotient = subm(plus_one, U256::from(1u64), p);
-        assert_eq!(quotient, mulm(y, fermat_modinv(x, p), p), "tagged quotient mismatch");
+        assert_eq!(
+            quotient,
+            mulm(y, fermat_modinv(x, p), p),
+            "tagged quotient mismatch"
+        );
         eprintln!(
             "BY pattern-history 560-step tagged-DIV scaffold: ccx={ccx}, peak={peak}q, raw_pattern_bits=560"
         );
@@ -10651,15 +12340,29 @@ mod tests {
         set_slice_u512_by(&mut sim, &r, U512::ZERO);
         set_slice_u512_by(&mut sim, &s, u256_to_u512_for_by_tests(addm(y, x, p)));
         sim.apply(&ops);
-        assert_eq!(get_slice_u512_by(&sim, &r), u256_to_u512_for_by_tests(exp_r), "r mismatch");
-        assert_eq!(get_slice_u512_by(&sim, &s), u256_to_u512_for_by_tests(exp_s), "s mismatch");
-        assert_eq!(exp_s, U256::ZERO, "bottom tagged channel did not zero");
-        let plus_one = if f_final.is_one_pos() { exp_r } else { negm(exp_r, p) };
-        let quotient = subm(plus_one, U256::from(1u64), p);
-        assert_eq!(quotient, mulm(y, fermat_modinv(x, p), p), "tagged quotient mismatch");
-        eprintln!(
-            "BY scaled controlled 560-step tagged-DIV basis sim: ccx={ccx}, peak={peak}q"
+        assert_eq!(
+            get_slice_u512_by(&sim, &r),
+            u256_to_u512_for_by_tests(exp_r),
+            "r mismatch"
         );
+        assert_eq!(
+            get_slice_u512_by(&sim, &s),
+            u256_to_u512_for_by_tests(exp_s),
+            "s mismatch"
+        );
+        assert_eq!(exp_s, U256::ZERO, "bottom tagged channel did not zero");
+        let plus_one = if f_final.is_one_pos() {
+            exp_r
+        } else {
+            negm(exp_r, p)
+        };
+        let quotient = subm(plus_one, U256::from(1u64), p);
+        assert_eq!(
+            quotient,
+            mulm(y, fermat_modinv(x, p), p),
+            "tagged quotient mismatch"
+        );
+        eprintln!("BY scaled controlled 560-step tagged-DIV basis sim: ccx={ccx}, peak={peak}q");
     }
 
     #[test]
@@ -10679,7 +12382,10 @@ mod tests {
             "BY scaled controlled 560-step scaffold: ccx={ccx}, peak={peak}q, raw_control_bits=1120"
         );
         assert!(ccx < 1_160_000, "scaled 560-step scaffold cost drifted");
-        assert!(peak < 2_500, "raw-control scaled scaffold exceeds current cap too much");
+        assert!(
+            peak < 2_500,
+            "raw-control scaled scaffold exceeds current cap too much"
+        );
     }
 
     #[test]
@@ -10732,12 +12438,18 @@ mod tests {
             set_slice_u512_by(&mut sim, &r, u256_to_u512_for_by_tests(rv));
             set_slice_u512_by(&mut sim, &s, u256_to_u512_for_by_tests(sv));
             sim.apply(&ops);
-            assert_eq!(get_slice_u512_by(&sim, &r), u256_to_u512_for_by_tests(exp_r), "r mismatch");
-            assert_eq!(get_slice_u512_by(&sim, &s), u256_to_u512_for_by_tests(exp_s), "s mismatch");
+            assert_eq!(
+                get_slice_u512_by(&sim, &r),
+                u256_to_u512_for_by_tests(exp_r),
+                "r mismatch"
+            );
+            assert_eq!(
+                get_slice_u512_by(&sim, &s),
+                u256_to_u512_for_by_tests(exp_s),
+                "s mismatch"
+            );
         }
-        eprintln!(
-            "BY scaled controlled 16-step window: ccx={ccx}, peak={peak}q, matrix={pmat:?}"
-        );
+        eprintln!("BY scaled controlled 16-step window: ccx={ccx}, peak={peak}q, matrix={pmat:?}");
         assert!(ccx < 35_000, "scaled controlled window too costly");
         assert!(peak < 1_350, "scaled controlled window peak too high");
     }
@@ -10749,7 +12461,10 @@ mod tests {
     }
 
     fn sw_zero_for_test() -> SignedWideForTest {
-        SignedWideForTest { neg: false, mag: U512::ZERO }
+        SignedWideForTest {
+            neg: false,
+            mag: U512::ZERO,
+        }
     }
 
     fn sw_from_u512_for_test(x: U512) -> SignedWideForTest {
@@ -10757,19 +12472,38 @@ mod tests {
     }
 
     fn sw_add_for_test(a: SignedWideForTest, b: SignedWideForTest) -> SignedWideForTest {
-        if a.mag.is_zero() { return b; }
-        if b.mag.is_zero() { return a; }
+        if a.mag.is_zero() {
+            return b;
+        }
+        if b.mag.is_zero() {
+            return a;
+        }
         if a.neg == b.neg {
-            SignedWideForTest { neg: a.neg, mag: a.mag.wrapping_add(b.mag) }
+            SignedWideForTest {
+                neg: a.neg,
+                mag: a.mag.wrapping_add(b.mag),
+            }
         } else if a.mag >= b.mag {
-            SignedWideForTest { neg: a.neg, mag: a.mag.wrapping_sub(b.mag) }
+            SignedWideForTest {
+                neg: a.neg,
+                mag: a.mag.wrapping_sub(b.mag),
+            }
         } else {
-            SignedWideForTest { neg: b.neg, mag: b.mag.wrapping_sub(a.mag) }
+            SignedWideForTest {
+                neg: b.neg,
+                mag: b.mag.wrapping_sub(a.mag),
+            }
         }
     }
 
     fn sw_sub_for_test(a: SignedWideForTest, b: SignedWideForTest) -> SignedWideForTest {
-        sw_add_for_test(a, SignedWideForTest { neg: !b.neg && !b.mag.is_zero(), mag: b.mag })
+        sw_add_for_test(
+            a,
+            SignedWideForTest {
+                neg: !b.neg && !b.mag.is_zero(),
+                mag: b.mag,
+            },
+        )
     }
 
     fn sw_half_modp_no_reduce_for_test(mut x: SignedWideForTest, p512: U512) -> SignedWideForTest {
@@ -10777,7 +12511,10 @@ mod tests {
             x = sw_add_for_test(x, sw_from_u512_for_test(p512));
         }
         assert!(!x.mag.bit(0), "wide representative not even before halve");
-        SignedWideForTest { neg: x.neg, mag: x.mag >> 1usize }
+        SignedWideForTest {
+            neg: x.neg,
+            mag: x.mag >> 1usize,
+        }
     }
 
     fn low_u256_from_u512_for_test(x: U512) -> U256 {
@@ -10800,7 +12537,10 @@ mod tests {
 
     fn sw_centered_from_u256_for_test(x: U256, p: U256) -> SignedWideForTest {
         if x > (p >> 1usize) {
-            SignedWideForTest { neg: true, mag: u256_to_u512_for_by_tests(p.wrapping_sub(x)) }
+            SignedWideForTest {
+                neg: true,
+                mag: u256_to_u512_for_by_tests(p.wrapping_sub(x)),
+            }
         } else {
             sw_from_u512_for_test(u256_to_u512_for_by_tests(x))
         }
@@ -10814,8 +12554,14 @@ mod tests {
                 x = sw_sub_for_test(x, sw_from_u512_for_test(p512));
             }
         }
-        assert!(!x.mag.bit(0), "centered representative not even before halve");
-        SignedWideForTest { neg: x.neg, mag: x.mag >> 1usize }
+        assert!(
+            !x.mag.bit(0),
+            "centered representative not even before halve"
+        );
+        SignedWideForTest {
+            neg: x.neg,
+            mag: x.mag >> 1usize,
+        }
     }
 
     #[test]
@@ -10849,15 +12595,21 @@ mod tests {
                 if a {
                     let nr = s;
                     let t = sw_sub_for_test(s, r);
-                    if t.mag.bit(0) { parity_true_total += 1; }
+                    if t.mag.bit(0) {
+                        parity_true_total += 1;
+                    }
                     s = sw_half_modp_centered_for_test(t, p512);
                     r = nr;
                 } else if odd {
                     let t = sw_add_for_test(s, r);
-                    if t.mag.bit(0) { parity_true_total += 1; }
+                    if t.mag.bit(0) {
+                        parity_true_total += 1;
+                    }
                     s = sw_half_modp_centered_for_test(t, p512);
                 } else {
-                    if s.mag.bit(0) { parity_true_total += 1; }
+                    if s.mag.bit(0) {
+                        parity_true_total += 1;
+                    }
                     s = sw_half_modp_centered_for_test(s, p512);
                 }
                 max_mag = max_mag.max(r.mag).max(s.mag);
@@ -10867,11 +12619,23 @@ mod tests {
                 failures += 1;
                 continue;
             }
-            assert_eq!(sw_mod_p_for_test(s, p), U256::ZERO, "centered bottom channel not zero mod p");
+            assert_eq!(
+                sw_mod_p_for_test(s, p),
+                U256::ZERO,
+                "centered bottom channel not zero mod p"
+            );
             let r_mod = sw_mod_p_for_test(r, p);
-            let plus_one = if f.is_one_pos() { r_mod } else { negm(r_mod, p) };
+            let plus_one = if f.is_one_pos() {
+                r_mod
+            } else {
+                negm(r_mod, p)
+            };
             let quotient = subm(plus_one, U256::from(1u64), p);
-            assert_eq!(quotient, mulm(y, fermat_modinv(x, p), p), "centered signed quotient mismatch");
+            assert_eq!(
+                quotient,
+                mulm(y, fermat_modinv(x, p), p),
+                "centered signed quotient mismatch"
+            );
         }
         let fail_rate = failures as f64 / samples as f64;
         let parity_mean = parity_true_total as f64 / samples as f64;
@@ -10879,8 +12643,14 @@ mod tests {
             "BY centered signed replay: samples={samples}, failures={failures} ({fail_rate:.4}), max_mag_bits={}, parity_mean={parity_mean:.1}"
             , 512 - max_mag.leading_zeros()
         );
-        assert!(fail_rate <= 0.01, "centered signed replay convergence tail too high");
-        assert!(max_mag < p512, "centered representatives escaped one modulus");
+        assert!(
+            fail_rate <= 0.01,
+            "centered signed replay convergence tail too high"
+        );
+        assert!(
+            max_mag < p512,
+            "centered representatives escaped one modulus"
+        );
     }
 
     #[test]
@@ -10914,19 +12684,30 @@ mod tests {
                 if a {
                     let nr = s;
                     let t = sw_sub_for_test(s, r);
-                    if t.mag.bit(0) { parity_true_total += 1; parity_step_counts[step] += 1; }
+                    if t.mag.bit(0) {
+                        parity_true_total += 1;
+                        parity_step_counts[step] += 1;
+                    }
                     s = sw_half_modp_no_reduce_for_test(t, p512);
                     r = nr;
                 } else if odd {
                     let t = sw_add_for_test(s, r);
-                    if t.mag.bit(0) { parity_true_total += 1; parity_step_counts[step] += 1; }
+                    if t.mag.bit(0) {
+                        parity_true_total += 1;
+                        parity_step_counts[step] += 1;
+                    }
                     s = sw_half_modp_no_reduce_for_test(t, p512);
                 } else {
-                    if s.mag.bit(0) { parity_true_total += 1; parity_step_counts[step] += 1; }
+                    if s.mag.bit(0) {
+                        parity_true_total += 1;
+                        parity_step_counts[step] += 1;
+                    }
                     s = sw_half_modp_no_reduce_for_test(s, p512);
                 }
                 for k in 0..8 {
-                    if r.mag < p512 * U512::from((k + 1) as u64) && s.mag < p512 * U512::from((k + 1) as u64) {
+                    if r.mag < p512 * U512::from((k + 1) as u64)
+                        && s.mag < p512 * U512::from((k + 1) as u64)
+                    {
                         max_multiple = max_multiple.max(k + 1);
                         break;
                     }
@@ -10937,23 +12718,48 @@ mod tests {
                 failures += 1;
                 continue;
             }
-            assert_eq!(sw_mod_p_for_test(s, p), U256::ZERO, "bottom tagged channel not zero mod p");
+            assert_eq!(
+                sw_mod_p_for_test(s, p),
+                U256::ZERO,
+                "bottom tagged channel not zero mod p"
+            );
             let r_mod = sw_mod_p_for_test(r, p);
-            let plus_one = if f.is_one_pos() { r_mod } else { negm(r_mod, p) };
+            let plus_one = if f.is_one_pos() {
+                r_mod
+            } else {
+                negm(r_mod, p)
+            };
             let quotient = subm(plus_one, U256::from(1u64), p);
-            assert_eq!(quotient, mulm(y, fermat_modinv(x, p), p), "redundant signed quotient mismatch");
+            assert_eq!(
+                quotient,
+                mulm(y, fermat_modinv(x, p), p),
+                "redundant signed quotient mismatch"
+            );
         }
         let fail_rate = failures as f64 / samples as f64;
         let parity_mean = parity_true_total as f64 / samples as f64;
-        let parity_entropy: f64 = parity_step_counts.iter().map(|&c| {
-            let q = c as f64 / samples as f64;
-            if q <= 0.0 || q >= 1.0 { 0.0 } else { -q * q.log2() - (1.0 - q) * (1.0 - q).log2() }
-        }).sum();
+        let parity_entropy: f64 = parity_step_counts
+            .iter()
+            .map(|&c| {
+                let q = c as f64 / samples as f64;
+                if q <= 0.0 || q >= 1.0 {
+                    0.0
+                } else {
+                    -q * q.log2() - (1.0 - q) * (1.0 - q).log2()
+                }
+            })
+            .sum();
         eprintln!(
             "BY redundant signed replay: samples={samples}, failures={failures} ({fail_rate:.4}), max_seen_multiple<={max_multiple}p, parity_mean={parity_mean:.1}, parity_entropy≈{parity_entropy:.1} bits"
         );
-        assert!(fail_rate <= 0.01, "redundant signed replay convergence tail too high");
-        assert!(max_multiple <= 4, "redundant representatives grow too large for a narrow circuit rewrite");
+        assert!(
+            fail_rate <= 0.01,
+            "redundant signed replay convergence tail too high"
+        );
+        assert!(
+            max_multiple <= 4,
+            "redundant representatives grow too large for a narrow circuit rewrite"
+        );
     }
 
     fn sw_twos_for_width_for_test(x: SignedWideForTest, width: usize) -> U512 {
@@ -10982,7 +12788,9 @@ mod tests {
         let parity = b.alloc_qubit();
         let r = b.alloc_qubits(WIDE);
         let s = b.alloc_qubits(WIDE);
-        emit_scaled_by_redundant_signed_microstep_live_parity_for_test(&mut b, &r, &s, odd, a_ctrl, parity, p);
+        emit_scaled_by_redundant_signed_microstep_live_parity_for_test(
+            &mut b, &r, &s, odd, a_ctrl, parity, p,
+        );
         let ccx = count_ccx(&b.ops);
         let peak = b.peak_qubits;
         let num_qubits = b.next_qubit as usize;
@@ -10996,8 +12804,14 @@ mod tests {
                 let rv = sw_from_u512_for_test(u256_to_u512_for_by_tests(sx.next()));
                 let sv = sw_from_u512_for_test(u256_to_u512_for_by_tests(sy.next()));
                 let (exp_r, exp_s) = match name {
-                    "A" => (sv, sw_half_modp_no_reduce_for_test(sw_sub_for_test(sv, rv), p512)),
-                    "B" => (rv, sw_half_modp_no_reduce_for_test(sw_add_for_test(sv, rv), p512)),
+                    "A" => (
+                        sv,
+                        sw_half_modp_no_reduce_for_test(sw_sub_for_test(sv, rv), p512),
+                    ),
+                    "B" => (
+                        rv,
+                        sw_half_modp_no_reduce_for_test(sw_add_for_test(sv, rv), p512),
+                    ),
                     "C" => (rv, sw_half_modp_no_reduce_for_test(sv, p512)),
                     _ => unreachable!(),
                 };
@@ -11005,21 +12819,39 @@ mod tests {
                 hasher.update(b"by-redundant-step-sim-v1");
                 let mut xof = hasher.finalize_xof();
                 let mut sim = crate::sim::Simulator::new(num_qubits, num_bits, &mut xof);
-                if odd_v { *sim.qubit_mut(odd) |= 1; }
-                if a_v { *sim.qubit_mut(a_ctrl) |= 1; }
+                if odd_v {
+                    *sim.qubit_mut(odd) |= 1;
+                }
+                if a_v {
+                    *sim.qubit_mut(a_ctrl) |= 1;
+                }
                 set_slice_u512_by(&mut sim, &r, sw_twos_for_width_for_test(rv, WIDE));
                 set_slice_u512_by(&mut sim, &s, sw_twos_for_width_for_test(sv, WIDE));
                 sim.apply(&ops);
-                assert_eq!(get_slice_u512_by(&sim, &r), sw_twos_for_width_for_test(exp_r, WIDE), "r mismatch {name}");
-                assert_eq!(get_slice_u512_by(&sim, &s), sw_twos_for_width_for_test(exp_s, WIDE), "s mismatch {name}");
+                assert_eq!(
+                    get_slice_u512_by(&sim, &r),
+                    sw_twos_for_width_for_test(exp_r, WIDE),
+                    "r mismatch {name}"
+                );
+                assert_eq!(
+                    get_slice_u512_by(&sim, &s),
+                    sw_twos_for_width_for_test(exp_s, WIDE),
+                    "s mismatch {name}"
+                );
             }
         }
         let replay560 = ccx * 560;
         eprintln!(
             "BY redundant signed live-parity microstep: ccx={ccx}, replay560≈{replay560}, peak={peak}q, width={WIDE}"
         );
-        assert!(ccx < 1_400, "redundant signed microstep lost the no-reduction payoff");
-        assert!(replay560 < 800_000, "redundant signed replay would not beat fixed-control target even if cleaned");
+        assert!(
+            ccx < 1_400,
+            "redundant signed microstep lost the no-reduction payoff"
+        );
+        assert!(
+            replay560 < 800_000,
+            "redundant signed replay would not beat fixed-control target even if cleaned"
+        );
     }
 
     #[test]
@@ -11038,7 +12870,11 @@ mod tests {
         let centered_halve = |mut t: i64| -> (i64, bool) {
             let parity = (t & 1) != 0;
             if parity {
-                if t < 0 { t += p; } else { t -= p; }
+                if t < 0 {
+                    t += p;
+                } else {
+                    t -= p;
+                }
             }
             assert_eq!(t & 1, 0);
             (t / 2, parity)
@@ -11065,7 +12901,10 @@ mod tests {
                 let a_rec = !centered(s_old - 2 * a_s);
                 mismatches += (a_rec != a_par) as usize;
                 if let Some(prev) = a_map.insert((s_old, a_s), a_par) {
-                    assert_eq!(prev, a_par, "A parity collision for r_out={s_old}, s_out={a_s}");
+                    assert_eq!(
+                        prev, a_par,
+                        "A parity collision for r_out={s_old}, s_out={a_s}"
+                    );
                 }
             }
         }
@@ -11073,7 +12912,10 @@ mod tests {
             "BY centered parity recovery by range: states={}, B_keys={}, A_keys={}, C_keys={}, mismatches={mismatches}",
             vals.len() * vals.len(), b_map.len(), a_map.len(), c_map.len()
         );
-        assert_eq!(mismatches, 0, "centered range parity recovery formula failed");
+        assert_eq!(
+            mismatches, 0,
+            "centered range parity recovery formula failed"
+        );
     }
 
     fn sw_highbits_outside_center_for_test(x: SignedWideForTest) -> bool {
@@ -11112,25 +12954,46 @@ mod tests {
                     let t = sw_sub_for_test(old_s, old_r);
                     let par = t.mag.bit(0);
                     let ns = sw_half_modp_centered_for_test(t, p512);
-                    let even_preimage = sw_sub_for_test(old_s, SignedWideForTest { neg: ns.neg, mag: ns.mag << 1usize });
+                    let even_preimage = sw_sub_for_test(
+                        old_s,
+                        SignedWideForTest {
+                            neg: ns.neg,
+                            mag: ns.mag << 1usize,
+                        },
+                    );
                     let rec = sw_highbits_outside_center_for_test(even_preimage);
-                    if rec != par { mismatches += 1; }
+                    if rec != par {
+                        mismatches += 1;
+                    }
                     r = old_s;
                     s = ns;
                 } else if odd {
                     let t = sw_add_for_test(s, r);
                     let par = t.mag.bit(0);
                     let ns = sw_half_modp_centered_for_test(t, p512);
-                    let even_preimage = sw_sub_for_test(SignedWideForTest { neg: ns.neg, mag: ns.mag << 1usize }, r);
+                    let even_preimage = sw_sub_for_test(
+                        SignedWideForTest {
+                            neg: ns.neg,
+                            mag: ns.mag << 1usize,
+                        },
+                        r,
+                    );
                     let rec = sw_highbits_outside_center_for_test(even_preimage);
-                    if rec != par { mismatches += 1; }
+                    if rec != par {
+                        mismatches += 1;
+                    }
                     s = ns;
                 } else {
                     let par = s.mag.bit(0);
                     let ns = sw_half_modp_centered_for_test(s, p512);
-                    let even_preimage = SignedWideForTest { neg: ns.neg, mag: ns.mag << 1usize };
+                    let even_preimage = SignedWideForTest {
+                        neg: ns.neg,
+                        mag: ns.mag << 1usize,
+                    };
                     let rec = sw_highbits_outside_center_for_test(even_preimage);
-                    if rec != par { mismatches += 1; }
+                    if rec != par {
+                        mismatches += 1;
+                    }
                     s = ns;
                 }
                 checks += 1;
@@ -11141,7 +13004,10 @@ mod tests {
         eprintln!(
             "BY centered parity highbits recovery dead end: mismatches={mismatches}/{checks} ({fail_rate:.6})"
         );
-        assert!(fail_rate > 0.01, "high-bit shortcut might satisfy approximate tolerance; revisit");
+        assert!(
+            fail_rate > 0.01,
+            "high-bit shortcut might satisfy approximate tolerance; revisit"
+        );
     }
 
     fn emit_highbits_outside_center_into_for_test(
@@ -11171,11 +13037,15 @@ mod tests {
     ) {
         let n = s_out.len();
         let tmp = b.alloc_qubits(n);
-        for i in 0..n - 1 { b.cx(s_out[i], tmp[i + 1]); }
+        for i in 0..n - 1 {
+            b.cx(s_out[i], tmp[i + 1]);
+        }
         super::super::sub_nbit_qq_fast(b, r_out, &tmp);
         emit_highbits_outside_center_into_for_test(b, &tmp, flag);
         super::super::add_nbit_qq_fast(b, r_out, &tmp);
-        for i in (0..n - 1).rev() { b.cx(s_out[i], tmp[i + 1]); }
+        for i in (0..n - 1).rev() {
+            b.cx(s_out[i], tmp[i + 1]);
+        }
         b.free_vec(&tmp);
     }
 
@@ -11194,7 +13064,10 @@ mod tests {
             "BY highbits centered parity recovery: ccx_per_Bflag={ccx}, cleanup560_worst≈{cleanup560:.0}, peak={}q",
             b.peak_qubits
         );
-        assert!(ccx < 600, "high-bit parity recovery no better than full range comparator");
+        assert!(
+            ccx < 600,
+            "high-bit parity recovery no better than full range comparator"
+        );
     }
 
     fn emit_centered_b_parity_recovery_for_cost(
@@ -11210,7 +13083,9 @@ mod tests {
         // full-width add/sub and comparator stack a naive cleanup would pay.
         let n = s_out.len();
         let tmp = b.alloc_qubits(n);
-        for i in 0..n { b.cx(s_out[i], tmp[i]); }
+        for i in 0..n {
+            b.cx(s_out[i], tmp[i]);
+        }
         // Conceptual tmp <- 2*tmp by wire permutation (0 Toffoli).
         super::super::sub_nbit_qq_fast(b, r_out, &tmp);
         let bias = p >> 1usize;
@@ -11220,7 +13095,9 @@ mod tests {
         super::super::unload_const(b, &p_reg, p);
         super::super::sub_nbit_const_fast(b, &tmp, bias);
         super::super::add_nbit_qq_fast(b, r_out, &tmp);
-        for i in 0..n { b.cx(s_out[i], tmp[i]); }
+        for i in 0..n {
+            b.cx(s_out[i], tmp[i]);
+        }
         b.free_vec(&tmp);
         b.x(flag); // parity = !centered(even preimage)
     }
@@ -11241,8 +13118,14 @@ mod tests {
             "BY naive centered parity recovery: ccx_per_flag={ccx}, cleanup560≈{replay_cleanup:.0}, peak={}q",
             b.peak_qubits
         );
-        assert!(ccx > 900, "naive range recovery unexpectedly cheap; synthesize it for real");
-        assert!(replay_cleanup > 500_000.0, "naive parity cleanup would preserve redundant replay win");
+        assert!(
+            ccx > 900,
+            "naive range recovery unexpectedly cheap; synthesize it for real"
+        );
+        assert!(
+            replay_cleanup > 500_000.0,
+            "naive parity cleanup would preserve redundant replay win"
+        );
     }
 
     #[test]
@@ -11256,7 +13139,9 @@ mod tests {
         let parity = b.alloc_qubit();
         let r = b.alloc_qubits(WIDE);
         let s = b.alloc_qubits(WIDE);
-        emit_scaled_by_centered_signed_microstep_live_parity_for_test(&mut b, &r, &s, odd, a_ctrl, parity, p);
+        emit_scaled_by_centered_signed_microstep_live_parity_for_test(
+            &mut b, &r, &s, odd, a_ctrl, parity, p,
+        );
         let ccx = count_ccx(&b.ops);
         let peak = b.peak_qubits;
         let num_qubits = b.next_qubit as usize;
@@ -11270,8 +13155,14 @@ mod tests {
                 let rv = sw_centered_from_u256_for_test(sx.next(), p);
                 let sv = sw_centered_from_u256_for_test(sy.next(), p);
                 let (exp_r, exp_s) = match name {
-                    "A" => (sv, sw_half_modp_centered_for_test(sw_sub_for_test(sv, rv), p512)),
-                    "B" => (rv, sw_half_modp_centered_for_test(sw_add_for_test(sv, rv), p512)),
+                    "A" => (
+                        sv,
+                        sw_half_modp_centered_for_test(sw_sub_for_test(sv, rv), p512),
+                    ),
+                    "B" => (
+                        rv,
+                        sw_half_modp_centered_for_test(sw_add_for_test(sv, rv), p512),
+                    ),
                     "C" => (rv, sw_half_modp_centered_for_test(sv, p512)),
                     _ => unreachable!(),
                 };
@@ -11279,21 +13170,39 @@ mod tests {
                 hasher.update(b"by-centered-step-sim-v1");
                 let mut xof = hasher.finalize_xof();
                 let mut sim = crate::sim::Simulator::new(num_qubits, num_bits, &mut xof);
-                if odd_v { *sim.qubit_mut(odd) |= 1; }
-                if a_v { *sim.qubit_mut(a_ctrl) |= 1; }
+                if odd_v {
+                    *sim.qubit_mut(odd) |= 1;
+                }
+                if a_v {
+                    *sim.qubit_mut(a_ctrl) |= 1;
+                }
                 set_slice_u512_by(&mut sim, &r, sw_twos_for_width_for_test(rv, WIDE));
                 set_slice_u512_by(&mut sim, &s, sw_twos_for_width_for_test(sv, WIDE));
                 sim.apply(&ops);
-                assert_eq!(get_slice_u512_by(&sim, &r), sw_twos_for_width_for_test(exp_r, WIDE), "r mismatch {name}");
-                assert_eq!(get_slice_u512_by(&sim, &s), sw_twos_for_width_for_test(exp_s, WIDE), "s mismatch {name}");
+                assert_eq!(
+                    get_slice_u512_by(&sim, &r),
+                    sw_twos_for_width_for_test(exp_r, WIDE),
+                    "r mismatch {name}"
+                );
+                assert_eq!(
+                    get_slice_u512_by(&sim, &s),
+                    sw_twos_for_width_for_test(exp_s, WIDE),
+                    "s mismatch {name}"
+                );
             }
         }
         let replay560 = ccx * 560;
         eprintln!(
             "BY centered signed live-parity microstep: ccx={ccx}, replay560≈{replay560}, peak={peak}q, width={WIDE}"
         );
-        assert!(ccx < 1_700, "centered signed microstep too costly to stay SOTA-shaped");
-        assert!(replay560 < 1_000_000, "centered signed replay loses the sub-1M target");
+        assert!(
+            ccx < 1_700,
+            "centered signed microstep too costly to stay SOTA-shaped"
+        );
+        assert!(
+            replay560 < 1_000_000,
+            "centered signed replay loses the sub-1M target"
+        );
     }
 
     #[test]
@@ -11338,7 +13247,9 @@ mod tests {
         let r = b.alloc_qubits(WIDE);
         let s = b.alloc_qubits(WIDE);
         for i in 0..560 {
-            emit_scaled_by_centered_signed_microstep_live_parity_for_test(&mut b, &r, &s, odd[i], a_ctrl[i], parity[i], p);
+            emit_scaled_by_centered_signed_microstep_live_parity_for_test(
+                &mut b, &r, &s, odd[i], a_ctrl[i], parity[i], p,
+            );
         }
         let ccx = count_ccx(&b.ops);
         let peak = b.peak_qubits;
@@ -11350,27 +13261,62 @@ mod tests {
         let mut xof = hasher.finalize_xof();
         let mut sim = crate::sim::Simulator::new(num_qubits, num_bits, &mut xof);
         for (i, &(odd_v, a_v)) in controls.iter().enumerate() {
-            if odd_v { *sim.qubit_mut(odd[i]) |= 1; }
-            if a_v { *sim.qubit_mut(a_ctrl[i]) |= 1; }
+            if odd_v {
+                *sim.qubit_mut(odd[i]) |= 1;
+            }
+            if a_v {
+                *sim.qubit_mut(a_ctrl[i]) |= 1;
+            }
         }
         set_slice_u512_by(&mut sim, &r, U512::ZERO);
-        set_slice_u512_by(&mut sim, &s, sw_twos_for_width_for_test(sw_centered_from_u256_for_test(addm(y, x, p), p), WIDE));
+        set_slice_u512_by(
+            &mut sim,
+            &s,
+            sw_twos_for_width_for_test(sw_centered_from_u256_for_test(addm(y, x, p), p), WIDE),
+        );
         sim.apply(&ops);
-        assert_eq!(get_slice_u512_by(&sim, &r), sw_twos_for_width_for_test(exp_r, WIDE), "centered r mismatch");
-        assert_eq!(get_slice_u512_by(&sim, &s), sw_twos_for_width_for_test(exp_s, WIDE), "centered s mismatch");
-        assert_eq!(sw_mod_p_for_test(exp_s, p), U256::ZERO, "bottom channel not zero mod p");
+        assert_eq!(
+            get_slice_u512_by(&sim, &r),
+            sw_twos_for_width_for_test(exp_r, WIDE),
+            "centered r mismatch"
+        );
+        assert_eq!(
+            get_slice_u512_by(&sim, &s),
+            sw_twos_for_width_for_test(exp_s, WIDE),
+            "centered s mismatch"
+        );
+        assert_eq!(
+            sw_mod_p_for_test(exp_s, p),
+            U256::ZERO,
+            "bottom channel not zero mod p"
+        );
         let r_mod = sw_mod_p_for_test(exp_r, p);
-        let plus_one = if f_final.is_one_pos() { r_mod } else { negm(r_mod, p) };
+        let plus_one = if f_final.is_one_pos() {
+            r_mod
+        } else {
+            negm(r_mod, p)
+        };
         let quotient = subm(plus_one, U256::from(1u64), p);
-        assert_eq!(quotient, mulm(y, fermat_modinv(x, p), p), "centered scaffold quotient mismatch");
+        assert_eq!(
+            quotient,
+            mulm(y, fermat_modinv(x, p), p),
+            "centered scaffold quotient mismatch"
+        );
         let parity_nonzero = parity.iter().any(|&q| (sim.qubit(q) & 1) != 0);
         eprintln!(
             "BY centered signed 560 scaffold: ccx={ccx}, peak={peak}q, parity_nonzero={parity_nonzero}"
         );
         assert!(parity_nonzero, "centered parity history unexpectedly clean");
-        assert!(ccx < 900_000, "centered signed scaffold lost sub-million replay target");
+        assert!(
+            ccx < 900_000,
+            "centered signed scaffold lost sub-million replay target"
+        );
         assert!(peak < 2_800, "centered signed scaffold exceeds current cap");
-        assert_eq!(sim.global_phase() & 1, 0, "centered signed scaffold phase garbage");
+        assert_eq!(
+            sim.global_phase() & 1,
+            0,
+            "centered signed scaffold phase garbage"
+        );
     }
 
     #[test]
@@ -11415,10 +13361,21 @@ mod tests {
                 break (x, q, controls, parity_hist, f, r, s, start_s);
             }
         };
-        assert_eq!(sw_mod_p_for_test(final_s, p), U256::ZERO, "forward centered final s not zero");
+        assert_eq!(
+            sw_mod_p_for_test(final_s, p),
+            U256::ZERO,
+            "forward centered final s not zero"
+        );
         let r_mod = sw_mod_p_for_test(final_r, p);
-        let recovered_q = if f_final.is_one_pos() { r_mod } else { negm(r_mod, p) };
-        assert_eq!(recovered_q, q, "forward centered q frame mismatch before inverse test");
+        let recovered_q = if f_final.is_one_pos() {
+            r_mod
+        } else {
+            negm(r_mod, p)
+        };
+        assert_eq!(
+            recovered_q, q,
+            "forward centered q frame mismatch before inverse test"
+        );
 
         let mut b = super::super::B::new();
         let odd = b.alloc_qubits(560);
@@ -11427,7 +13384,9 @@ mod tests {
         let r = b.alloc_qubits(WIDE);
         let s = b.alloc_qubits(WIDE);
         for i in (0..560).rev() {
-            emit_scaled_by_centered_signed_microstep_inverse_live_parity_for_test(&mut b, &r, &s, odd[i], a_ctrl[i], parity[i], p);
+            emit_scaled_by_centered_signed_microstep_inverse_live_parity_for_test(
+                &mut b, &r, &s, odd[i], a_ctrl[i], parity[i], p,
+            );
         }
         let ccx = count_ccx(&b.ops);
         let peak = b.peak_qubits;
@@ -11439,22 +13398,48 @@ mod tests {
         let mut xof = hasher.finalize_xof();
         let mut sim = crate::sim::Simulator::new(num_qubits, num_bits, &mut xof);
         for (i, &(odd_v, a_v)) in controls.iter().enumerate() {
-            if odd_v { *sim.qubit_mut(odd[i]) |= 1; }
-            if a_v { *sim.qubit_mut(a_ctrl[i]) |= 1; }
-            if parity_hist[i] { *sim.qubit_mut(parity[i]) |= 1; }
+            if odd_v {
+                *sim.qubit_mut(odd[i]) |= 1;
+            }
+            if a_v {
+                *sim.qubit_mut(a_ctrl[i]) |= 1;
+            }
+            if parity_hist[i] {
+                *sim.qubit_mut(parity[i]) |= 1;
+            }
         }
         set_slice_u512_by(&mut sim, &r, sw_twos_for_width_for_test(final_r, WIDE));
         set_slice_u512_by(&mut sim, &s, sw_twos_for_width_for_test(final_s, WIDE));
         sim.apply(&ops);
-        assert_eq!(get_slice_u512_by(&sim, &r), U512::ZERO, "inverse centered r not zero");
-        assert_eq!(get_slice_u512_by(&sim, &s), sw_twos_for_width_for_test(start_s, WIDE), "inverse centered product mismatch");
-        assert_eq!(sw_mod_p_for_test(start_s, p), mulm(q, x, p), "start product frame mismatch");
-        eprintln!(
-            "BY centered signed inverse 560 scaffold: ccx={ccx}, peak={peak}q"
+        assert_eq!(
+            get_slice_u512_by(&sim, &r),
+            U512::ZERO,
+            "inverse centered r not zero"
         );
-        assert!(ccx < 900_000, "centered inverse scaffold lost sub-million target");
-        assert!(peak < 2_800, "centered inverse scaffold exceeds current cap");
-        assert_eq!(sim.global_phase() & 1, 0, "centered inverse scaffold phase garbage");
+        assert_eq!(
+            get_slice_u512_by(&sim, &s),
+            sw_twos_for_width_for_test(start_s, WIDE),
+            "inverse centered product mismatch"
+        );
+        assert_eq!(
+            sw_mod_p_for_test(start_s, p),
+            mulm(q, x, p),
+            "start product frame mismatch"
+        );
+        eprintln!("BY centered signed inverse 560 scaffold: ccx={ccx}, peak={peak}q");
+        assert!(
+            ccx < 900_000,
+            "centered inverse scaffold lost sub-million target"
+        );
+        assert!(
+            peak < 2_800,
+            "centered inverse scaffold exceeds current cap"
+        );
+        assert_eq!(
+            sim.global_phase() & 1,
+            0,
+            "centered inverse scaffold phase garbage"
+        );
     }
 
     #[test]
@@ -11529,7 +13514,9 @@ mod tests {
                     exact_signed_add,
                     exact_parity_const,
                 );
-                emit_centered_signed_clear_parity_after_inverse_for_test(&mut b, &r, &s, odd[i], parity[i]);
+                emit_centered_signed_clear_parity_after_inverse_for_test(
+                    &mut b, &r, &s, odd[i], parity[i],
+                );
             }
             let ccx = count_ccx(&b.ops);
             let peak = b.peak_qubits;
@@ -11542,14 +13529,26 @@ mod tests {
             let mut xof = hasher.finalize_xof();
             let mut sim = crate::sim::Simulator::new(num_qubits, num_bits, &mut xof);
             for (i, &(odd_v, a_v)) in controls.iter().enumerate() {
-                if odd_v { *sim.qubit_mut(odd[i]) |= 1; }
-                if a_v { *sim.qubit_mut(a_ctrl[i]) |= 1; }
+                if odd_v {
+                    *sim.qubit_mut(odd[i]) |= 1;
+                }
+                if a_v {
+                    *sim.qubit_mut(a_ctrl[i]) |= 1;
+                }
             }
             set_slice_u512_by(&mut sim, &r, U512::ZERO);
             set_slice_u512_by(&mut sim, &s, sw_twos_for_width_for_test(start_s, WIDE));
             sim.apply(&ops);
-            assert_eq!(get_slice_u512_by(&sim, &r), U512::ZERO, "{name}: r not restored");
-            assert_eq!(get_slice_u512_by(&sim, &s), sw_twos_for_width_for_test(start_s, WIDE), "{name}: s not restored");
+            assert_eq!(
+                get_slice_u512_by(&sim, &r),
+                U512::ZERO,
+                "{name}: r not restored"
+            );
+            assert_eq!(
+                get_slice_u512_by(&sim, &s),
+                sw_twos_for_width_for_test(start_s, WIDE),
+                "{name}: s not restored"
+            );
             for (j, &q) in parity.iter().enumerate() {
                 assert_eq!(sim.qubit(q) & 1, 0, "{name}: parity[{j}] not cleared");
             }
@@ -11559,14 +13558,42 @@ mod tests {
         for (name, phase, ccx, peak) in &phases {
             eprintln!("BY centered parity-clear roundtrip variant {name}: phase={phase}, ccx={ccx}, peak={peak}q");
         }
-        let fast_phase = phases.iter().find(|(name, _, _, _)| *name == "fast_mbu").unwrap().1;
-        let exact_signed_phase = phases.iter().find(|(name, _, _, _)| *name == "exact_signed_only").unwrap().1;
-        let exact_parity_phase = phases.iter().find(|(name, _, _, _)| *name == "exact_parity_controls").unwrap().1;
-        let all_exact_phase = phases.iter().find(|(name, _, _, _)| *name == "all_exact").unwrap().1;
-        assert_eq!(fast_phase, 0, "fixed unhalve sign history should make fast centered parity clear phase clean");
-        assert_eq!(exact_signed_phase, 0, "fixed unhalve sign history should also clean exact-signed variant");
-        assert_eq!(exact_parity_phase, 0, "exact parity-controlled ±p corrections should remain phase clean");
-        assert_eq!(all_exact_phase, 0, "all-exact centered parity-clear roundtrip should be phase clean");
+        let fast_phase = phases
+            .iter()
+            .find(|(name, _, _, _)| *name == "fast_mbu")
+            .unwrap()
+            .1;
+        let exact_signed_phase = phases
+            .iter()
+            .find(|(name, _, _, _)| *name == "exact_signed_only")
+            .unwrap()
+            .1;
+        let exact_parity_phase = phases
+            .iter()
+            .find(|(name, _, _, _)| *name == "exact_parity_controls")
+            .unwrap()
+            .1;
+        let all_exact_phase = phases
+            .iter()
+            .find(|(name, _, _, _)| *name == "all_exact")
+            .unwrap()
+            .1;
+        assert_eq!(
+            fast_phase, 0,
+            "fixed unhalve sign history should make fast centered parity clear phase clean"
+        );
+        assert_eq!(
+            exact_signed_phase, 0,
+            "fixed unhalve sign history should also clean exact-signed variant"
+        );
+        assert_eq!(
+            exact_parity_phase, 0,
+            "exact parity-controlled ±p corrections should remain phase clean"
+        );
+        assert_eq!(
+            all_exact_phase, 0,
+            "all-exact centered parity-clear roundtrip should be phase clean"
+        );
     }
 
     #[test]
@@ -11598,30 +13625,16 @@ mod tests {
         let s = b.alloc_qubits(WIDE);
         for i in 0..STEPS {
             emit_scaled_by_centered_signed_microstep_live_parity_variant_for_test(
-                &mut b,
-                &r,
-                &s,
-                odd[i],
-                a_ctrl[i],
-                parity[i],
-                p,
-                true,
-                true,
+                &mut b, &r, &s, odd[i], a_ctrl[i], parity[i], p, true, true,
             );
         }
         for i in (0..STEPS).rev() {
             emit_scaled_by_centered_signed_microstep_inverse_live_parity_variant_for_test(
-                &mut b,
-                &r,
-                &s,
-                odd[i],
-                a_ctrl[i],
-                parity[i],
-                p,
-                true,
-                true,
+                &mut b, &r, &s, odd[i], a_ctrl[i], parity[i], p, true, true,
             );
-            emit_centered_signed_clear_parity_after_inverse_for_test(&mut b, &r, &s, odd[i], parity[i]);
+            emit_centered_signed_clear_parity_after_inverse_for_test(
+                &mut b, &r, &s, odd[i], parity[i],
+            );
         }
         let ccx = count_ccx(&b.ops);
         let peak = b.peak_qubits;
@@ -11633,14 +13646,26 @@ mod tests {
         let mut xof = hasher.finalize_xof();
         let mut sim = crate::sim::Simulator::new(num_qubits, num_bits, &mut xof);
         for (i, &(odd_v, a_v)) in controls.iter().enumerate() {
-            if odd_v { *sim.qubit_mut(odd[i]) |= 1; }
-            if a_v { *sim.qubit_mut(a_ctrl[i]) |= 1; }
+            if odd_v {
+                *sim.qubit_mut(odd[i]) |= 1;
+            }
+            if a_v {
+                *sim.qubit_mut(a_ctrl[i]) |= 1;
+            }
         }
         set_slice_u512_by(&mut sim, &r, U512::ZERO);
         set_slice_u512_by(&mut sim, &s, sw_twos_for_width_for_test(start_s, WIDE));
         sim.apply(&ops);
-        assert_eq!(get_slice_u512_by(&sim, &r), U512::ZERO, "clean560 r not restored");
-        assert_eq!(get_slice_u512_by(&sim, &s), sw_twos_for_width_for_test(start_s, WIDE), "clean560 s not restored");
+        assert_eq!(
+            get_slice_u512_by(&sim, &r),
+            U512::ZERO,
+            "clean560 r not restored"
+        );
+        assert_eq!(
+            get_slice_u512_by(&sim, &s),
+            sw_twos_for_width_for_test(start_s, WIDE),
+            "clean560 s not restored"
+        );
         for (j, &q) in parity.iter().enumerate() {
             assert_eq!(sim.qubit(q) & 1, 0, "clean560 parity[{j}] not cleared");
         }
@@ -11648,9 +13673,19 @@ mod tests {
             "BY centered signed clean 560 roundtrip with all exact controls: ccx={ccx}, peak={peak}q, phase={}",
             sim.global_phase() & 1
         );
-        assert_eq!(sim.global_phase() & 1, 0, "clean560 all-exact-control roundtrip phase garbage");
-        assert!(ccx > 3_000_000, "all-exact-control fallback unexpectedly SOTA-shaped");
-        assert!(peak < 2_800, "all-exact-control clean roundtrip exceeds current cap");
+        assert_eq!(
+            sim.global_phase() & 1,
+            0,
+            "clean560 all-exact-control roundtrip phase garbage"
+        );
+        assert!(
+            ccx > 3_000_000,
+            "all-exact-control fallback unexpectedly SOTA-shaped"
+        );
+        assert!(
+            peak < 2_800,
+            "all-exact-control clean roundtrip exceeds current cap"
+        );
     }
 
     #[test]
@@ -11673,7 +13708,9 @@ mod tests {
             emit_scaled_by_centered_signed_microstep_inverse_live_parity_variant_for_test(
                 &mut b, &r, &s, odd[i], a_ctrl[i], parity[i], p, false, true,
             );
-            emit_centered_signed_clear_parity_after_inverse_for_test(&mut b, &r, &s, odd[i], parity[i]);
+            emit_centered_signed_clear_parity_after_inverse_for_test(
+                &mut b, &r, &s, odd[i], parity[i],
+            );
         }
         let ccx = count_ccx(&b.ops);
         let peak = b.peak_qubits;
@@ -11684,7 +13721,10 @@ mod tests {
         eprintln!(
             "BY centered exact-parity/fast-signed full clean budget: ccx={ccx}, peak={peak}q, per_div_budget={per_div_budget}, two_clean_div_projection={two_clean_div_projection}"
         );
-        assert!(peak < 2_800, "centered exact-parity clean replay no longer fits the current qubit cap");
+        assert!(
+            peak < 2_800,
+            "centered exact-parity clean replay no longer fits the current qubit cap"
+        );
         assert!(
             ccx > per_div_budget,
             "exact-parity clean replay now fits a one-DIV low-qubit budget; revisit BY promotion"
@@ -11719,19 +13759,36 @@ mod tests {
             let mut xof = hasher.finalize_xof();
             let mut sim = crate::sim::Simulator::new(num_qubits, num_bits, &mut xof);
             for (i, &(odd_v, a_v)) in controls.iter().enumerate() {
-                if odd_v { *sim.qubit_mut(odd[i]) |= 1; }
-                if a_v { *sim.qubit_mut(a_ctrl[i]) |= 1; }
+                if odd_v {
+                    *sim.qubit_mut(odd[i]) |= 1;
+                }
+                if a_v {
+                    *sim.qubit_mut(a_ctrl[i]) |= 1;
+                }
             }
             set_slice_u512_by(&mut sim, &r, U512::ZERO);
             set_slice_u512_by(&mut sim, &s, sw_twos_for_width_for_test(start_s, WIDE));
             sim.apply(&ops);
-            assert_eq!(get_slice_u512_by(&sim, &r), U512::ZERO, "sample {sample}: r not restored");
-            assert_eq!(get_slice_u512_by(&sim, &s), sw_twos_for_width_for_test(start_s, WIDE), "sample {sample}: s not restored");
-            for &q in &parity { assert_eq!(sim.qubit(q) & 1, 0, "sample {sample}: parity not clean"); }
+            assert_eq!(
+                get_slice_u512_by(&sim, &r),
+                U512::ZERO,
+                "sample {sample}: r not restored"
+            );
+            assert_eq!(
+                get_slice_u512_by(&sim, &s),
+                sw_twos_for_width_for_test(start_s, WIDE),
+                "sample {sample}: s not restored"
+            );
+            for &q in &parity {
+                assert_eq!(sim.qubit(q) & 1, 0, "sample {sample}: parity not clean");
+            }
             saw[(sim.global_phase() & 1) as usize] = true;
         }
         eprintln!("BY centered exact-parity/fast-signed full clean phases after unhalve fix: saw0={}, saw1={}", saw[0], saw[1]);
-        assert!(saw[0] && !saw[1], "fixed unhalve sign history should remove data-dependent fast signed-control phase");
+        assert!(
+            saw[0] && !saw[1],
+            "fixed unhalve sign history should remove data-dependent fast signed-control phase"
+        );
     }
 
     #[test]
@@ -11754,7 +13811,9 @@ mod tests {
             emit_scaled_by_centered_signed_microstep_inverse_live_parity_negcopy_exact_parity_for_test(
                 &mut b, &r, &s, odd[i], a_ctrl[i], parity[i], p,
             );
-            emit_centered_signed_clear_parity_after_inverse_for_test(&mut b, &r, &s, odd[i], parity[i]);
+            emit_centered_signed_clear_parity_after_inverse_for_test(
+                &mut b, &r, &s, odd[i], parity[i],
+            );
         }
         let ccx = count_ccx(&b.ops);
         let num_qubits = b.next_qubit as usize;
@@ -11783,18 +13842,36 @@ mod tests {
             let mut xof = hasher.finalize_xof();
             let mut sim = crate::sim::Simulator::new(num_qubits, num_bits, &mut xof);
             for (i, &(odd_v, a_v)) in controls.iter().enumerate() {
-                if odd_v { *sim.qubit_mut(odd[i]) |= 1; }
-                if a_v { *sim.qubit_mut(a_ctrl[i]) |= 1; }
+                if odd_v {
+                    *sim.qubit_mut(odd[i]) |= 1;
+                }
+                if a_v {
+                    *sim.qubit_mut(a_ctrl[i]) |= 1;
+                }
             }
             set_slice_u512_by(&mut sim, &r, U512::ZERO);
             set_slice_u512_by(&mut sim, &s, sw_twos_for_width_for_test(start_s, WIDE));
             sim.apply(&ops);
-            assert_eq!(get_slice_u512_by(&sim, &r), U512::ZERO, "sample {sample}: r not restored");
-            assert_eq!(get_slice_u512_by(&sim, &s), sw_twos_for_width_for_test(start_s, WIDE), "sample {sample}: s not restored");
+            assert_eq!(
+                get_slice_u512_by(&sim, &r),
+                U512::ZERO,
+                "sample {sample}: r not restored"
+            );
+            assert_eq!(
+                get_slice_u512_by(&sim, &s),
+                sw_twos_for_width_for_test(start_s, WIDE),
+                "sample {sample}: s not restored"
+            );
             saw[(sim.global_phase() & 1) as usize] = true;
         }
-        eprintln!("BY centered negcopy signed-control phase test: ccx={ccx}, saw0={}, saw1={}", saw[0], saw[1]);
-        assert!(saw[0] && saw[1], "neg_if on copied signed-add controls unexpectedly made phase a global constant");
+        eprintln!(
+            "BY centered negcopy signed-control phase test: ccx={ccx}, saw0={}, saw1={}",
+            saw[0], saw[1]
+        );
+        assert!(
+            saw[0] && saw[1],
+            "neg_if on copied signed-add controls unexpectedly made phase a global constant"
+        );
     }
 
     #[test]
@@ -11817,7 +13894,9 @@ mod tests {
             emit_scaled_by_centered_signed_microstep_inverse_live_parity_negcarry_exact_parity_for_test(
                 &mut b, &r, &s, odd[i], a_ctrl[i], parity[i], p,
             );
-            emit_centered_signed_clear_parity_after_inverse_for_test(&mut b, &r, &s, odd[i], parity[i]);
+            emit_centered_signed_clear_parity_after_inverse_for_test(
+                &mut b, &r, &s, odd[i], parity[i],
+            );
         }
         let ccx = count_ccx(&b.ops);
         let num_qubits = b.next_qubit as usize;
@@ -11846,18 +13925,36 @@ mod tests {
             let mut xof = hasher.finalize_xof();
             let mut sim = crate::sim::Simulator::new(num_qubits, num_bits, &mut xof);
             for (i, &(odd_v, a_v)) in controls.iter().enumerate() {
-                if odd_v { *sim.qubit_mut(odd[i]) |= 1; }
-                if a_v { *sim.qubit_mut(a_ctrl[i]) |= 1; }
+                if odd_v {
+                    *sim.qubit_mut(odd[i]) |= 1;
+                }
+                if a_v {
+                    *sim.qubit_mut(a_ctrl[i]) |= 1;
+                }
             }
             set_slice_u512_by(&mut sim, &r, U512::ZERO);
             set_slice_u512_by(&mut sim, &s, sw_twos_for_width_for_test(start_s, WIDE));
             sim.apply(&ops);
-            assert_eq!(get_slice_u512_by(&sim, &r), U512::ZERO, "sample {sample}: r not restored");
-            assert_eq!(get_slice_u512_by(&sim, &s), sw_twos_for_width_for_test(start_s, WIDE), "sample {sample}: s not restored");
+            assert_eq!(
+                get_slice_u512_by(&sim, &r),
+                U512::ZERO,
+                "sample {sample}: r not restored"
+            );
+            assert_eq!(
+                get_slice_u512_by(&sim, &s),
+                sw_twos_for_width_for_test(start_s, WIDE),
+                "sample {sample}: s not restored"
+            );
             saw[(sim.global_phase() & 1) as usize] = true;
         }
-        eprintln!("BY centered negcarry signed-control phase test: ccx={ccx}, saw0={}, saw1={}", saw[0], saw[1]);
-        assert!(saw[0] && saw[1], "neg_if on Cuccaro carry measurements unexpectedly fixed the cleaned-control phase");
+        eprintln!(
+            "BY centered negcarry signed-control phase test: ccx={ccx}, saw0={}, saw1={}",
+            saw[0], saw[1]
+        );
+        assert!(
+            saw[0] && saw[1],
+            "neg_if on Cuccaro carry measurements unexpectedly fixed the cleaned-control phase"
+        );
     }
 
     #[test]
@@ -11880,7 +13977,9 @@ mod tests {
             emit_scaled_by_centered_signed_microstep_inverse_live_parity_negboth_exact_parity_for_test(
                 &mut b, &r, &s, odd[i], a_ctrl[i], parity[i], p,
             );
-            emit_centered_signed_clear_parity_after_inverse_for_test(&mut b, &r, &s, odd[i], parity[i]);
+            emit_centered_signed_clear_parity_after_inverse_for_test(
+                &mut b, &r, &s, odd[i], parity[i],
+            );
         }
         let ccx = count_ccx(&b.ops);
         let num_qubits = b.next_qubit as usize;
@@ -11909,18 +14008,36 @@ mod tests {
             let mut xof = hasher.finalize_xof();
             let mut sim = crate::sim::Simulator::new(num_qubits, num_bits, &mut xof);
             for (i, &(odd_v, a_v)) in controls.iter().enumerate() {
-                if odd_v { *sim.qubit_mut(odd[i]) |= 1; }
-                if a_v { *sim.qubit_mut(a_ctrl[i]) |= 1; }
+                if odd_v {
+                    *sim.qubit_mut(odd[i]) |= 1;
+                }
+                if a_v {
+                    *sim.qubit_mut(a_ctrl[i]) |= 1;
+                }
             }
             set_slice_u512_by(&mut sim, &r, U512::ZERO);
             set_slice_u512_by(&mut sim, &s, sw_twos_for_width_for_test(start_s, WIDE));
             sim.apply(&ops);
-            assert_eq!(get_slice_u512_by(&sim, &r), U512::ZERO, "sample {sample}: r not restored");
-            assert_eq!(get_slice_u512_by(&sim, &s), sw_twos_for_width_for_test(start_s, WIDE), "sample {sample}: s not restored");
+            assert_eq!(
+                get_slice_u512_by(&sim, &r),
+                U512::ZERO,
+                "sample {sample}: r not restored"
+            );
+            assert_eq!(
+                get_slice_u512_by(&sim, &s),
+                sw_twos_for_width_for_test(start_s, WIDE),
+                "sample {sample}: s not restored"
+            );
             saw[(sim.global_phase() & 1) as usize] = true;
         }
-        eprintln!("BY centered negboth signed-control phase test: ccx={ccx}, saw0={}, saw1={}", saw[0], saw[1]);
-        assert!(saw[0] && saw[1], "neg_if on all signed MBU measurements unexpectedly fixed the cleaned-control phase");
+        eprintln!(
+            "BY centered negboth signed-control phase test: ccx={ccx}, saw0={}, saw1={}",
+            saw[0], saw[1]
+        );
+        assert!(
+            saw[0] && saw[1],
+            "neg_if on all signed MBU measurements unexpectedly fixed the cleaned-control phase"
+        );
     }
 
     #[test]
@@ -11966,8 +14083,16 @@ mod tests {
             divstep_sint_state(&mut delta, &mut f, &mut g);
         }
         for i in 0..STEPS {
-            assert_eq!(controls[i].0, ((ODD_WORDS[i / 64] >> (i % 64)) & 1) != 0, "odd bit mismatch {i}");
-            assert_eq!(controls[i].1, ((A_WORDS[i / 64] >> (i % 64)) & 1) != 0, "A bit mismatch {i}");
+            assert_eq!(
+                controls[i].0,
+                ((ODD_WORDS[i / 64] >> (i % 64)) & 1) != 0,
+                "odd bit mismatch {i}"
+            );
+            assert_eq!(
+                controls[i].1,
+                ((A_WORDS[i / 64] >> (i % 64)) & 1) != 0,
+                "A bit mismatch {i}"
+            );
         }
         let mut b = super::super::B::new();
         let odd = b.alloc_qubits(STEPS);
@@ -11976,8 +14101,12 @@ mod tests {
         let r = b.alloc_qubits(WIDE);
         let s = b.alloc_qubits(WIDE);
         for i in 0..STEPS {
-            if controls[i].0 { b.x(odd[i]); }
-            if controls[i].1 { b.x(a_ctrl[i]); }
+            if controls[i].0 {
+                b.x(odd[i]);
+            }
+            if controls[i].1 {
+                b.x(a_ctrl[i]);
+            }
         }
         for i in 0..STEPS {
             emit_scaled_by_centered_signed_microstep_live_parity_variant_for_test(
@@ -11988,11 +14117,17 @@ mod tests {
             emit_scaled_by_centered_signed_microstep_inverse_live_parity_variant_for_test(
                 &mut b, &r, &s, odd[i], a_ctrl[i], parity[i], p, true, true,
             );
-            emit_centered_signed_clear_parity_after_inverse_for_test(&mut b, &r, &s, odd[i], parity[i]);
+            emit_centered_signed_clear_parity_after_inverse_for_test(
+                &mut b, &r, &s, odd[i], parity[i],
+            );
         }
         for i in (0..STEPS).rev() {
-            if controls[i].1 { b.x(a_ctrl[i]); }
-            if controls[i].0 { b.x(odd[i]); }
+            if controls[i].1 {
+                b.x(a_ctrl[i]);
+            }
+            if controls[i].0 {
+                b.x(odd[i]);
+            }
         }
         let num_qubits = b.next_qubit as usize;
         let num_bits = b.next_bit as usize;
@@ -12004,13 +14139,28 @@ mod tests {
         set_slice_u512_by(&mut sim, &r, U512::ZERO);
         set_slice_u512_by(&mut sim, &s, sw_twos_for_width_for_test(start_s, WIDE));
         sim.apply(&ops);
-        assert_eq!(get_slice_u512_by(&sim, &r), U512::ZERO, "fixed hook r not restored");
-        assert_eq!(get_slice_u512_by(&sim, &s), sw_twos_for_width_for_test(start_s, WIDE), "fixed hook s not restored");
+        assert_eq!(
+            get_slice_u512_by(&sim, &r),
+            U512::ZERO,
+            "fixed hook r not restored"
+        );
+        assert_eq!(
+            get_slice_u512_by(&sim, &s),
+            sw_twos_for_width_for_test(start_s, WIDE),
+            "fixed hook s not restored"
+        );
         for &q in odd.iter().chain(a_ctrl.iter()).chain(parity.iter()) {
             assert_eq!(sim.qubit(q) & 1, 0, "fixed hook control/parity not clean");
         }
-        eprintln!("BY centered clean fixed trace hook test: phase={}, qubits={num_qubits}", sim.global_phase() & 1);
-        assert_eq!(sim.global_phase() & 1, 0, "fixed hook all-exact roundtrip phase garbage");
+        eprintln!(
+            "BY centered clean fixed trace hook test: phase={}, qubits={num_qubits}",
+            sim.global_phase() & 1
+        );
+        assert_eq!(
+            sim.global_phase() & 1,
+            0,
+            "fixed hook all-exact roundtrip phase garbage"
+        );
     }
 
     #[test]
@@ -12041,7 +14191,9 @@ mod tests {
                 controls.push((odd, a));
                 divstep_sint_state(&mut delta, &mut f, &mut g);
             }
-            if !g.is_zero() || !(f.is_one_pos() || f.is_one_neg()) { continue; }
+            if !g.is_zero() || !(f.is_one_pos() || f.is_one_neg()) {
+                continue;
+            }
             let mut r = U256::ZERO;
             let mut s = addm(y, x, p);
             let mut sample_true = 0usize;
@@ -12081,14 +14233,24 @@ mod tests {
             .iter()
             .map(|&c| {
                 let q = c as f64 / samples as f64;
-                if q <= 0.0 || q >= 1.0 { 0.0 } else { -q * q.log2() - (1.0 - q) * (1.0 - q).log2() }
+                if q <= 0.0 || q >= 1.0 {
+                    0.0
+                } else {
+                    -q * q.log2() - (1.0 - q) * (1.0 - q).log2()
+                }
             })
             .sum();
         eprintln!(
             "BY live reduction flag history: mean_true={mean_true:.1}, p90={p90}, p99={p99}, independent_entropy≈{entropy:.1} bits"
         );
-        assert!(mean_true > 80.0, "live flags unexpectedly sparse enough for a position-list escape");
-        assert!(entropy > 250.0, "live flag history unexpectedly low entropy");
+        assert!(
+            mean_true > 80.0,
+            "live flags unexpectedly sparse enough for a position-list escape"
+        );
+        assert!(
+            entropy > 250.0,
+            "live flag history unexpectedly low entropy"
+        );
     }
 
     #[test]
@@ -12105,7 +14267,9 @@ mod tests {
         let red_flag = b.alloc_qubit();
         let r = b.alloc_qubits(256);
         let s = b.alloc_qubits(256);
-        emit_scaled_by_controlled_microstep_live_addflag_for_test(&mut b, &r, &s, odd, a_ctrl, red_flag, p);
+        emit_scaled_by_controlled_microstep_live_addflag_for_test(
+            &mut b, &r, &s, odd, a_ctrl, red_flag, p,
+        );
         let num_qubits = b.next_qubit as usize;
         let num_bits = b.next_bit as usize;
         let ops = b.ops;
@@ -12117,8 +14281,14 @@ mod tests {
         let mut nonzero_mismatches = 0usize;
         let mut checked = 0usize;
         for &(odd_v, a_v, name) in &cases {
-            let mut samples = vec![(U256::ZERO, U256::ZERO), (U256::ZERO, sy.next()), (sx.next(), U256::ZERO)];
-            for _ in 0..16 { samples.push((sx.next(), sy.next())); }
+            let mut samples = vec![
+                (U256::ZERO, U256::ZERO),
+                (U256::ZERO, sy.next()),
+                (sx.next(), U256::ZERO),
+            ];
+            for _ in 0..16 {
+                samples.push((sx.next(), sy.next()));
+            }
             for (rv, sv) in samples {
                 let (exp_r, exp_s) = match name {
                     "A" => (sv, mulm(subm(sv, rv, p), inv2, p)),
@@ -12130,8 +14300,12 @@ mod tests {
                 hasher.update(b"by-live-flag-recover-sim-v1");
                 let mut xof = hasher.finalize_xof();
                 let mut sim = crate::sim::Simulator::new(num_qubits, num_bits, &mut xof);
-                if odd_v { *sim.qubit_mut(odd) |= 1; }
-                if a_v { *sim.qubit_mut(a_ctrl) |= 1; }
+                if odd_v {
+                    *sim.qubit_mut(odd) |= 1;
+                }
+                if a_v {
+                    *sim.qubit_mut(a_ctrl) |= 1;
+                }
                 set_slice_u512_by(&mut sim, &r, u256_to_u512_for_by_tests(rv));
                 set_slice_u512_by(&mut sim, &s, u256_to_u512_for_by_tests(sv));
                 sim.apply(&ops);
@@ -12151,8 +14325,14 @@ mod tests {
         eprintln!(
             "BY live reduction flag recovery: checked={checked}, mismatches={mismatches}, nonzero_mismatches={nonzero_mismatches}, direct_cleanup_lb≈{direct_cleanup_lb} CCX/flag"
         );
-        assert_eq!(nonzero_mismatches, 0, "canonical nonzero flag recovery relation failed");
-        assert!(direct_cleanup_lb > 2 * 256, "direct cleanup lower bound no longer explains the blocker");
+        assert_eq!(
+            nonzero_mismatches, 0,
+            "canonical nonzero flag recovery relation failed"
+        );
+        assert!(
+            direct_cleanup_lb > 2 * 256,
+            "direct cleanup lower bound no longer explains the blocker"
+        );
     }
 
     #[test]
@@ -12164,7 +14344,9 @@ mod tests {
         let red_flag = b.alloc_qubit();
         let r = b.alloc_qubits(256);
         let s = b.alloc_qubits(256);
-        emit_scaled_by_controlled_microstep_live_addflag_for_test(&mut b, &r, &s, odd, a_ctrl, red_flag, p);
+        emit_scaled_by_controlled_microstep_live_addflag_for_test(
+            &mut b, &r, &s, odd, a_ctrl, red_flag, p,
+        );
         let ccx = count_ccx(&b.ops);
         let peak = b.peak_qubits;
         let num_qubits = b.next_qubit as usize;
@@ -12189,13 +14371,25 @@ mod tests {
                 hasher.update(b"by-live-flag-step-sim-v1");
                 let mut xof = hasher.finalize_xof();
                 let mut sim = crate::sim::Simulator::new(num_qubits, num_bits, &mut xof);
-                if odd_v { *sim.qubit_mut(odd) |= 1; }
-                if a_v { *sim.qubit_mut(a_ctrl) |= 1; }
+                if odd_v {
+                    *sim.qubit_mut(odd) |= 1;
+                }
+                if a_v {
+                    *sim.qubit_mut(a_ctrl) |= 1;
+                }
                 set_slice_u512_by(&mut sim, &r, u256_to_u512_for_by_tests(rv));
                 set_slice_u512_by(&mut sim, &s, u256_to_u512_for_by_tests(sv));
                 sim.apply(&ops);
-                assert_eq!(get_slice_u512_by(&sim, &r), u256_to_u512_for_by_tests(exp_r), "r mismatch {name}");
-                assert_eq!(get_slice_u512_by(&sim, &s), u256_to_u512_for_by_tests(exp_s), "s mismatch {name}");
+                assert_eq!(
+                    get_slice_u512_by(&sim, &r),
+                    u256_to_u512_for_by_tests(exp_r),
+                    "r mismatch {name}"
+                );
+                assert_eq!(
+                    get_slice_u512_by(&sim, &s),
+                    u256_to_u512_for_by_tests(exp_s),
+                    "s mismatch {name}"
+                );
                 saw_flag |= (sim.qubit(red_flag) & 1) != 0;
             }
         }
@@ -12203,9 +14397,18 @@ mod tests {
         eprintln!(
             "BY live-reduction-flag microstep: ccx={ccx}, replay560≈{replay560}, peak={peak}q"
         );
-        assert!(saw_flag, "reduction flag never set in samples; test is not exercising live garbage");
-        assert!(ccx < 1_850, "live-flag microstep does not recover replay margin");
-        assert!(replay560 < 1_040_000, "live-flag replay not near target band");
+        assert!(
+            saw_flag,
+            "reduction flag never set in samples; test is not exercising live garbage"
+        );
+        assert!(
+            ccx < 1_850,
+            "live-flag microstep does not recover replay margin"
+        );
+        assert!(
+            replay560 < 1_040_000,
+            "live-flag replay not near target band"
+        );
     }
 
     #[test]
@@ -12223,15 +14426,15 @@ mod tests {
         let num_bits = b.next_bit as usize;
         let ops = b.ops;
         let inv2 = (p.wrapping_add(U256::from(1u64))) >> 1usize;
-        let cases = [
-            (false, false, "C"),
-            (true, false, "B"),
-            (true, true, "A"),
-        ];
+        let cases = [(false, false, "C"), (true, false, "B"), (true, true, "A")];
         let mut sx = Sampler::new(b"by-scaled-step-r-v1", p);
         let mut sy = Sampler::new(b"by-scaled-step-s-v1", p);
         for &(odd_v, a_v, name) in &cases {
-            let mut samples = vec![(U256::ZERO, U256::ZERO), (U256::ZERO, sy.next()), (sx.next(), U256::ZERO)];
+            let mut samples = vec![
+                (U256::ZERO, U256::ZERO),
+                (U256::ZERO, sy.next()),
+                (sx.next(), U256::ZERO),
+            ];
             for _ in 0..16 {
                 samples.push((sx.next(), sy.next()));
             }
@@ -12255,16 +14458,30 @@ mod tests {
                 set_slice_u512_by(&mut sim, &r, u256_to_u512_for_by_tests(rv));
                 set_slice_u512_by(&mut sim, &s, u256_to_u512_for_by_tests(sv));
                 sim.apply(&ops);
-                assert_eq!(get_slice_u512_by(&sim, &r), u256_to_u512_for_by_tests(exp_r), "r mismatch case {name}");
-                assert_eq!(get_slice_u512_by(&sim, &s), u256_to_u512_for_by_tests(exp_s), "s mismatch case {name}");
+                assert_eq!(
+                    get_slice_u512_by(&sim, &r),
+                    u256_to_u512_for_by_tests(exp_r),
+                    "r mismatch case {name}"
+                );
+                assert_eq!(
+                    get_slice_u512_by(&sim, &s),
+                    u256_to_u512_for_by_tests(exp_s),
+                    "s mismatch case {name}"
+                );
             }
         }
         let total_560 = ccx as f64 * 560.0;
         eprintln!(
             "BY scaled controlled microstep: ccx={ccx}, total560≈{total_560:.0}, peak={peak}q"
         );
-        assert!(total_560 < 1_250_000.0, "scaled controlled microsteps no longer SOTA-shaped");
-        assert!(peak < 1_350, "scaled controlled microstep peak drifted too high");
+        assert!(
+            total_560 < 1_250_000.0,
+            "scaled controlled microsteps no longer SOTA-shaped"
+        );
+        assert!(
+            peak < 1_350,
+            "scaled controlled microstep peak drifted too high"
+        );
     }
 
     fn emit_cmod_signed_mux_add_for_test(
@@ -12342,7 +14559,10 @@ mod tests {
                 set_slice_u512_by(&mut sim, &acc, u256_to_u512_for_by_tests(x));
                 set_slice_u512_by(&mut sim, &a, u256_to_u512_for_by_tests(y));
                 sim.apply(&ops);
-                assert_eq!(get_slice_u512_by(&sim, &acc), u256_to_u512_for_by_tests(expected));
+                assert_eq!(
+                    get_slice_u512_by(&sim, &acc),
+                    u256_to_u512_for_by_tests(expected)
+                );
                 assert_eq!(get_slice_u512_by(&sim, &a), u256_to_u512_for_by_tests(y));
             }
         }
@@ -12350,8 +14570,14 @@ mod tests {
         eprintln!(
             "BY signed mux controlled add/sub: ccx={ccx}, peak={peak}q, static_A_total≈{static_a_total:.0}"
         );
-        assert!(ccx < 2_000, "signed mux failed to beat separate cmod add+sub");
-        assert!(static_a_total > 2_000_000.0, "signed mux alone unexpectedly solves selected replay");
+        assert!(
+            ccx < 2_000,
+            "signed mux failed to beat separate cmod add+sub"
+        );
+        assert!(
+            static_a_total > 2_000_000.0,
+            "signed mux alone unexpectedly solves selected replay"
+        );
     }
 
     #[test]
@@ -12393,13 +14619,22 @@ mod tests {
                     seqs.insert(seq);
                 }
             }
-            let body_sum: usize = seqs.iter().map(|s| s.iter().map(|&c| case_cost(c)).sum::<usize>()).sum();
+            let body_sum: usize = seqs
+                .iter()
+                .map(|s| s.iter().map(|&c| case_cost(c)).sum::<usize>())
+                .sum();
             let total = 560usize.div_ceil(block) * body_sum + 2 * 560 * halve;
             summaries.push((block, seqs.len(), body_sum, total));
         }
         eprintln!("BY enumerated branch-block SELECT lower bounds: {summaries:?}");
-        assert!(summaries[1].3 > 5_000_000, "2-step enumerated SELECT unexpectedly viable");
-        assert!(summaries[2].3 > 10_000_000, "3-step enumerated SELECT unexpectedly viable");
+        assert!(
+            summaries[1].3 > 5_000_000,
+            "2-step enumerated SELECT unexpectedly viable"
+        );
+        assert!(
+            summaries[2].3 > 10_000_000,
+            "3-step enumerated SELECT unexpectedly viable"
+        );
     }
 
     #[test]
@@ -12437,8 +14672,14 @@ mod tests {
         eprintln!(
             "BY selected replay budget targets: cmod_add={cmod_add}, mod_add={mod_add}, dbl={dbl}, halve={halve}, signed_mux_static_A≈{ideal_signed_mux_static_a:.0}, signed_mux_value_A_lb≈{signed_mux_with_value_proportional_a:.0}"
         );
-        assert!(ideal_signed_mux_static_a > 1_700_000.0, "static A mux would already be enough; revisit selected replay");
-        assert!(signed_mux_with_value_proportional_a < 1_500_000.0, "even value-proportional A corrections are too costly");
+        assert!(
+            ideal_signed_mux_static_a > 1_700_000.0,
+            "static A mux would already be enough; revisit selected replay"
+        );
+        assert!(
+            signed_mux_with_value_proportional_a < 1_500_000.0,
+            "even value-proportional A corrections are too costly"
+        );
     }
 
     #[test]
@@ -12492,7 +14733,10 @@ mod tests {
         eprintln!(
             "BY actual branch cases over 560 steps: mean(A,B,C)=({mean_a:.1},{mean_b:.1},{mean_c:.1}), p99_A={p99_a}, p999_A={p999_a}, p99_A_position_bits≈{sparse_a_bits_p99}"
         );
-        assert!(mean_a > 100.0, "A cases unexpectedly sparse; revisit correction-list idea");
+        assert!(
+            mean_a > 100.0,
+            "A cases unexpectedly sparse; revisit correction-list idea"
+        );
         assert!(p99_a * 10 > 1_000, "A-position list unexpectedly compact");
     }
 
@@ -12519,7 +14763,9 @@ mod tests {
             let mut b = super::super::B::new();
             let x0 = b.alloc_qubits(256);
             let x1 = b.alloc_qubits(256);
-            let (ac, bc, cc) = emit_fixed_branch_numerator_scaled_window_for_test(&mut b, delta, &bits, &x0, &x1, p_mod);
+            let (ac, bc, cc) = emit_fixed_branch_numerator_scaled_window_for_test(
+                &mut b, delta, &bits, &x0, &x1, p_mod,
+            );
             a_total += ac;
             b_total += bc;
             c_total += cc;
@@ -12539,8 +14785,14 @@ mod tests {
             b_total as f64 / samples as f64,
             c_total as f64 / samples as f64
         );
-        assert!(peaks[samples - 1] < 1_200, "branch-numerator distribution lost scratch advantage");
-        assert!(approx35 < 900_000.0, "fixed branch-numerator arithmetic not SOTA-shaped");
+        assert!(
+            peaks[samples - 1] < 1_200,
+            "branch-numerator distribution lost scratch advantage"
+        );
+        assert!(
+            approx35 < 900_000.0,
+            "fixed branch-numerator arithmetic not SOTA-shaped"
+        );
     }
 
     #[test]
@@ -12565,7 +14817,8 @@ mod tests {
             let mut b = super::super::B::new();
             let x0 = b.alloc_qubits(256);
             let x1 = b.alloc_qubits(256);
-            let (ops_count, max_shear, _) = emit_fixed_hermite_inplace_window_for_test(&mut b, pmat, &x0, &x1, p_mod);
+            let (ops_count, max_shear, _) =
+                emit_fixed_hermite_inplace_window_for_test(&mut b, pmat, &x0, &x1, p_mod);
             costs.push(count_ccx(&b.ops));
             peaks.push(b.peak_qubits as usize);
             shears.push(max_shear);
@@ -12584,8 +14837,14 @@ mod tests {
             "BY Hermite in-place window cost distribution: mean_ccx={mean:.1}, p90={p90}, max={max}, approx35≈{approx35:.0}, max_peak={peak_max}q, max_shear={}, max_factor_ops={}",
             shears[samples - 1], ops_counts[samples - 1]
         );
-        assert!(peak_max < 1_600, "Hermite in-place distribution lost scratch advantage");
-        assert!(approx35 < 2_000_000.0, "naive fixed Hermite arithmetic is too costly to be SOTA-shaped");
+        assert!(
+            peak_max < 1_600,
+            "Hermite in-place distribution lost scratch advantage"
+        );
+        assert!(
+            approx35 < 2_000_000.0,
+            "naive fixed Hermite arithmetic is too costly to be SOTA-shaped"
+        );
     }
 
     fn inv_odd_mod_pow2_for_test(a: i128, bits: usize) -> i128 {
@@ -12603,7 +14862,11 @@ mod tests {
         let odd = (h & 1) != 0;
         let next_bits = t - 1;
         if next_bits == 0 {
-            let next_delta = if delta > 0 && odd { 1 - delta } else { 1 + delta };
+            let next_delta = if delta > 0 && odd {
+                1 - delta
+            } else {
+                1 + delta
+            };
             return (next_delta, 0, odd);
         }
         let next_mod = 1i128 << next_bits;
@@ -12635,14 +14898,21 @@ mod tests {
         let mut buf = [0u8; 24];
         for _ in 0..20_000 {
             reader.read(&mut buf);
-            let mut f = truncate_i128((u64::from_le_bytes(buf[0..8].try_into().unwrap()) as i128) | 1, W);
-            let mut g = truncate_i128(u64::from_le_bytes(buf[8..16].try_into().unwrap()) as i128, W);
+            let mut f = truncate_i128(
+                (u64::from_le_bytes(buf[0..8].try_into().unwrap()) as i128) | 1,
+                W,
+            );
+            let mut g = truncate_i128(
+                u64::from_le_bytes(buf[8..16].try_into().unwrap()) as i128,
+                W,
+            );
             let mut delta = (u64::from_le_bytes(buf[16..24].try_into().unwrap()) % 41) as i64 - 20;
             for t in (1..=W).rev() {
                 f = truncate_i128(f, t);
                 g = truncate_i128(g, t);
                 let modulus = 1i128 << t;
-                let h = (g.rem_euclid(modulus) * inv_odd_mod_pow2_for_test(f, t)).rem_euclid(modulus);
+                let h =
+                    (g.rem_euclid(modulus) * inv_odd_mod_pow2_for_test(f, t)).rem_euclid(modulus);
                 let (next_delta_h, next_h, odd_h) = h_ratio_step_for_test(delta, h, t);
                 let odd_g = (g & 1) != 0;
                 assert_eq!(odd_h, odd_g, "h parity did not match g parity");
@@ -12666,7 +14936,9 @@ mod tests {
                     let next_mod = 1i128 << (t - 1);
                     let f_next = truncate_i128(f, t - 1);
                     let g_next = truncate_i128(g, t - 1);
-                    let h_from_fg = (g_next.rem_euclid(next_mod) * inv_odd_mod_pow2_for_test(f_next, t - 1)).rem_euclid(next_mod);
+                    let h_from_fg = (g_next.rem_euclid(next_mod)
+                        * inv_odd_mod_pow2_for_test(f_next, t - 1))
+                    .rem_euclid(next_mod);
                     assert_eq!(next_h, h_from_fg, "h update mismatch at t={t}");
                 }
             }
@@ -12674,7 +14946,12 @@ mod tests {
         eprintln!("BY low-ratio branch generator: 16-bit h+delta state suffices per window; branch history is the reversibility payload");
     }
 
-    fn branch_bits_for_lowword_window(w: usize, mut delta: i64, mut f: i128, mut g: i128) -> Vec<bool> {
+    fn branch_bits_for_lowword_window(
+        w: usize,
+        mut delta: i64,
+        mut f: i128,
+        mut g: i128,
+    ) -> Vec<bool> {
         let mut bits = Vec::with_capacity(w);
         f = truncate_i128(f, w);
         g = truncate_i128(g, w);
@@ -12723,7 +15000,13 @@ mod tests {
                 delta = 1 + delta;
             }
         }
-        TransitionMatrix { m00: p00, m01: p01, m10: p10, m11: p11, delta_final: delta }
+        TransitionMatrix {
+            m00: p00,
+            m01: p01,
+            m10: p10,
+            m11: p11,
+            delta_final: delta,
+        }
     }
 
     #[test]
@@ -12760,7 +15043,10 @@ mod tests {
         eprintln!(
             "BY branch-bit history budget: branch_bits={BRANCH_HISTORY_BITS}, peak_model≈{peak_model}q"
         );
-        assert!(peak_model <= 2_800, "branch-bit selector history does not fit cap");
+        assert!(
+            peak_model <= 2_800,
+            "branch-bit selector history does not fit cap"
+        );
     }
 
     #[test]
@@ -12791,8 +15077,12 @@ mod tests {
             let x1 = b_mod.alloc_qubits(256);
             let y0 = b_mod.alloc_qubits(WIDTH);
             let y1 = b_mod.alloc_qubits(WIDTH);
-            emit_signed_row_scaled_from_sources_for_test(&mut b_mod, mtx.m00, &x0, mtx.m01, &x1, &y0);
-            emit_signed_row_scaled_from_sources_for_test(&mut b_mod, mtx.m10, &x0, mtx.m11, &x1, &y1);
+            emit_signed_row_scaled_from_sources_for_test(
+                &mut b_mod, mtx.m00, &x0, mtx.m01, &x1, &y0,
+            );
+            emit_signed_row_scaled_from_sources_for_test(
+                &mut b_mod, mtx.m10, &x0, mtx.m11, &x1, &y1,
+            );
             let _regs = emit_fixed_matrix_old_cleanup_for_test(&mut b_mod, mtx, &x0, &x1, &y0, &y1);
             mod_costs.push(count_ccx(&b_mod.ops));
             mod_peaks.push(b_mod.peak_qubits as usize);
@@ -12811,7 +15101,10 @@ mod tests {
             "BY h-only compressed-history budget: mean_mod_window≈{mean_mod_window:.1}, approx35≈{approx_arith:.0}, mod_peak={}q, history_bits={history_bits}, peak_model≈{peak_model}q",
             mod_peaks[samples - 1]
         );
-        assert!(approx_arith < 900_000.0, "h-only BY arithmetic no longer sub-MToffoli");
+        assert!(
+            approx_arith < 900_000.0,
+            "h-only BY arithmetic no longer sub-MToffoli"
+        );
         assert!(peak_model < 2_800, "h-only compressed BY model exceeds cap");
     }
 
@@ -12848,8 +15141,12 @@ mod tests {
             let x1 = b_mod.alloc_qubits(256);
             let y0 = b_mod.alloc_qubits(WIDTH);
             let y1 = b_mod.alloc_qubits(WIDTH);
-            emit_signed_row_scaled_from_sources_for_test(&mut b_mod, mtx.m00, &x0, mtx.m01, &x1, &y0);
-            emit_signed_row_scaled_from_sources_for_test(&mut b_mod, mtx.m10, &x0, mtx.m11, &x1, &y1);
+            emit_signed_row_scaled_from_sources_for_test(
+                &mut b_mod, mtx.m00, &x0, mtx.m01, &x1, &y0,
+            );
+            emit_signed_row_scaled_from_sources_for_test(
+                &mut b_mod, mtx.m10, &x0, mtx.m11, &x1, &y1,
+            );
             let _regs = emit_fixed_matrix_old_cleanup_for_test(&mut b_mod, mtx, &x0, &x1, &y0, &y1);
             let mod_ccx = count_ccx(&b_mod.ops);
             mod_peaks.push(b_mod.peak_qubits as usize);
@@ -12869,8 +15166,14 @@ mod tests {
             den_peaks[samples - 1],
             mod_peaks[samples - 1]
         );
-        assert!(approx_total < 1_200_000.0, "stored-matrix BY arithmetic no longer cheaper than Kaliski");
-        assert!(scheduled_peak_model < 2_900, "stored-matrix BY upper-bound peak drifted too high");
+        assert!(
+            approx_total < 1_200_000.0,
+            "stored-matrix BY arithmetic no longer cheaper than Kaliski"
+        );
+        assert!(
+            scheduled_peak_model < 2_900,
+            "stored-matrix BY upper-bound peak drifted too high"
+        );
     }
 
     #[test]
@@ -12935,15 +15238,27 @@ mod tests {
             let x0 = U256::from_le_slice(&buf[24..56]) % p;
             let x1 = U256::from_le_slice(&buf[56..88]) % p;
             let (_, _, _, mtx) = jump_matrix_direct_lowword(W, W, delta, f_low, g_low);
-            let t0_low = (mtx.m00 * (x0.as_limbs()[0] as i128) + mtx.m01 * (x1.as_limbs()[0] as i128)) & mask;
-            let t1_low = (mtx.m10 * (x0.as_limbs()[0] as i128) + mtx.m11 * (x1.as_limbs()[0] as i128)) & mask;
+            let t0_low = (mtx.m00 * (x0.as_limbs()[0] as i128)
+                + mtx.m01 * (x1.as_limbs()[0] as i128))
+                & mask;
+            let t1_low = (mtx.m10 * (x0.as_limbs()[0] as i128)
+                + mtx.m11 * (x1.as_limbs()[0] as i128))
+                & mask;
             let m0 = (-t0_low * pinv) & mask;
             let m1 = (-t1_low * pinv) & mask;
             let sgn = det_sign_pow2(mtx, W);
             let c0_num = sgn * (mtx.m11 * m0 - mtx.m01 * m1);
             let c1_num = sgn * (-mtx.m10 * m0 + mtx.m00 * m1);
-            assert_eq!(c0_num & mask, 0, "adjugate m correction 0 not divisible by 2^w");
-            assert_eq!(c1_num & mask, 0, "adjugate m correction 1 not divisible by 2^w");
+            assert_eq!(
+                c0_num & mask,
+                0,
+                "adjugate m correction 0 not divisible by 2^w"
+            );
+            assert_eq!(
+                c1_num & mask,
+                0,
+                "adjugate m correction 1 not divisible by 2^w"
+            );
         }
     }
 
@@ -12959,7 +15274,8 @@ mod tests {
         let y1 = b.alloc_qubits(WIDTH);
         emit_positive_row_scaled_from_sources_for_test(&mut b, mtx.m00, &x0, mtx.m01, &x1, &y0);
         emit_positive_row_scaled_from_sources_for_test(&mut b, mtx.m10, &x0, mtx.m11, &x1, &y1);
-        let (m_reg, z_reg) = emit_positive_triangular_old_cleanup_for_test(&mut b, &x0, &x1, &y0, &y1);
+        let (m_reg, z_reg) =
+            emit_positive_triangular_old_cleanup_for_test(&mut b, &x0, &x1, &y0, &y1);
         let ccx = count_ccx(&b.ops);
         let peak = b.peak_qubits;
         let num_qubits = b.next_qubit as usize;
@@ -12974,8 +15290,8 @@ mod tests {
             let a = sx.next();
             let c = sy.next();
             let exp0 = u256_to_u512_for_by_tests(a);
-            let t1 = u256_to_u512_for_by_tests(a) * U512::from(65535u64)
-                + u256_to_u512_for_by_tests(c);
+            let t1 =
+                u256_to_u512_for_by_tests(a) * U512::from(65535u64) + u256_to_u512_for_by_tests(c);
             let corr1 = (t1.as_limbs()[0] & mask).wrapping_mul((!pinv).wrapping_add(1)) & mask;
             let exp1: U512 = (t1 + U512::from(corr1) * p512) >> 16usize;
             let mut hasher = sha3::Shake128::default();
@@ -12992,9 +15308,7 @@ mod tests {
             assert_eq!(get_slice_u512_by(&sim, &y0), exp0, "y0 changed");
             assert_eq!(get_slice_u512_by(&sim, &y1), exp1, "y1 mismatch");
         }
-        eprintln!(
-            "positive triangular BY fixed-matrix replacement: ccx={ccx}, peak={peak}q"
-        );
+        eprintln!("positive triangular BY fixed-matrix replacement: ccx={ccx}, peak={peak}q");
         assert!(ccx < 35_000, "fixed positive replacement too costly");
         assert!(peak < 2_500, "fixed positive replacement peak too high");
     }
@@ -13028,7 +15342,11 @@ mod tests {
                     let c1 = (-(t1 & mask) * pinv) & mask;
                     let q0 = (t0 + c0 * p_small) >> w;
                     let q1 = (t1 + c1 * p_small) >> w;
-                    assert!(seen.insert((q0, q1)), "collision for matrix {:?} at ({x0},{x1})", mtx);
+                    assert!(
+                        seen.insert((q0, q1)),
+                        "collision for matrix {:?} at ({x0},{x1})",
+                        mtx
+                    );
                 }
             }
         }
@@ -13055,8 +15373,14 @@ mod tests {
         let low1 = t1.as_limbs()[0] & mask;
         let m1 = low1.wrapping_mul((!pinv).wrapping_add(1)) & mask;
         let q1: U512 = (t1 + U512::from(m1) * p512) >> 16usize;
-        assert_eq!(q0, q1, "scaled residue should ignore representative quotient");
-        assert_ne!(m0, m1, "correction m should change with representative quotient");
+        assert_eq!(
+            q0, q1,
+            "scaled residue should ignore representative quotient"
+        );
+        assert_ne!(
+            m0, m1,
+            "correction m should change with representative quotient"
+        );
     }
 
     #[test]
@@ -13085,19 +15409,34 @@ mod tests {
                 // Use i128 for the small high quotient and U512 for positive
                 // magnitude arithmetic; sampled signs are handled by checking
                 // both row signs through signed_i128_mod_p equivalence.
-                let ax = if a >= 0 { u256_to_u512_for_by_tests(x) * U512::from(a as u128) } else { U512::ZERO };
-                let by = if bb >= 0 { u256_to_u512_for_by_tests(y) * U512::from(bb as u128) } else { U512::ZERO };
+                let ax = if a >= 0 {
+                    u256_to_u512_for_by_tests(x) * U512::from(a as u128)
+                } else {
+                    U512::ZERO
+                };
+                let by = if bb >= 0 {
+                    u256_to_u512_for_by_tests(y) * U512::from(bb as u128)
+                } else {
+                    U512::ZERO
+                };
                 if a < 0 || bb < 0 {
                     // Fall back to modular representative for signed rows in
                     // this distribution test; the circuit cost model below is
                     // sign-symmetric.
-                    let row_mod = addm(mulm(signed_i128_mod_p(a, SECP256K1_P), x, SECP256K1_P), mulm(signed_i128_mod_p(bb, SECP256K1_P), y, SECP256K1_P), SECP256K1_P);
+                    let row_mod = addm(
+                        mulm(signed_i128_mod_p(a, SECP256K1_P), x, SECP256K1_P),
+                        mulm(signed_i128_mod_p(bb, SECP256K1_P), y, SECP256K1_P),
+                        SECP256K1_P,
+                    );
                     let low = row_mod.as_limbs()[0] & mask;
                     let corr = low.wrapping_mul((!pinv).wrapping_add(1)) & mask;
-                    let q: U512 = (u256_to_u512_for_by_tests(row_mod) + U512::from(corr) * p_u) >> 16usize;
+                    let q: U512 =
+                        (u256_to_u512_for_by_tests(row_mod) + U512::from(corr) * p_u) >> 16usize;
                     let q_top: U512 = q >> 240usize;
                     let top = q_top.to::<u64>() & mask;
-                    if top != corr { failures += 1; }
+                    if top != corr {
+                        failures += 1;
+                    }
                 } else {
                     let t = ax + by;
                     let k: U512 = t >> 256usize;
@@ -13107,11 +15446,16 @@ mod tests {
                     let q: U512 = (folded + U512::from(corr) * p_u) >> 16usize;
                     let q_top: U512 = q >> 240usize;
                     let top = q_top.to::<u64>() & mask;
-                    if top != corr { failures += 1; }
+                    if top != corr {
+                        failures += 1;
+                    }
                 }
             }
         }
-        eprintln!("BY row highfold+halve16 sampled failures={failures}/{}", samples * 2);
+        eprintln!(
+            "BY row highfold+halve16 sampled failures={failures}/{}",
+            samples * 2
+        );
         assert_eq!(failures, 0);
     }
 
@@ -13150,13 +15494,17 @@ mod tests {
         // sparse adjugate need a highfold to turn the residual small multiple
         // of p into zero. The base integer_pair already includes the sparse
         // row additions/subtractions themselves.
-        let modular_pair_window = mean_integer_pair + 2.0 * row_scale_ccx as f64 + 2.0 * highfold_ccx as f64;
+        let modular_pair_window =
+            mean_integer_pair + 2.0 * row_scale_ccx as f64 + 2.0 * highfold_ccx as f64;
         let approx35 = modular_pair_window * 35.0;
         eprintln!(
             "approx batched-shift BY scaled modular budget: highfold_ccx={highfold_ccx}, shift16_ccx={shift_ccx}, integer_pair≈{mean_integer_pair:.1}, modular_pair/window≈{modular_pair_window:.1}, approx35≈{approx35:.0}, shift_peak={}q",
             b.peak_qubits
         );
-        assert!(approx35 < 800_000.0, "batched shift no longer gives a SOTA-shaped BY modular pair");
+        assert!(
+            approx35 < 800_000.0,
+            "batched shift no longer gives a SOTA-shaped BY modular pair"
+        );
     }
 
     #[test]
@@ -13192,7 +15540,10 @@ mod tests {
         eprintln!(
             "scaled modular BY pair update sparse-cleanup: mean_ccx/window={mean_ccx:.1}, approx_35≈{approx_35:.0}, max_peak={max_peak}q"
         );
-        assert!(approx_35 > 2_000_000.0, "scaled modular sparse cleanup unexpectedly competitive; revisit BY path");
+        assert!(
+            approx_35 > 2_000_000.0,
+            "scaled modular sparse cleanup unexpectedly competitive; revisit BY path"
+        );
     }
 
     fn emit_tagged_modular_microstep_for_cost(
@@ -13254,7 +15605,10 @@ mod tests {
         eprintln!(
             "BY hybrid denom-jump + tagged-micro budget: den_pair/window≈{mean_den_pair_ccx:.1}, mod_micro/step={mod_micro_ccx}, approx_total≈{approx_total:.0}"
         );
-        assert!(approx_total > 1_800_000.0, "hybrid unexpectedly beats Kaliski; revisit implementation path");
+        assert!(
+            approx_total > 1_800_000.0,
+            "hybrid unexpectedly beats Kaliski; revisit implementation path"
+        );
     }
 
     #[test]
@@ -13282,7 +15636,11 @@ mod tests {
             let g_low = u64::from_le_bytes(buf[8..16].try_into().unwrap()) as i128;
             let delta = (u64::from_le_bytes(buf[16..24].try_into().unwrap()) % 41) as i64 - 20;
             let (_, _, _, m) = jump_matrix_direct_lowword(W, W, delta, f_low, g_low);
-            let s = if det_sign_pow2(m, W) >= 0 { 1i128 } else { -1i128 };
+            let s = if det_sign_pow2(m, W) >= 0 {
+                1i128
+            } else {
+                -1i128
+            };
             let inv_entries = [s * m.m11, -s * m.m01, -s * m.m10, s * m.m00];
             let pop: usize = inv_entries
                 .iter()
@@ -13295,7 +15653,10 @@ mod tests {
         eprintln!(
             "BY modular inverse cleanup density: mean_popcount_4entries={mean_pop:.1}, min_popcount_4entries={min_pop}"
         );
-        assert!(mean_pop > 450.0, "modular inverse cleanup unexpectedly sparse");
+        assert!(
+            mean_pop > 450.0,
+            "modular inverse cleanup unexpectedly sparse"
+        );
     }
 
     #[test]
@@ -13340,8 +15701,14 @@ mod tests {
         eprintln!(
             "BY optimistic 2-pair integer-cleanup lower bound: width={WIDTH}, mean_pair_ccx={mean_pair_ccx:.1}, exact≈{exact_ccx:.0}, approx≈{approx_ccx:.0}, scheduled_peak≈{scheduled_peak}q, scratch_beyond_2n≈{scratch_beyond_two_field_regs}q"
         );
-        assert!(approx_ccx < 600_000.0, "approx tagged-DIV BY budget not SOTA-shaped");
-        assert!(scheduled_peak < 2_400, "two-pair BY tagged-DIV lower-bound peak too high");
+        assert!(
+            approx_ccx < 600_000.0,
+            "approx tagged-DIV BY budget not SOTA-shaped"
+        );
+        assert!(
+            scheduled_peak < 2_400,
+            "two-pair BY tagged-DIV lower-bound peak too high"
+        );
     }
 
     #[test]
@@ -13385,8 +15752,14 @@ mod tests {
         eprintln!(
             "BY full-state cleanup budget: width={WIDTH}, mean_pair_ccx={mean_pair_ccx:.1}, exact≈{exact_ccx:.0}, approx≈{approx_ccx:.0}, scheduled_peak≈{scheduled_peak}q"
         );
-        assert!(exact_ccx < 1_250_000.0, "exact BY cleanup budget no longer competitive");
-        assert!(scheduled_peak > 2_800, "3-pair BY cleanup unexpectedly fits again; revisit full inverse path");
+        assert!(
+            exact_ccx < 1_250_000.0,
+            "exact BY cleanup budget no longer competitive"
+        );
+        assert!(
+            scheduled_peak > 2_800,
+            "3-pair BY cleanup unexpectedly fits again; revisit full inverse path"
+        );
     }
 
     #[test]

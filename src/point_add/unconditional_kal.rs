@@ -19,7 +19,7 @@
 use super::{
     add_nbit_qq, add_nbit_qq_fast, bit, cswap, mod_add_qq, mod_add_qq_fast,
     mod_double_inplace_fast, mod_halve_inplace_fast, mod_sub_qq_fast, sub_nbit_qq,
-    sub_nbit_qq_fast, with_eq_zero_fast, with_gt, B, QubitId, SECP256K1_P,
+    sub_nbit_qq_fast, with_eq_zero_fast, with_gt, QubitId, B, SECP256K1_P,
 };
 
 use alloy_primitives::U256;
@@ -30,7 +30,7 @@ pub struct UnconditionalKaliskiState {
     pub v_w: Vec<QubitId>, // n qubits
     pub r: Vec<QubitId>,   // n qubits
     pub s: Vec<QubitId>,   // n qubits
-    // No m_hist! No f_flag!
+                           // No m_hist! No f_flag!
 }
 
 impl UnconditionalKaliskiState {
@@ -143,8 +143,8 @@ pub fn kaliski_iter_unconditional_fwd(
     // m_i = f_active AND u[0] AND (NOT v_w[0])
     b.x(v_w[0]);
     b.ccx(f_active, v_w[0], m_i); // m_i = f_active AND (NOT v_w[0]) ... wait need u[0] too
-    // Actually: m_i = f_active AND u[0] AND (NOT v_w[0])
-    // Compute u0_and_f first, then AND with NOT v_w[0]
+                                  // Actually: m_i = f_active AND u[0] AND (NOT v_w[0])
+                                  // Compute u0_and_f first, then AND with NOT v_w[0]
     let u0_and_f = b.alloc_qubit();
     b.ccx(f_active, u[0], u0_and_f);
     b.ccx(u0_and_f, v_w[0], m_i); // m_i = u0_and_f AND (NOT v_w[0])

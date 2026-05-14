@@ -279,14 +279,27 @@ mod tests {
                     if s_after_add < r_before_shift {
                         continue;
                     }
-                    (v_before_shift.wrapping_add(u_after_shift), s_after_add - r_before_shift)
+                    (
+                        v_before_shift.wrapping_add(u_after_shift),
+                        s_after_add - r_before_shift,
+                    )
                 } else {
                     (v_before_shift, s_after_add)
                 };
                 let pre = if swap {
-                    St { u: v_before_add, v: u_after_shift, r: s_before_add, s: r_before_shift }
+                    St {
+                        u: v_before_add,
+                        v: u_after_shift,
+                        r: s_before_add,
+                        s: r_before_shift,
+                    }
                 } else {
-                    St { u: u_after_shift, v: v_before_add, r: r_before_shift, s: s_before_add }
+                    St {
+                        u: u_after_shift,
+                        v: v_before_add,
+                        r: r_before_shift,
+                        s: s_before_add,
+                    }
                 };
                 let (roundtrip, got_swap, got_both_odd) = kim_round_wide_with_branch(pre.clone());
                 if got_swap == swap
@@ -319,7 +332,12 @@ mod tests {
             while x.is_zero() {
                 x = rand_u256(&mut rng);
             }
-            let mut st = St { u: SECP256K1_P, v: x, r: U512::ZERO, s: U512::from(1u64) };
+            let mut st = St {
+                u: SECP256K1_P,
+                v: x,
+                r: U512::ZERO,
+                s: U512::from(1u64),
+            };
             for _ in 0..512 {
                 let (next, _, _) = kim_round_wide_with_branch(st);
                 st = next;
@@ -335,7 +353,10 @@ mod tests {
         eprintln!(
             "Kim wide poststate predecessor branch counts: hist={hist:?}, ambiguous={ambiguous}/{total}, frac={frac:.6}"
         );
-        assert!(frac > 0.45, "Kim poststate ambiguity unexpectedly rare: frac={frac}");
+        assert!(
+            frac > 0.45,
+            "Kim poststate ambiguity unexpectedly rare: frac={frac}"
+        );
     }
 
     #[test]
@@ -394,7 +415,10 @@ mod tests {
         }
         eprintln!("sign counts over 200 inputs: +={pos}, -={neg}");
         // Exactly one of the two must be consistently true across all samples.
-        assert!(pos == 200 || neg == 200, "sign of wide r is not consistent: +={pos}, -={neg}");
+        assert!(
+            pos == 200 || neg == 200,
+            "sign of wide r is not consistent: +={pos}, -={neg}"
+        );
     }
 
     /// End-to-end Kim-style point-add classical replay.
@@ -418,10 +442,7 @@ mod tests {
     fn kim_inv(x: U256) -> U256 {
         let p = SECP256K1_P;
         let two = U256::from(2);
-        let scale_inv = two
-            .pow_mod(U256::from(512u64), p)
-            .inv_mod(p)
-            .unwrap();
+        let scale_inv = two.pow_mod(U256::from(512u64), p).inv_mod(p).unwrap();
         let st = run_unconditional_wide(x, 512);
         let raw = mod_p_from_u512(st.r);
         // Sign test established: raw = -x^-1 * 2^{2n} mod p over 200/200
@@ -444,10 +465,7 @@ mod tests {
             let k2 = rand_u256(&mut rng);
             let (px, py) = c.mul(c.gx, c.gy, k1);
             let (qx, qy) = c.mul(c.gx, c.gy, k2);
-            if (px.is_zero() && py.is_zero())
-                || (qx.is_zero() && qy.is_zero())
-                || px == qx
-            {
+            if (px.is_zero() && py.is_zero()) || (qx.is_zero() && qy.is_zero()) || px == qx {
                 continue;
             }
             let (rx_ref, ry_ref) = c.add(px, py, qx, qy);
@@ -483,7 +501,10 @@ mod tests {
         let pair2_double_ccx: u64 = 103_020;
         let saved = pair1_halve_ccx + pair2_double_ccx;
         eprintln!("deletable CCX under Kim scale convention: {saved}");
-        assert!(saved >= 200_000, "Kim-friendly import should be worth >= 200k CCX");
+        assert!(
+            saved >= 200_000,
+            "Kim-friendly import should be worth >= 200k CCX"
+        );
     }
 
     #[test]

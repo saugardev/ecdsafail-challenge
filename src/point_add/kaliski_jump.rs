@@ -516,10 +516,16 @@ mod tests {
             let mut u = SECP256K1_P;
             let mut v = sampler.next();
             for _ in (0..407).step_by(T) {
-                if v.is_zero() { break; }
+                if v.is_zero() {
+                    break;
+                }
                 let key = ((u & mask).to::<u16>(), (v & mask).to::<u16>(), u > v);
                 let (nu, nv, obs) = observe_window(u, v, W, T);
-                *train_counts.entry(key).or_default().entry((obs.uv_mat, obs.rs_mat)).or_insert(0) += 1;
+                *train_counts
+                    .entry(key)
+                    .or_default()
+                    .entry((obs.uv_mat, obs.rs_mat))
+                    .or_insert(0) += 1;
                 u = nu;
                 v = nv;
             }
@@ -544,12 +550,19 @@ mod tests {
             let mut u = SECP256K1_P;
             let mut v = sampler.next();
             for _ in (0..407).step_by(T) {
-                if v.is_zero() { break; }
+                if v.is_zero() {
+                    break;
+                }
                 let key = ((u & mask).to::<u16>(), (v & mask).to::<u16>(), u > v);
                 let (nu, nv, obs) = observe_window(u, v, W, T);
                 let truth = (obs.uv_mat, obs.rs_mat);
-                let pred = table.get(&key).copied().unwrap_or_else(|| { unseen += 1; prior });
-                if pred != truth { wrong += 1; }
+                let pred = table.get(&key).copied().unwrap_or_else(|| {
+                    unseen += 1;
+                    prior
+                });
+                if pred != truth {
+                    wrong += 1;
+                }
                 total += 1;
                 seen_classes.insert(key);
                 u = nu;
@@ -558,8 +571,14 @@ mod tests {
         }
         let err = wrong as f64 / total as f64;
         let unseen_frac = unseen as f64 / total as f64;
-        eprintln!("t={T} w={W} + initial-gt majority err={err:.3} unseen={unseen_frac:.3} classes={}", seen_classes.len());
-        assert!(err > 0.20, "one-comparator window unexpectedly accurate: err={err}");
+        eprintln!(
+            "t={T} w={W} + initial-gt majority err={err:.3} unseen={unseen_frac:.3} classes={}",
+            seen_classes.len()
+        );
+        assert!(
+            err > 0.20,
+            "one-comparator window unexpectedly accurate: err={err}"
+        );
     }
 
     #[test]
@@ -583,17 +602,23 @@ mod tests {
                 let mut u = SECP256K1_P;
                 let mut v = sampler.next();
                 for _ in (0..407).step_by(t) {
-                    if v.is_zero() { break; }
+                    if v.is_zero() {
+                        break;
+                    }
                     let key = ((u & mask).to::<u16>(), (v & mask).to::<u16>(), u > v);
                     let (nu, nv, obs) = observe_window(u, v, W, t);
-                    by_key.entry(key).or_default().insert((obs.uv_mat, obs.rs_mat));
+                    by_key
+                        .entry(key)
+                        .or_default()
+                        .insert((obs.uv_mat, obs.rs_mat));
                     windows += 1;
                     u = nu;
                     v = nv;
                 }
             }
             let max_per_key = by_key.values().map(|s| s.len()).max().unwrap_or(1);
-            let mean_per_key = by_key.values().map(|s| s.len()).sum::<usize>() as f64 / by_key.len() as f64;
+            let mean_per_key =
+                by_key.values().map(|s| s.len()).sum::<usize>() as f64 / by_key.len() as f64;
             let hint_bits = usize::BITS as usize - (max_per_key - 1).leading_zeros() as usize;
             let n_windows = (407 + t - 1) / t;
             let history_bits = hint_bits * n_windows;
@@ -602,14 +627,17 @@ mod tests {
                 windows, by_key.len(), max_per_key, hint_bits, history_bits
             );
             if t == 16 {
-                assert!(history_bits < 407, "t=16 hints did not beat m_hist: {history_bits}");
+                assert!(
+                    history_bits < 407,
+                    "t=16 hints did not beat m_hist: {history_bits}"
+                );
             }
         }
     }
 
     fn row_popcount_adds(row: (i128, i128)) -> usize {
-        let terms = row.0.unsigned_abs().count_ones() as usize
-            + row.1.unsigned_abs().count_ones() as usize;
+        let terms =
+            row.0.unsigned_abs().count_ones() as usize + row.1.unsigned_abs().count_ones() as usize;
         terms.saturating_sub(1)
     }
 
@@ -634,7 +662,9 @@ mod tests {
                 let mut u = SECP256K1_P;
                 let mut v = sampler.next();
                 for _ in (0..407).step_by(t) {
-                    if v.is_zero() { break; }
+                    if v.is_zero() {
+                        break;
+                    }
                     let (nu, nv, obs) = observe_window(u, v, 8, t);
                     global.insert((obs.uv_mat, obs.rs_mat));
                     windows += 1;
@@ -649,7 +679,10 @@ mod tests {
                 "t={t}: observed_global_matrices={} global_id_bits/window={} total_global_id_bits={} sampled_windows={}",
                 global.len(), id_bits, history_bits, windows
             );
-            assert!(history_bits > 407, "global matrix ids unexpectedly compress m_hist at t={t}");
+            assert!(
+                history_bits > 407,
+                "global matrix ids unexpectedly compress m_hist at t={t}"
+            );
         }
     }
 
@@ -675,12 +708,19 @@ mod tests {
                 let mut u = SECP256K1_P;
                 let mut v = sampler.next();
                 for _ in (0..407).step_by(t) {
-                    if v.is_zero() { break; }
+                    if v.is_zero() {
+                        break;
+                    }
                     let (nu, nv, obs) = observe_window(u, v, 8, t);
                     let cost = matrix_popcount_adds(obs.uv_mat) + matrix_popcount_adds(obs.rs_mat);
                     max_cost = max_cost.max(cost);
                     total_cost += cost;
-                    total_micro_odd_adds += obs.cases.iter().filter(|&&c| matches!(c, KCase::UGtV | KCase::VGtU)).count() * 2;
+                    total_micro_odd_adds += obs
+                        .cases
+                        .iter()
+                        .filter(|&&c| matches!(c, KCase::UGtV | KCase::VGtU))
+                        .count()
+                        * 2;
                     *hist.entry(cost).or_insert(0) += 1;
                     windows += 1;
                     u = nu;
@@ -705,7 +745,12 @@ mod tests {
 
     fn count_ccx_for_jump_test(ops: &[crate::circuit::Op]) -> usize {
         ops.iter()
-            .filter(|o| matches!(o.kind, crate::circuit::OperationType::CCX | crate::circuit::OperationType::CCZ))
+            .filter(|o| {
+                matches!(
+                    o.kind,
+                    crate::circuit::OperationType::CCX | crate::circuit::OperationType::CCZ
+                )
+            })
             .count()
     }
 
@@ -732,8 +777,12 @@ mod tests {
             let mut b = super::super::B::new();
             let src0 = b.alloc_qubits(WIDTH);
             let src1 = b.alloc_qubits(WIDTH);
-            let coeffs = (0..8).map(|_| b.alloc_qubits(coeff_bits)).collect::<Vec<_>>();
-            let accs = (0..4).map(|_| b.alloc_qubits(WIDTH + coeff_bits)).collect::<Vec<_>>();
+            let coeffs = (0..8)
+                .map(|_| b.alloc_qubits(coeff_bits))
+                .collect::<Vec<_>>();
+            let accs = (0..4)
+                .map(|_| b.alloc_qubits(WIDTH + coeff_bits))
+                .collect::<Vec<_>>();
             let start = b.ops.len();
             // Four selected coeff*source terms update one pair; another four
             // update the coefficient pair. This is a row-formation lower bound
@@ -753,7 +802,10 @@ mod tests {
                 "hybrid Kaliski selected-matrix lower bound: t={t}, coeff_bits={coeff_bits}, window_ccx={ccx}, windows={windows}, invocation_lower={invocation_lower}, peak={}q",
                 b.peak_qubits
             );
-            assert!(invocation_lower > 900_000, "selected Kaliski matrix route may still hit 0.9M/invocation; synthesize it");
+            assert!(
+                invocation_lower > 900_000,
+                "selected Kaliski matrix route may still hit 0.9M/invocation; synthesize it"
+            );
         }
     }
 

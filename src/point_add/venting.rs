@@ -18,7 +18,7 @@
 //! Status: initial port, API subject to change. Tests in the unit-test
 //! module at the bottom.
 
-use super::{B, BitId, QubitId};
+use super::{BitId, QubitId, B};
 use crate::circuit::{Op, OperationType};
 
 /// Performs `Q_dst ^= carry(Q_src, offset, carry_in) >> 1` in-place.
@@ -55,7 +55,13 @@ pub fn xor_right_shifted_carries_into_classical(
     }
 
     // Helper: bit k of the classical offset.
-    let bit = |k: usize| -> bool { if k >= 64 { false } else { (offset_bits >> k) & 1 != 0 } };
+    let bit = |k: usize| -> bool {
+        if k >= 64 {
+            false
+        } else {
+            (offset_bits >> k) & 1 != 0
+        }
+    };
 
     // Helper: apply CCX(ctrl_a, ctrl_b, target) with each control
     // possibly classically-inverted. The original `a ^ offset[k]` means:
@@ -146,7 +152,15 @@ pub fn add_vented_2clean_classical(
     carry_in: bool,
     vent_keys: &[BitId],
 ) {
-    add_vented_2clean_classical_cxt(b, q_target, q_clean2, offset_bits, carry_in, vent_keys, None);
+    add_vented_2clean_classical_cxt(
+        b,
+        q_target,
+        q_clean2,
+        offset_bits,
+        carry_in,
+        vent_keys,
+        None,
+    );
 }
 
 /// Extended vented adder supporting optional `carry_xor_target`: during the
@@ -167,7 +181,13 @@ pub fn add_vented_2clean_classical_cxt(
     if n == 0 {
         return;
     }
-    let bit = |k: usize| -> bool { if k >= 64 { false } else { (offset_bits >> k) & 1 != 0 } };
+    let bit = |k: usize| -> bool {
+        if k >= 64 {
+            false
+        } else {
+            (offset_bits >> k) & 1 != 0
+        }
+    };
 
     if n == 1 {
         if carry_in {
@@ -312,7 +332,13 @@ pub fn iadd_linear_clean_classical(
     assert!(q_clean.len() >= n.saturating_sub(2), "need n-2 clean");
     let q_clean = &q_clean[..n.saturating_sub(2)];
 
-    let bit = |k: usize| -> bool { if k >= 64 { false } else { (offset_bits >> k) & 1 != 0 } };
+    let bit = |k: usize| -> bool {
+        if k >= 64 {
+            false
+        } else {
+            (offset_bits >> k) & 1 != 0
+        }
+    };
 
     // Special case n==1:
     if n == 1 {
@@ -519,7 +545,13 @@ pub fn iadd_dirty_2clean_classical(
     // carry_xor_target matches Python's [None] + Q_dirty (length n). At step
     // k (for k >= 1), XOR carries[k] into q_dirty[k-1].
     let cxt: Vec<Option<QubitId>> = (0..n)
-        .map(|k| if k == 0 { None } else { q_dirty.get(k - 1).copied() })
+        .map(|k| {
+            if k == 0 {
+                None
+            } else {
+                q_dirty.get(k - 1).copied()
+            }
+        })
         .collect();
 
     // Run the vented 2-clean adder WITH carry_xor_target merged.
@@ -549,13 +581,7 @@ pub fn iadd_dirty_2clean_classical(
     // Gidney eq. 8 produces the same carries as the original pre-add target).
     // Python: Q_src=Q_target[:-1] (n-1 bits), after broadcast_x. We're
     // already in the broadcast-x sandwich, so use q_target directly.
-    xor_right_shifted_carries_into_classical(
-        b,
-        &q_target[..n - 1],
-        offset_bits,
-        q_dirty,
-        carry_in,
-    );
+    xor_right_shifted_carries_into_classical(b, &q_target[..n - 1], offset_bits, q_dirty, carry_in);
     for k in 0..n - 2 {
         let mut op = Op::empty();
         op.kind = OperationType::Z;
@@ -567,7 +593,6 @@ pub fn iadd_dirty_2clean_classical(
         b.x(q_target[k]);
     }
 }
-
 
 /// Controlled variant of `iadd_dirty_2clean_classical`: performs
 /// `if ctrl: q_target += offset + carry_in` using the Gidney replacement
@@ -599,7 +624,10 @@ pub fn ciadd_dirty_2clean_classical(
     // Cleanest fix: support `carry_in_q: Option<QubitId>` where Some(ctrl)
     // means the carry-in is a qubit. For now, require caller to pass
     // carry_in=false when using the controlled variant.
-    assert!(!carry_in, "ciadd_dirty_2clean_classical requires carry_in=false; pre-process if needed");
+    assert!(
+        !carry_in,
+        "ciadd_dirty_2clean_classical requires carry_in=false; pre-process if needed"
+    );
     let n = q_target.len();
     if n == 0 {
         return;
@@ -643,7 +671,13 @@ pub fn ciadd_dirty_2clean_classical(
 
     // carry_xor_target (Python's [None] + Q_dirty).
     let cxt: Vec<Option<QubitId>> = (0..n)
-        .map(|k| if k == 0 { None } else { q_dirty.get(k - 1).copied() })
+        .map(|k| {
+            if k == 0 {
+                None
+            } else {
+                q_dirty.get(k - 1).copied()
+            }
+        })
         .collect();
 
     // Controlled vented add. When offset_bits[k] = 1, the operations that
@@ -725,7 +759,13 @@ fn c_add_vented_2clean_inline(
         return;
     }
 
-    let bit = |k: usize| -> bool { if k >= 64 { false } else { (offset_bits >> k) & 1 != 0 } };
+    let bit = |k: usize| -> bool {
+        if k >= 64 {
+            false
+        } else {
+            (offset_bits >> k) & 1 != 0
+        }
+    };
     // broadcast_cx(offset, q_target) becomes: for k, if offset[k]=1: CX(ctrl, q_target[k]).
     for k in 0..n {
         if bit(k) {
@@ -1053,7 +1093,13 @@ pub fn iadd_dirty_2clean_qoffset(
 
     let vent_keys: Vec<BitId> = (0..n).map(|_| b.alloc_bit()).collect();
     let cxt: Vec<Option<QubitId>> = (0..n)
-        .map(|k| if k == 0 { None } else { q_dirty.get(k - 1).copied() })
+        .map(|k| {
+            if k == 0 {
+                None
+            } else {
+                q_dirty.get(k - 1).copied()
+            }
+        })
         .collect();
 
     add_vented_2clean_qoffset(
@@ -1076,13 +1122,7 @@ pub fn iadd_dirty_2clean_qoffset(
         op.c_condition = vent_keys[k + 1];
         b.ops.push(op);
     }
-    xor_right_shifted_carries_into_qoffset(
-        b,
-        &q_target[..n - 1],
-        q_offset,
-        q_dirty,
-        carry_in,
-    );
+    xor_right_shifted_carries_into_qoffset(b, &q_target[..n - 1], q_offset, q_dirty, carry_in);
     for k in 0..n - 2 {
         let mut op = Op::empty();
         op.kind = OperationType::Z;
@@ -1258,7 +1298,13 @@ fn c_add_vented_2clean_qoffset_stream_mask(
 ) {
     let n = q_target.len();
     let get_carry_qubit = |k: usize| -> Option<QubitId> {
-        if k == 0 { None } else if k == n - 1 { Some(q_target[n - 1]) } else { Some(q_clean2[k % 2]) }
+        if k == 0 {
+            None
+        } else if k == n - 1 {
+            Some(q_target[n - 1])
+        } else {
+            Some(q_clean2[k % 2])
+        }
     };
     for k in 0..n - 1 {
         b.ccx(ctrl, q_offset[k], q_mask);
@@ -1272,7 +1318,9 @@ fn c_add_vented_2clean_qoffset_stream_mask(
             }
         }
         if k == 0 {
-            if let Some(next_q) = get_carry_qubit(1) { b.ccx(q_target[0], q_mask, next_q); }
+            if let Some(next_q) = get_carry_qubit(1) {
+                b.ccx(q_target[0], q_mask, next_q);
+            }
         } else {
             let cur = get_carry_qubit(k).expect("non-boundary carry");
             let next = get_carry_qubit(k + 1).expect("non-boundary next carry");
@@ -1298,7 +1346,9 @@ fn c_add_vented_2clean_qoffset_stream_mask(
             let cur = get_carry_qubit(k).expect("non-boundary carry");
             b.hmr(cur, vent_keys[k]);
         }
-        if let Some(q) = get_carry_qubit(k + 1) { b.cx(q_mask, q); }
+        if let Some(q) = get_carry_qubit(k + 1) {
+            b.cx(q_mask, q);
+        }
         b.ccx(ctrl, q_offset[k], q_mask);
     }
     let k = n - 1;
@@ -1317,7 +1367,9 @@ fn c_xor_right_shifted_carries_into_qoffset_stream_mask(
 ) {
     let n = q_dst.len();
     assert!(n <= q_src.len() && q_src.len() <= n + 1, "len mismatch");
-    if n == 0 { return; }
+    if n == 0 {
+        return;
+    }
     for k in (1..n).rev() {
         b.ccx(ctrl, q_offset[k], q_mask);
         b.cx(q_mask, q_src[k]);
@@ -1357,7 +1409,13 @@ fn c_add_vented_2clean_qoffset_partial_mask(
 ) {
     let n = q_target.len();
     let get_carry_qubit = |k: usize| -> Option<QubitId> {
-        if k == 0 { None } else if k == n - 1 { Some(q_target[n - 1]) } else { Some(q_clean2[k % 2]) }
+        if k == 0 {
+            None
+        } else if k == n - 1 {
+            Some(q_target[n - 1])
+        } else {
+            Some(q_clean2[k % 2])
+        }
     };
     for k in 0..n - 1 {
         let mask = if k < q_prefix_masks.len() {
@@ -1376,7 +1434,9 @@ fn c_add_vented_2clean_qoffset_partial_mask(
             }
         }
         if k == 0 {
-            if let Some(next_q) = get_carry_qubit(1) { b.ccx(q_target[0], mask, next_q); }
+            if let Some(next_q) = get_carry_qubit(1) {
+                b.ccx(q_target[0], mask, next_q);
+            }
         } else {
             let cur = get_carry_qubit(k).expect("non-boundary carry");
             let next = get_carry_qubit(k + 1).expect("non-boundary next carry");
@@ -1402,7 +1462,9 @@ fn c_add_vented_2clean_qoffset_partial_mask(
             let cur = get_carry_qubit(k).expect("non-boundary carry");
             b.hmr(cur, vent_keys[k]);
         }
-        if let Some(q) = get_carry_qubit(k + 1) { b.cx(mask, q); }
+        if let Some(q) = get_carry_qubit(k + 1) {
+            b.cx(mask, q);
+        }
         if k >= q_prefix_masks.len() {
             b.ccx(ctrl, q_offset[k], q_stream_mask);
         }
@@ -1428,7 +1490,9 @@ fn c_xor_right_shifted_carries_into_qoffset_partial_mask(
 ) {
     let n = q_dst.len();
     assert!(n <= q_src.len() && q_src.len() <= n + 1, "len mismatch");
-    if n == 0 { return; }
+    if n == 0 {
+        return;
+    }
     for k in (1..n).rev() {
         let mask = if k < q_prefix_masks.len() {
             q_prefix_masks[k]
@@ -1493,13 +1557,23 @@ pub fn ciadd_dirty_3clean_qoffset_stream_mask(
 ) {
     let n = q_target.len();
     assert_eq!(q_offset.len(), n);
-    if n == 0 { return; }
-    if n <= 4 { panic!("ciadd_dirty_3clean_qoffset_stream_mask: n<=4 not supported yet"); }
+    if n == 0 {
+        return;
+    }
+    if n <= 4 {
+        panic!("ciadd_dirty_3clean_qoffset_stream_mask: n<=4 not supported yet");
+    }
     assert!(q_dirty.len() >= n - 2, "need n-2 dirty qubits");
     let q_dirty = &q_dirty[..n - 2];
     let vent_keys: Vec<BitId> = (0..n).map(|_| b.alloc_bit()).collect();
     let cxt: Vec<Option<QubitId>> = (0..n)
-        .map(|k| if k == 0 { None } else { q_dirty.get(k - 1).copied() })
+        .map(|k| {
+            if k == 0 {
+                None
+            } else {
+                q_dirty.get(k - 1).copied()
+            }
+        })
         .collect();
     c_add_vented_2clean_qoffset_stream_mask(
         b,
@@ -1511,7 +1585,9 @@ pub fn ciadd_dirty_3clean_qoffset_stream_mask(
         &vent_keys,
         Some(&cxt),
     );
-    for k in 0..n { b.x(q_target[k]); }
+    for k in 0..n {
+        b.x(q_target[k]);
+    }
     for k in 0..n - 2 {
         let mut op = Op::empty();
         op.kind = OperationType::Z;
@@ -1534,7 +1610,9 @@ pub fn ciadd_dirty_3clean_qoffset_stream_mask(
         op.c_condition = vent_keys[k + 1];
         b.ops.push(op);
     }
-    for k in 0..n { b.x(q_target[k]); }
+    for k in 0..n {
+        b.x(q_target[k]);
+    }
 }
 
 /// Controlled quantum-offset dirty add with a prefix of clean `ctrl&offset[k]`
@@ -1553,8 +1631,12 @@ pub fn ciadd_dirty_3clean_qoffset_partial_mask(
     let n = q_target.len();
     assert_eq!(q_offset.len(), n);
     assert!(q_prefix_masks.len() <= n);
-    if n == 0 { return; }
-    if n <= 4 { panic!("ciadd_dirty_3clean_qoffset_partial_mask: n<=4 not supported yet"); }
+    if n == 0 {
+        return;
+    }
+    if n <= 4 {
+        panic!("ciadd_dirty_3clean_qoffset_partial_mask: n<=4 not supported yet");
+    }
     assert!(q_dirty.len() >= n - 2, "need n-2 dirty qubits");
     let q_dirty = &q_dirty[..n - 2];
     for k in 0..q_prefix_masks.len() {
@@ -1562,7 +1644,13 @@ pub fn ciadd_dirty_3clean_qoffset_partial_mask(
     }
     let vent_keys: Vec<BitId> = (0..n).map(|_| b.alloc_bit()).collect();
     let cxt: Vec<Option<QubitId>> = (0..n)
-        .map(|k| if k == 0 { None } else { q_dirty.get(k - 1).copied() })
+        .map(|k| {
+            if k == 0 {
+                None
+            } else {
+                q_dirty.get(k - 1).copied()
+            }
+        })
         .collect();
     c_add_vented_2clean_qoffset_partial_mask(
         b,
@@ -1575,7 +1663,9 @@ pub fn ciadd_dirty_3clean_qoffset_partial_mask(
         &vent_keys,
         Some(&cxt),
     );
-    for k in 0..n { b.x(q_target[k]); }
+    for k in 0..n {
+        b.x(q_target[k]);
+    }
     for k in 0..n - 2 {
         let mut op = Op::empty();
         op.kind = OperationType::Z;
@@ -1599,7 +1689,9 @@ pub fn ciadd_dirty_3clean_qoffset_partial_mask(
         op.c_condition = vent_keys[k + 1];
         b.ops.push(op);
     }
-    for k in 0..n { b.x(q_target[k]); }
+    for k in 0..n {
+        b.x(q_target[k]);
+    }
     for k in (0..q_prefix_masks.len()).rev() {
         b.ccx(ctrl, q_offset[k], q_prefix_masks[k]);
     }
@@ -1629,7 +1721,13 @@ pub fn ciadd_dirty_3clean_qoffset(
 
     let vent_keys: Vec<BitId> = (0..n).map(|_| b.alloc_bit()).collect();
     let cxt: Vec<Option<QubitId>> = (0..n)
-        .map(|k| if k == 0 { None } else { q_dirty.get(k - 1).copied() })
+        .map(|k| {
+            if k == 0 {
+                None
+            } else {
+                q_dirty.get(k - 1).copied()
+            }
+        })
         .collect();
 
     c_add_vented_2clean_qoffset(
@@ -1704,28 +1802,37 @@ fn c_xor_right_shifted_carries_into_classical(
     if n == 0 {
         return;
     }
-    let bit = |k: usize| -> bool { if k >= 64 { false } else { (offset_bits >> k) & 1 != 0 } };
+    let bit = |k: usize| -> bool {
+        if k >= 64 {
+            false
+        } else {
+            (offset_bits >> k) & 1 != 0
+        }
+    };
 
     // Helper for CCX where both controls may be "inverted" by XOR with ctrl.
     // The original has `Q_src[k] ^ offset[k]`; controlled version: if offset[k]=1,
     // the effective control is (Q_src[k] XOR ctrl); if offset[k]=0, it's just Q_src[k].
-    let ccx_ctrl_mix =
-        |b: &mut B, ctrl_a: QubitId, a_xor_ctrl: bool, ctrl_b: QubitId, b_xor_ctrl: bool,
-         target: QubitId| {
-            if a_xor_ctrl {
-                b.cx(ctrl, ctrl_a);
-            }
-            if b_xor_ctrl {
-                b.cx(ctrl, ctrl_b);
-            }
-            b.ccx(ctrl_a, ctrl_b, target);
-            if b_xor_ctrl {
-                b.cx(ctrl, ctrl_b);
-            }
-            if a_xor_ctrl {
-                b.cx(ctrl, ctrl_a);
-            }
-        };
+    let ccx_ctrl_mix = |b: &mut B,
+                        ctrl_a: QubitId,
+                        a_xor_ctrl: bool,
+                        ctrl_b: QubitId,
+                        b_xor_ctrl: bool,
+                        target: QubitId| {
+        if a_xor_ctrl {
+            b.cx(ctrl, ctrl_a);
+        }
+        if b_xor_ctrl {
+            b.cx(ctrl, ctrl_b);
+        }
+        b.ccx(ctrl_a, ctrl_b, target);
+        if b_xor_ctrl {
+            b.cx(ctrl, ctrl_b);
+        }
+        if a_xor_ctrl {
+            b.cx(ctrl, ctrl_a);
+        }
+    };
 
     for k in (1..n).rev() {
         ccx_ctrl_mix(b, q_src[k], bit(k), q_dst[k - 1], false, q_dst[k]);
@@ -1795,12 +1902,7 @@ pub fn cisub_dirty_2clean_classical(
         b.cx(ctrl, q_target[k]);
     }
     ciadd_dirty_2clean_classical(
-        b,
-        q_target,
-        q_dirty,
-        q_clean2,
-        c_bits,
-        ctrl,
+        b, q_target, q_dirty, q_clean2, c_bits, ctrl,
         false, // carry_in=false (controlled variant requires this)
     );
     for k in 0..n {
@@ -1832,7 +1934,13 @@ fn iadd_3clean_classical_TODO(
     }
 
     let h = (n - 1) >> 1;
-    let bit = |k: usize| -> bool { if k >= 64 { false } else { (offset_bits >> k) & 1 != 0 } };
+    let bit = |k: usize| -> bool {
+        if k >= 64 {
+            false
+        } else {
+            (offset_bits >> k) & 1 != 0
+        }
+    };
     let offset_low = offset_bits & ((1u64 << h) - 1);
     let offset_high = offset_bits >> h;
     let _ = offset_high; // computed inline below
@@ -2014,8 +2122,14 @@ mod tests {
         out
     }
 
-    fn carry_save_product_phase_anf_degree_density(n: usize, top_column_only: bool) -> (usize, usize) {
-        assert!(n > 0 && n <= 8, "test keeps exhaustive carry-save table small");
+    fn carry_save_product_phase_anf_degree_density(
+        n: usize,
+        top_column_only: bool,
+    ) -> (usize, usize) {
+        assert!(
+            n > 0 && n <= 8,
+            "test keeps exhaustive carry-save table small"
+        );
         let vars = 2 * n;
         let states = 1usize << vars;
         let x_mask = (1u64 << n) - 1;
@@ -2044,7 +2158,11 @@ mod tests {
         // toy widths shows these phase functions are already high-degree and
         // dense, so raw product-scratch MBUC is not the missing cheap IMUL.
         for &n in &[4usize, 6, 8, 10] {
-            let full_mask = if 2 * n == 64 { u64::MAX } else { (1u64 << (2 * n)) - 1 };
+            let full_mask = if 2 * n == 64 {
+                u64::MAX
+            } else {
+                (1u64 << (2 * n)) - 1
+            };
             let high_mask = 1u64 << (2 * n - 2);
             let (deg_full, dens_full) = product_phase_anf_degree_density(n, full_mask);
             let (deg_high, dens_high) = product_phase_anf_degree_density(n, high_mask);
@@ -2124,8 +2242,7 @@ mod tests {
         let mut hasher = Shake256::default();
         hasher.update(&[n as u8, trials as u8, 42]);
         use sha3::digest::XofReader;
-        let mut xof =
-            <sha3::Shake256 as sha3::digest::ExtendableOutput>::finalize_xof(hasher);
+        let mut xof = <sha3::Shake256 as sha3::digest::ExtendableOutput>::finalize_xof(hasher);
         for _trial in 0..trials {
             let mut buf = [0u8; 32];
             xof.read(&mut buf);
@@ -2155,20 +2272,15 @@ mod tests {
             let q_src: Vec<QubitId> = bb.alloc_qubits(n);
             let q_dst: Vec<QubitId> = bb.alloc_qubits(n);
 
-            xor_right_shifted_carries_into_classical(
-                &mut bb,
-                &q_src,
-                offset,
-                &q_dst,
-                cin,
-            );
+            xor_right_shifted_carries_into_classical(&mut bb, &q_src, offset, &q_dst, cin);
 
             let ops = bb.ops.clone();
             let num_qubits = bb.next_qubit as usize;
             let num_bits = 0usize;
             let mut inner_hasher = Shake256::default();
             inner_hasher.update(&[77u8]);
-            let mut inner_xof = <sha3::Shake256 as sha3::digest::ExtendableOutput>::finalize_xof(inner_hasher);
+            let mut inner_xof =
+                <sha3::Shake256 as sha3::digest::ExtendableOutput>::finalize_xof(inner_hasher);
             let mut sim = Simulator::new(num_qubits, num_bits, &mut inner_xof);
             sim.clear_for_shot();
             // Set src[k] = (src >> k) & 1 for shot 0.
@@ -2226,8 +2338,7 @@ mod tests {
         let mut hasher = Shake256::default();
         hasher.update(&[n as u8, trials as u8, 51]);
         use sha3::digest::XofReader;
-        let mut xof =
-            <sha3::Shake256 as sha3::digest::ExtendableOutput>::finalize_xof(hasher);
+        let mut xof = <sha3::Shake256 as sha3::digest::ExtendableOutput>::finalize_xof(hasher);
         let mut ok = 0;
         let mut bad = 0;
         for _trial in 0..trials {
@@ -2246,14 +2357,7 @@ mod tests {
             let q_clean2: [QubitId; 2] = [bb.alloc_qubit(), bb.alloc_qubit()];
             let vent_keys: Vec<BitId> = (0..n).map(|_| bb.alloc_bit()).collect();
 
-            add_vented_2clean_classical(
-                &mut bb,
-                &q_target,
-                &q_clean2,
-                offset,
-                cin,
-                &vent_keys,
-            );
+            add_vented_2clean_classical(&mut bb, &q_target, &q_clean2, offset, cin, &vent_keys);
 
             let ops = bb.ops.clone();
             let num_qubits = bb.next_qubit as usize;
@@ -2305,8 +2409,7 @@ mod tests {
         let mut hasher = Shake256::default();
         hasher.update(&[n as u8, trials as u8, 73]);
         use sha3::digest::XofReader;
-        let mut xof =
-            <sha3::Shake256 as sha3::digest::ExtendableOutput>::finalize_xof(hasher);
+        let mut xof = <sha3::Shake256 as sha3::digest::ExtendableOutput>::finalize_xof(hasher);
         let mut ok = 0;
         let mut bad = 0;
         for _trial in 0..trials {
@@ -2325,13 +2428,7 @@ mod tests {
             let n_clean = n.saturating_sub(2).max(2);
             let q_clean: Vec<QubitId> = bb.alloc_qubits(n_clean);
 
-            iadd_linear_clean_classical(
-                &mut bb,
-                &q_target,
-                &q_clean,
-                offset,
-                cin,
-            );
+            iadd_linear_clean_classical(&mut bb, &q_target, &q_clean, offset, cin);
 
             let ops = bb.ops.clone();
             let num_qubits = bb.next_qubit as usize;
@@ -2383,8 +2480,7 @@ mod tests {
         let mut hasher = Shake256::default();
         hasher.update(&[n as u8, trials as u8, 97]);
         use sha3::digest::XofReader;
-        let mut xof =
-            <sha3::Shake256 as sha3::digest::ExtendableOutput>::finalize_xof(hasher);
+        let mut xof = <sha3::Shake256 as sha3::digest::ExtendableOutput>::finalize_xof(hasher);
         let mut ok = 0;
         let mut bad = 0;
         for _trial in 0..trials {
@@ -2405,14 +2501,7 @@ mod tests {
             let q_dirty: Vec<QubitId> = bb.alloc_qubits(n.saturating_sub(2).max(1));
             let q_clean2: [QubitId; 2] = [bb.alloc_qubit(), bb.alloc_qubit()];
 
-            iadd_dirty_2clean_classical(
-                &mut bb,
-                &q_target,
-                &q_dirty,
-                &q_clean2,
-                offset,
-                cin,
-            );
+            iadd_dirty_2clean_classical(&mut bb, &q_target, &q_dirty, &q_clean2, offset, cin);
 
             let ops = bb.ops.clone();
             let num_qubits = bb.next_qubit as usize;
@@ -2436,8 +2525,7 @@ mod tests {
             }
             sim.apply(&ops);
 
-            let expected_sum =
-                (target.wrapping_add(offset).wrapping_add(cin as u64)) & mask;
+            let expected_sum = (target.wrapping_add(offset).wrapping_add(cin as u64)) & mask;
             let mut got: u64 = 0;
             for k in 0..n {
                 if sim.qubit(q_target[k]) & 1 != 0 {
@@ -2486,8 +2574,7 @@ mod tests {
         let mut hasher = Shake256::default();
         hasher.update(&[n as u8, trials as u8, 113]);
         use sha3::digest::XofReader;
-        let mut xof =
-            <sha3::Shake256 as sha3::digest::ExtendableOutput>::finalize_xof(hasher);
+        let mut xof = <sha3::Shake256 as sha3::digest::ExtendableOutput>::finalize_xof(hasher);
         let mut ok = 0;
         let mut bad = 0;
         for _trial in 0..trials {
@@ -2513,13 +2600,7 @@ mod tests {
             let q_ctrl = bb.alloc_qubit();
 
             ciadd_dirty_2clean_classical(
-                &mut bb,
-                &q_target,
-                &q_dirty,
-                &q_clean2,
-                offset,
-                q_ctrl,
-                cin,
+                &mut bb, &q_target, &q_dirty, &q_clean2, offset, q_ctrl, cin,
             );
 
             let ops = bb.ops.clone();
@@ -2594,8 +2675,7 @@ mod tests {
         let mut hasher = Shake256::default();
         hasher.update(&[n as u8, trials as u8, 179]);
         use sha3::digest::XofReader;
-        let mut xof =
-            <sha3::Shake256 as sha3::digest::ExtendableOutput>::finalize_xof(hasher);
+        let mut xof = <sha3::Shake256 as sha3::digest::ExtendableOutput>::finalize_xof(hasher);
         let mut ok = 0;
         let mut bad = 0;
         for _trial in 0..trials {
@@ -2617,14 +2697,7 @@ mod tests {
             let q_clean2: [QubitId; 2] = [bb.alloc_qubit(), bb.alloc_qubit()];
             let q_ctrl = bb.alloc_qubit();
 
-            cisub_dirty_2clean_classical(
-                &mut bb,
-                &q_target,
-                &q_dirty,
-                &q_clean2,
-                c,
-                q_ctrl,
-            );
+            cisub_dirty_2clean_classical(&mut bb, &q_target, &q_dirty, &q_clean2, c, q_ctrl);
 
             let ops = bb.ops.clone();
             let num_qubits = bb.next_qubit as usize;
@@ -2699,8 +2772,7 @@ mod tests {
         let mut hasher = Shake256::default();
         hasher.update(&[n as u8, 50u8, 17]);
         use sha3::digest::XofReader;
-        let mut xof =
-            <sha3::Shake256 as sha3::digest::ExtendableOutput>::finalize_xof(hasher);
+        let mut xof = <sha3::Shake256 as sha3::digest::ExtendableOutput>::finalize_xof(hasher);
         let trials = 50;
         let c_low = 0x1_0000_03D1u64;
         let mut ok = 0;
@@ -2718,14 +2790,7 @@ mod tests {
             let q_clean2: [QubitId; 2] = [bb.alloc_qubit(), bb.alloc_qubit()];
             let q_ctrl = bb.alloc_qubit();
 
-            cisub_dirty_2clean_classical(
-                &mut bb,
-                &q_target,
-                &q_dirty,
-                &q_clean2,
-                c_low,
-                q_ctrl,
-            );
+            cisub_dirty_2clean_classical(&mut bb, &q_target, &q_dirty, &q_clean2, c_low, q_ctrl);
 
             let ops = bb.ops.clone();
             let num_qubits = bb.next_qubit as usize;
@@ -2795,8 +2860,7 @@ mod tests {
         let mut hasher = Shake256::default();
         hasher.update(&[99u8]);
         use sha3::digest::XofReader;
-        let mut xof =
-            <sha3::Shake256 as sha3::digest::ExtendableOutput>::finalize_xof(hasher);
+        let mut xof = <sha3::Shake256 as sha3::digest::ExtendableOutput>::finalize_xof(hasher);
         let mut ok = 0;
         let mut bad = 0;
         for _trial in 0..trials {
@@ -2812,14 +2876,7 @@ mod tests {
             let q_clean2: [QubitId; 2] = [bb.alloc_qubit(), bb.alloc_qubit()];
             let q_ctrl = bb.alloc_qubit();
 
-            cisub_dirty_2clean_classical(
-                &mut bb,
-                &q_target,
-                &q_dirty,
-                &q_clean2,
-                c_low,
-                q_ctrl,
-            );
+            cisub_dirty_2clean_classical(&mut bb, &q_target, &q_dirty, &q_clean2, c_low, q_ctrl);
 
             let ops = bb.ops.clone();
             let num_qubits = bb.next_qubit as usize;
@@ -2878,8 +2935,7 @@ mod tests {
         let mut hasher = Shake256::default();
         hasher.update(&[n as u8, trials as u8, 199]);
         use sha3::digest::XofReader;
-        let mut xof =
-            <sha3::Shake256 as sha3::digest::ExtendableOutput>::finalize_xof(hasher);
+        let mut xof = <sha3::Shake256 as sha3::digest::ExtendableOutput>::finalize_xof(hasher);
         let mut ok = 0;
         let mut bad = 0;
         for _trial in 0..trials {
@@ -2901,14 +2957,7 @@ mod tests {
             let q_dirty: Vec<QubitId> = bb.alloc_qubits(n.saturating_sub(2).max(1));
             let q_clean2: [QubitId; 2] = [bb.alloc_qubit(), bb.alloc_qubit()];
 
-            iadd_dirty_2clean_qoffset(
-                &mut bb,
-                &q_target,
-                &q_dirty,
-                &q_clean2,
-                &q_offset,
-                cin,
-            );
+            iadd_dirty_2clean_qoffset(&mut bb, &q_target, &q_dirty, &q_clean2, &q_offset, cin);
 
             let ops = bb.ops.clone();
             let num_qubits = bb.next_qubit as usize;

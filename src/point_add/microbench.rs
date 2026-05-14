@@ -252,9 +252,18 @@ mod tests {
             return;
         }
         for n in [64, 128, 256] {
-            print_row(&format!("cuccaro_add_fast n={}", n), &bench_cuccaro_add_fast(n));
-            print_row(&format!("cuccaro_add_slow n={}", n), &bench_cuccaro_add_slow(n));
-            print_row(&format!("cuccaro_sub_fast n={}", n), &bench_cuccaro_sub_fast(n));
+            print_row(
+                &format!("cuccaro_add_fast n={}", n),
+                &bench_cuccaro_add_fast(n),
+            );
+            print_row(
+                &format!("cuccaro_add_slow n={}", n),
+                &bench_cuccaro_add_slow(n),
+            );
+            print_row(
+                &format!("cuccaro_sub_fast n={}", n),
+                &bench_cuccaro_sub_fast(n),
+            );
         }
     }
 

@@ -19,7 +19,7 @@ use alloy_primitives::U256;
 
 use super::{
     add_nbit_qq_fast, cmod_add_qq, load_bits, load_const, mod_add_qb, mod_add_qq_fast,
-    unload_bits, unload_const, B, N, QubitId, SECP256K1_P, sub_nbit_qq_fast,
+    sub_nbit_qq_fast, unload_bits, unload_const, QubitId, B, N, SECP256K1_P,
 };
 use crate::circuit::OperationType;
 use crate::sim::Simulator;
@@ -35,7 +35,9 @@ fn count_toffoli(ops: &[crate::circuit::Op]) -> usize {
 }
 
 fn c_secp256k1() -> U256 {
-    U256::MAX.wrapping_sub(SECP256K1_P).wrapping_add(U256::from(1u64))
+    U256::MAX
+        .wrapping_sub(SECP256K1_P)
+        .wrapping_add(U256::from(1u64))
 }
 
 fn nonmod_add_bits_padded(b: &mut B, wide: &[QubitId], bits: &[super::BitId]) {
@@ -241,15 +243,30 @@ fn coset_repeated_add_qb_matches_direct_for_secp256k1_n256() {
         sim2.apply(&ops2);
         let got2 = get_u256(&sim2, &out2);
 
-        assert_eq!(got2, got1, "trial {trial}: coset proto disagrees with direct modular chain");
-        assert_eq!(got1, (x + b + b + b) % p, "trial {trial}: direct chain wrong");
+        assert_eq!(
+            got2, got1,
+            "trial {trial}: coset proto disagrees with direct modular chain"
+        );
+        assert_eq!(
+            got1,
+            (x + b + b + b) % p,
+            "trial {trial}: direct chain wrong"
+        );
     }
 }
 
 #[test]
 fn coset_proto_cost_repeated_add_qb_n256() {
     let p = SECP256K1_P;
-    for (reps, cpad) in [(3usize, 2usize), (8usize, 4usize), (12usize, 4usize), (16usize, 5usize), (32usize, 6usize), (64usize, 7usize), (256usize, 9usize)] {
+    for (reps, cpad) in [
+        (3usize, 2usize),
+        (8usize, 4usize),
+        (12usize, 4usize),
+        (16usize, 5usize),
+        (32usize, 6usize),
+        (64usize, 7usize),
+        (256usize, 9usize),
+    ] {
         let mut direct = B::new();
         let x = direct.alloc_qubits(N);
         let bits = direct.alloc_bits(N);
@@ -290,7 +307,15 @@ fn coset_proto_cost_repeated_add_qb_n256() {
 #[test]
 fn coset_proto_cost_repeated_add_qq_n256() {
     let p = SECP256K1_P;
-    for (reps, cpad) in [(3usize, 2usize), (8usize, 4usize), (12usize, 4usize), (16usize, 5usize), (32usize, 6usize), (64usize, 7usize), (256usize, 9usize)] {
+    for (reps, cpad) in [
+        (3usize, 2usize),
+        (8usize, 4usize),
+        (12usize, 4usize),
+        (16usize, 5usize),
+        (32usize, 6usize),
+        (64usize, 7usize),
+        (256usize, 9usize),
+    ] {
         let mut direct = B::new();
         let x = direct.alloc_qubits(N);
         let a = direct.alloc_qubits(N);

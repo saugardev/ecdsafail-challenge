@@ -109,11 +109,20 @@ mod tests {
         let luo_opt = naive_luo_point_add_budget_optimistic(n, current_other_peak);
         eprintln!("naive Luo swap-in peak estimate: conservative={luo_cons}, optimistic={luo_opt}");
 
-        assert!(luo_cons < cur.total, "Luo-style inversion must reduce peak (conservative)");
-        assert!(luo_opt < cur.total, "Luo-style inversion must reduce peak (optimistic)");
+        assert!(
+            luo_cons < cur.total,
+            "Luo-style inversion must reduce peak (conservative)"
+        );
+        assert!(
+            luo_opt < cur.total,
+            "Luo-style inversion must reduce peak (optimistic)"
+        );
 
         // User budget is ~600 qubits over the 512 input coords.
-        assert!(luo_opt > 1112, "If this flips, Luo-alone got us into the user budget");
+        assert!(
+            luo_opt > 1112,
+            "If this flips, Luo-alone got us into the user budget"
+        );
     }
 
     #[test]
@@ -132,8 +141,14 @@ mod tests {
             cur.total - luo_cons,
             cur.total - luo_opt
         );
-        assert!(cur.total - luo_cons >= 500, "Luo should save ~500+ qubits conservatively");
-        assert!(cur.total - luo_opt >= 800, "Luo should save ~800+ qubits optimistically");
+        assert!(
+            cur.total - luo_cons >= 500,
+            "Luo should save ~500+ qubits conservatively"
+        );
+        assert!(
+            cur.total - luo_opt >= 800,
+            "Luo should save ~800+ qubits optimistically"
+        );
     }
 
     #[test]

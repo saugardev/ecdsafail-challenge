@@ -19,7 +19,10 @@
 #![allow(dead_code)]
 
 use alloy_primitives::U256;
-use sha3::{digest::{ExtendableOutput, Update, XofReader}, Shake128};
+use sha3::{
+    digest::{ExtendableOutput, Update, XofReader},
+    Shake128,
+};
 
 use super::SECP256K1_P;
 use crate::weierstrass_elliptic_curve::WeierstrassEllipticCurve;
@@ -66,12 +69,20 @@ fn random_element(seed: u64) -> U256 {
 #[inline]
 fn sub_mod(a: U256, b: U256, p: U256) -> U256 {
     let (r, borrow) = a.overflowing_sub(b);
-    if borrow { r.wrapping_add(p) } else { r }
+    if borrow {
+        r.wrapping_add(p)
+    } else {
+        r
+    }
 }
 
 #[inline]
 fn neg_mod(a: U256, p: U256) -> U256 {
-    if a.is_zero() { a } else { p.wrapping_sub(a) }
+    if a.is_zero() {
+        a
+    } else {
+        p.wrapping_sub(a)
+    }
 }
 
 #[inline]
@@ -108,14 +119,20 @@ fn branch_sequence(dx: U256, iters: usize) -> Vec<Branch> {
     let mut out = Vec::with_capacity(iters);
     for _ in 0..iters {
         let mut m = 0u8;
-        if f == 1 && v == U256::ZERO { m ^= 1; }
+        if f == 1 && v == U256::ZERO {
+            m ^= 1;
+        }
         f ^= m;
 
         let u0 = if u.bit(0) { 1u8 } else { 0u8 };
         let v0 = if v.bit(0) { 1u8 } else { 0u8 };
         let mut a = 0u8;
-        if f == 1 && u0 == 0 { a ^= 1; }
-        if f == 1 && u0 == 1 && v0 == 0 { m ^= 1; }
+        if f == 1 && u0 == 0 {
+            a ^= 1;
+        }
+        if f == 1 && u0 == 1 && v0 == 0 {
+            m ^= 1;
+        }
         let b = a ^ m;
         let gt = if u > v { 1u8 } else { 0u8 };
         let delta = (f & gt) & (1 ^ b);
@@ -125,10 +142,16 @@ fn branch_sequence(dx: U256, iters: usize) -> Vec<Branch> {
         let a_swap = a == 1;
         out.push(Branch { a_swap, add });
 
-        if a_swap { core::mem::swap(&mut u, &mut v); }
-        if add { v = v.wrapping_sub(u); }
+        if a_swap {
+            core::mem::swap(&mut u, &mut v);
+        }
+        if add {
+            v = v.wrapping_sub(u);
+        }
         v >>= 1;
-        if a_swap { core::mem::swap(&mut u, &mut v); }
+        if a_swap {
+            core::mem::swap(&mut u, &mut v);
+        }
         let _ = m;
     }
     out
@@ -140,10 +163,16 @@ fn branch_sequence(dx: U256, iters: usize) -> Vec<Branch> {
 fn apply_coeffs(seq: &[Branch], mut r: U256, mut s: U256) -> (U256, U256) {
     let p = SECP256K1_P;
     for br in seq {
-        if br.a_swap { core::mem::swap(&mut r, &mut s); }
-        if br.add { s = add_mod(s, r, p); }
+        if br.a_swap {
+            core::mem::swap(&mut r, &mut s);
+        }
+        if br.add {
+            s = add_mod(s, r, p);
+        }
         r = add_mod(r, r, p);
-        if br.a_swap { core::mem::swap(&mut r, &mut s); }
+        if br.a_swap {
+            core::mem::swap(&mut r, &mut s);
+        }
     }
     (r, s)
 }
@@ -162,20 +191,29 @@ fn step_linear_canonical(st: &mut LinState) -> Branch {
 
 fn step_linear_canonical_with_flags(st: &mut LinState) -> (Branch, u8, u8) {
     let mut m = 0u8;
-    if st.f == 1 && st.v == U256::ZERO { m ^= 1; }
+    if st.f == 1 && st.v == U256::ZERO {
+        m ^= 1;
+    }
     st.f ^= m;
 
     let u0 = if st.u.bit(0) { 1u8 } else { 0u8 };
     let v0 = if st.v.bit(0) { 1u8 } else { 0u8 };
     let mut a = 0u8;
-    if st.f == 1 && u0 == 0 { a ^= 1; }
-    if st.f == 1 && u0 == 1 && v0 == 0 { m ^= 1; }
+    if st.f == 1 && u0 == 0 {
+        a ^= 1;
+    }
+    if st.f == 1 && u0 == 1 && v0 == 0 {
+        m ^= 1;
+    }
     let b = a ^ m;
     let gt = if st.u > st.v { 1u8 } else { 0u8 };
     let delta = (st.f & gt) & (1 ^ b);
     a ^= delta;
     m ^= delta;
-    let br = Branch { a_swap: a == 1, add: (st.f & (1 ^ b)) == 1 };
+    let br = Branch {
+        a_swap: a == 1,
+        add: (st.f & (1 ^ b)) == 1,
+    };
 
     if br.a_swap {
         core::mem::swap(&mut st.u, &mut st.v);
@@ -209,7 +247,11 @@ fn coefficient_transform_shape() {
         // with k(dx) * dx = -2^ITERS mod p.
         assert_eq!(c, dx, "lower-left coefficient is exactly dx");
         assert_eq!(d, U256::ZERO, "lower-right coefficient is zero");
-        assert_eq!(k.mul_mod(dx, p), neg_mod(scale, p), "k is the raw inverse scale");
+        assert_eq!(
+            k.mul_mod(dx, p),
+            neg_mod(scale, p),
+            "k is the raw inverse scale"
+        );
         assert_eq!(k.mul_mod(c, p), neg_mod(scale, p), "determinant relation");
         let _ = a;
     }
@@ -246,7 +288,10 @@ fn single_coefficient_pair_cannot_preserve_x_and_expose_quotient_by_constant_tag
     let dk20 = sub_mod(k2, k0, p);
     let det = sub_mod(da10.mul_mod(dk20, p), da20.mul_mod(dk10, p), p);
     eprintln!("constant-tag coefficient-pair relation determinant = {det:#x}");
-    assert!(!det.is_zero(), "sampled (a,k) were affine-collinear; constant-tag DIV rescue may exist");
+    assert!(
+        !det.is_zero(),
+        "sampled (a,k) were affine-collinear; constant-tag DIV rescue may exist"
+    );
 }
 
 fn toy_branch_sequence_for_a_coeff(x: u64, p: u64, iters: usize) -> Vec<Branch> {
@@ -256,37 +301,56 @@ fn toy_branch_sequence_for_a_coeff(x: u64, p: u64, iters: usize) -> Vec<Branch> 
     let mut out = Vec::with_capacity(iters);
     for _ in 0..iters {
         let mut m = 0u8;
-        if f == 1 && v == 0 { m ^= 1; }
+        if f == 1 && v == 0 {
+            m ^= 1;
+        }
         f ^= m;
         let u0 = (u & 1) as u8;
         let v0 = (v & 1) as u8;
         let mut a = 0u8;
-        if f == 1 && u0 == 0 { a ^= 1; }
-        if f == 1 && u0 == 1 && v0 == 0 { m ^= 1; }
+        if f == 1 && u0 == 0 {
+            a ^= 1;
+        }
+        if f == 1 && u0 == 1 && v0 == 0 {
+            m ^= 1;
+        }
         let b = a ^ m;
         let gt = if u > v { 1u8 } else { 0u8 };
         let delta = (f & gt) & (1 ^ b);
         a ^= delta;
         m ^= delta;
-        let br = Branch { a_swap: a == 1, add: (f & (1 ^ b)) == 1 };
+        let br = Branch {
+            a_swap: a == 1,
+            add: (f & (1 ^ b)) == 1,
+        };
         out.push(br);
-        if br.a_swap { core::mem::swap(&mut u, &mut v); }
+        if br.a_swap {
+            core::mem::swap(&mut u, &mut v);
+        }
         if br.add {
             assert!(v >= u, "Kaliski branch should subtract smaller from larger");
             v -= u;
         }
         v >>= 1;
-        if br.a_swap { core::mem::swap(&mut u, &mut v); }
+        if br.a_swap {
+            core::mem::swap(&mut u, &mut v);
+        }
     }
     out
 }
 
 fn toy_apply_coeffs_for_a_coeff(seq: &[Branch], mut r: u64, mut s: u64, p: u64) -> (u64, u64) {
     for br in seq {
-        if br.a_swap { core::mem::swap(&mut r, &mut s); }
-        if br.add { s = (s + r) % p; }
+        if br.a_swap {
+            core::mem::swap(&mut r, &mut s);
+        }
+        if br.add {
+            s = (s + r) % p;
+        }
         r = (2 * r) % p;
-        if br.a_swap { core::mem::swap(&mut r, &mut s); }
+        if br.a_swap {
+            core::mem::swap(&mut r, &mut s);
+        }
     }
     (r, s)
 }
@@ -316,7 +380,13 @@ fn toy_a_coefficient_phase_anf_stats(n: usize, p: u64, mask: u64) -> (usize, usi
     let degree = anf
         .iter()
         .enumerate()
-        .filter_map(|(i, &c)| if c != 0 { Some(i.count_ones() as usize) } else { None })
+        .filter_map(|(i, &c)| {
+            if c != 0 {
+                Some(i.count_ones() as usize)
+            } else {
+                None
+            }
+        })
         .max()
         .unwrap_or(0);
     (degree, density)
@@ -348,7 +418,13 @@ fn toy_branch_history_phase_anf_stats(n: usize, p: u64) -> (usize, usize) {
     let degree = anf
         .iter()
         .enumerate()
-        .filter_map(|(i, &c)| if c != 0 { Some(i.count_ones() as usize) } else { None })
+        .filter_map(|(i, &c)| {
+            if c != 0 {
+                Some(i.count_ones() as usize)
+            } else {
+                None
+            }
+        })
         .max()
         .unwrap_or(0);
     (degree, density)
@@ -514,14 +590,21 @@ fn stored_a_and_m_bits_recover_branch_pair() {
             u: SECP256K1_P,
             v: random_element(seed),
             r: U256::ZERO,
-            s: add_mod(random_element(seed + 10_000), random_element(seed), SECP256K1_P),
+            s: add_mod(
+                random_element(seed + 10_000),
+                random_element(seed),
+                SECP256K1_P,
+            ),
             f: 1,
         };
         for _ in 0..ITERS {
             let (br, a, m) = step_linear_canonical_with_flags(&mut st);
             assert_eq!(br.a_swap, a == 1);
             let recovered_add = st.f == 1 && ((a ^ m) == 0);
-            assert_eq!(br.add, recovered_add, "add should be recoverable from stored a,m and post f");
+            assert_eq!(
+                br.add, recovered_add,
+                "add should be recoverable from stored a,m and post f"
+            );
         }
     }
 }
@@ -556,7 +639,8 @@ fn end_state_needs_coefficient_registers_to_recover_branch() {
     use std::collections::HashMap;
 
     let mut denom_seen: HashMap<([u64; 4], [u64; 4], u8), Branch> = HashMap::new();
-    let mut full_seen: HashMap<([u64; 4], [u64; 4], [u64; 4], [u64; 4], u8), Branch> = HashMap::new();
+    let mut full_seen: HashMap<([u64; 4], [u64; 4], [u64; 4], [u64; 4], u8), Branch> =
+        HashMap::new();
     let mut denom_conflicts = 0usize;
     let mut full_conflicts = 0usize;
 
@@ -572,17 +656,27 @@ fn end_state_needs_coefficient_registers_to_recover_branch() {
             let br = step_linear_canonical(&mut st);
             let dk = (limbs(st.u), limbs(st.v), st.f);
             if let Some(prev) = denom_seen.insert(dk, br) {
-                if prev != br { denom_conflicts += 1; }
+                if prev != br {
+                    denom_conflicts += 1;
+                }
             }
             let fk = (limbs(st.u), limbs(st.v), limbs(st.r), limbs(st.s), st.f);
             if let Some(prev) = full_seen.insert(fk, br) {
-                if prev != br { full_conflicts += 1; }
+                if prev != br {
+                    full_conflicts += 1;
+                }
             }
         }
     }
 
-    assert!(denom_conflicts > 0, "denominator-only end-state unexpectedly recovered branches");
-    assert_eq!(full_conflicts, 0, "full end-state branch recovery collided in samples");
+    assert!(
+        denom_conflicts > 0,
+        "denominator-only end-state unexpectedly recovered branches"
+    );
+    assert_eq!(
+        full_conflicts, 0,
+        "full end-state branch recovery collided in samples"
+    );
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -617,19 +711,28 @@ struct ToyLinStateWithSidecar {
 
 fn toy_step_linear_canonical_with_sidecar(st: &mut ToyLinStateWithSidecar, p: u64) -> Branch {
     let mut m = 0u8;
-    if st.f == 1 && st.v == 0 { m ^= 1; }
+    if st.f == 1 && st.v == 0 {
+        m ^= 1;
+    }
     st.f ^= m;
     let u0 = (st.u & 1) as u8;
     let v0 = (st.v & 1) as u8;
     let mut a = 0u8;
-    if st.f == 1 && u0 == 0 { a ^= 1; }
-    if st.f == 1 && u0 == 1 && v0 == 0 { m ^= 1; }
+    if st.f == 1 && u0 == 0 {
+        a ^= 1;
+    }
+    if st.f == 1 && u0 == 1 && v0 == 0 {
+        m ^= 1;
+    }
     let b = a ^ m;
     let gt = if st.u > st.v { 1u8 } else { 0u8 };
     let delta = (st.f & gt) & (1 ^ b);
     a ^= delta;
     m ^= delta;
-    let br = Branch { a_swap: a == 1, add: (st.f & (1 ^ b)) == 1 };
+    let br = Branch {
+        a_swap: a == 1,
+        add: (st.f & (1 ^ b)) == 1,
+    };
     if br.a_swap {
         core::mem::swap(&mut st.u, &mut st.v);
         core::mem::swap(&mut st.r, &mut st.s);
@@ -663,19 +766,28 @@ struct ToyUnreducedCoeffState {
 
 fn toy_step_unreduced_coeff(st: &mut ToyUnreducedCoeffState) -> Branch {
     let mut m = 0u8;
-    if st.f == 1 && st.v == 0 { m ^= 1; }
+    if st.f == 1 && st.v == 0 {
+        m ^= 1;
+    }
     st.f ^= m;
     let u0 = (st.u & 1) as u8;
     let v0 = (st.v & 1) as u8;
     let mut a = 0u8;
-    if st.f == 1 && u0 == 0 { a ^= 1; }
-    if st.f == 1 && u0 == 1 && v0 == 0 { m ^= 1; }
+    if st.f == 1 && u0 == 0 {
+        a ^= 1;
+    }
+    if st.f == 1 && u0 == 1 && v0 == 0 {
+        m ^= 1;
+    }
     let b = a ^ m;
     let gt = if st.u > st.v { 1u8 } else { 0u8 };
     let delta = (st.f & gt) & (1 ^ b);
     a ^= delta;
     m ^= delta;
-    let br = Branch { a_swap: a == 1, add: (st.f & (1 ^ b)) == 1 };
+    let br = Branch {
+        a_swap: a == 1,
+        add: (st.f & (1 ^ b)) == 1,
+    };
     if br.a_swap {
         core::mem::swap(&mut st.u, &mut st.v);
         core::mem::swap(&mut st.r, &mut st.s);
@@ -702,7 +814,13 @@ fn toy_unreduced_coeff_final_r(n: usize, p: u64, x: u64, y: u64) -> Option<u128>
     if tag == 0 {
         return None;
     }
-    let mut st = ToyUnreducedCoeffState { u: p, v: x, r: 0, s: tag as u128, f: 1 };
+    let mut st = ToyUnreducedCoeffState {
+        u: p,
+        v: x,
+        r: 0,
+        s: tag as u128,
+        f: 1,
+    };
     for _ in 0..(2 * n - 1) {
         toy_step_unreduced_coeff(&mut st);
     }
@@ -736,7 +854,11 @@ fn toy_sqrt_buckets(p: u64) -> Vec<Vec<u64>> {
     buckets
 }
 
-fn toy_curve_restricted_branch_ambiguity(n: usize, p: u64, beta: u64) -> (usize, usize, usize, usize, usize) {
+fn toy_curve_restricted_branch_ambiguity(
+    n: usize,
+    p: u64,
+    beta: u64,
+) -> (usize, usize, usize, usize, usize) {
     use std::collections::BTreeMap;
     let q = toy_first_curve_point(p);
     let roots = toy_sqrt_buckets(p);
@@ -756,7 +878,13 @@ fn toy_curve_restricted_branch_ambiguity(n: usize, p: u64, beta: u64) -> (usize,
                 continue;
             }
             support += 1;
-            let mut st = ToyLinState { u: p, v: dx, r: 0, s: tag, f: 1 };
+            let mut st = ToyLinState {
+                u: p,
+                v: dx,
+                r: 0,
+                s: tag,
+                f: 1,
+            };
             for iter in 0..(2 * n - 1) {
                 let br = toy_step_linear_canonical(&mut st, p);
                 let key = (iter, st.u, st.v, st.r, st.s, st.f);
@@ -766,20 +894,38 @@ fn toy_curve_restricted_branch_ambiguity(n: usize, p: u64, beta: u64) -> (usize,
             }
         }
     }
-    let ambiguous_keys = seen.values().filter(|counts| counts.iter().filter(|&&c| c != 0).count() > 1).count();
+    let ambiguous_keys = seen
+        .values()
+        .filter(|counts| counts.iter().filter(|&&c| c != 0).count() > 1)
+        .count();
     let ambiguous_occurrences = seen
         .values()
         .filter(|counts| counts.iter().filter(|&&c| c != 0).count() > 1)
         .map(|counts| counts.iter().sum::<usize>())
         .sum::<usize>();
-    (ambiguous_keys, ambiguous_occurrences, total, support, seen.len())
+    (
+        ambiguous_keys,
+        ambiguous_occurrences,
+        total,
+        support,
+        seen.len(),
+    )
 }
 
-fn toy_curve_restricted_sidecar_min_bits(n: usize, p: u64, beta: u64, max_bits: usize) -> Option<usize> {
+fn toy_curve_restricted_sidecar_min_bits(
+    n: usize,
+    p: u64,
+    beta: u64,
+    max_bits: usize,
+) -> Option<usize> {
     let q = toy_first_curve_point(p);
     let roots = toy_sqrt_buckets(p);
     for bits in 0..=max_bits {
-        let mask = if bits >= 64 { u64::MAX } else { (1u64 << bits) - 1 };
+        let mask = if bits >= 64 {
+            u64::MAX
+        } else {
+            (1u64 << bits) - 1
+        };
         use std::collections::BTreeMap;
         let mut seen: BTreeMap<(usize, u64, u64, u64, u64, u8, u64, u64), Branch> = BTreeMap::new();
         let mut conflicts = 0usize;
@@ -795,12 +941,31 @@ fn toy_curve_restricted_sidecar_min_bits(n: usize, p: u64, beta: u64, max_bits: 
                 if tag == 0 {
                     continue;
                 }
-                let mut st = ToyLinStateWithSidecar { u: p, v: dx, r: 0, s: tag, tag_r: 1, tag_s: 0, f: 1 };
+                let mut st = ToyLinStateWithSidecar {
+                    u: p,
+                    v: dx,
+                    r: 0,
+                    s: tag,
+                    tag_r: 1,
+                    tag_s: 0,
+                    f: 1,
+                };
                 for iter in 0..(2 * n - 1) {
                     let br = toy_step_linear_canonical_with_sidecar(&mut st, p);
-                    let key = (iter, st.u, st.v, st.r, st.s, st.f, st.tag_r & mask, st.tag_s & mask);
+                    let key = (
+                        iter,
+                        st.u,
+                        st.v,
+                        st.r,
+                        st.s,
+                        st.f,
+                        st.tag_r & mask,
+                        st.tag_s & mask,
+                    );
                     if let Some(prev) = seen.insert(key, br) {
-                        if prev != br { conflicts += 1; }
+                        if prev != br {
+                            conflicts += 1;
+                        }
                     }
                 }
             }
@@ -822,26 +987,39 @@ struct ToyRedundantCoeffState {
 }
 
 fn toy_center_i128(mut x: i128, p: i128, limit: i128) -> i128 {
-    while x > limit { x -= p; }
-    while x < -limit { x += p; }
+    while x > limit {
+        x -= p;
+    }
+    while x < -limit {
+        x += p;
+    }
     x
 }
 
 fn toy_step_redundant_coeff(st: &mut ToyRedundantCoeffState, p: u64, limit: i128) -> Branch {
     let mut m = 0u8;
-    if st.f == 1 && st.v == 0 { m ^= 1; }
+    if st.f == 1 && st.v == 0 {
+        m ^= 1;
+    }
     st.f ^= m;
     let u0 = (st.u & 1) as u8;
     let v0 = (st.v & 1) as u8;
     let mut a = 0u8;
-    if st.f == 1 && u0 == 0 { a ^= 1; }
-    if st.f == 1 && u0 == 1 && v0 == 0 { m ^= 1; }
+    if st.f == 1 && u0 == 0 {
+        a ^= 1;
+    }
+    if st.f == 1 && u0 == 1 && v0 == 0 {
+        m ^= 1;
+    }
     let b = a ^ m;
     let gt = if st.u > st.v { 1u8 } else { 0u8 };
     let d = (st.f & gt) & (1 ^ b);
     a ^= d;
     m ^= d;
-    let br = Branch { a_swap: a == 1, add: (st.f & (1 ^ (a ^ m))) == 1 };
+    let br = Branch {
+        a_swap: a == 1,
+        add: (st.f & (1 ^ (a ^ m))) == 1,
+    };
     if br.a_swap {
         std::mem::swap(&mut st.u, &mut st.v);
         std::mem::swap(&mut st.r, &mut st.s);
@@ -871,15 +1049,27 @@ fn toy_curve_restricted_redundant_conflicts(n: usize, p: u64, extra_bits: usize)
         for &py in &roots[rhs as usize] {
             let dx = (px + p - q.0) % p;
             let dy = (py + p - q.1) % p;
-            if dx == 0 { continue; }
+            if dx == 0 {
+                continue;
+            }
             let tag = (dy + dx) % p;
-            if tag == 0 { continue; }
-            let mut st = ToyRedundantCoeffState { u: p, v: dx, r: 0, s: toy_center_i128(tag as i128, p as i128, limit), f: 1 };
+            if tag == 0 {
+                continue;
+            }
+            let mut st = ToyRedundantCoeffState {
+                u: p,
+                v: dx,
+                r: 0,
+                s: toy_center_i128(tag as i128, p as i128, limit),
+                f: 1,
+            };
             for iter in 0..(2 * n - 1) {
                 let br = toy_step_redundant_coeff(&mut st, p, limit);
                 let key = (iter, st.u, st.v, st.r, st.s, st.f);
                 if let Some(prev) = seen.insert(key, br) {
-                    if prev != br { conflicts += 1; }
+                    if prev != br {
+                        conflicts += 1;
+                    }
                 }
             }
         }
@@ -887,7 +1077,11 @@ fn toy_curve_restricted_redundant_conflicts(n: usize, p: u64, extra_bits: usize)
     conflicts
 }
 
-fn toy_curve_restricted_redundant_min_extra_bits(n: usize, p: u64, max_extra: usize) -> Option<usize> {
+fn toy_curve_restricted_redundant_min_extra_bits(
+    n: usize,
+    p: u64,
+    max_extra: usize,
+) -> Option<usize> {
     for extra in 0..=max_extra {
         if toy_curve_restricted_redundant_conflicts(n, p, extra) == 0 {
             return Some(extra);
@@ -897,10 +1091,16 @@ fn toy_curve_restricted_redundant_min_extra_bits(n: usize, p: u64, max_extra: us
 }
 
 fn toy_update_mod2_sidecar(zr: &mut u64, zs: &mut u64, br: Branch, mask: u64) {
-    if br.a_swap { std::mem::swap(zr, zs); }
-    if br.add { *zs = zs.wrapping_add(*zr) & mask; }
+    if br.a_swap {
+        std::mem::swap(zr, zs);
+    }
+    if br.add {
+        *zs = zs.wrapping_add(*zr) & mask;
+    }
     *zr = zr.wrapping_mul(2) & mask;
-    if br.a_swap { std::mem::swap(zr, zs); }
+    if br.a_swap {
+        std::mem::swap(zr, zs);
+    }
 }
 
 fn toy_curve_restricted_mod2_sidecar_conflicts(
@@ -913,7 +1113,11 @@ fn toy_curve_restricted_mod2_sidecar_conflicts(
     use std::collections::HashMap;
     let q = toy_first_curve_point(p);
     let roots = toy_sqrt_buckets(p);
-    let mask = if bits >= 64 { u64::MAX } else { (1u64 << bits) - 1 };
+    let mask = if bits >= 64 {
+        u64::MAX
+    } else {
+        (1u64 << bits) - 1
+    };
     let mut seen: HashMap<(usize, u64, u64, u64, u64, u8, u64, u64), Branch> = HashMap::new();
     let mut conflicts = 0usize;
     let mut support = 0usize;
@@ -922,11 +1126,21 @@ fn toy_curve_restricted_mod2_sidecar_conflicts(
         for &py in &roots[rhs as usize] {
             let dx = (px + p - q.0) % p;
             let dy = (py + p - q.1) % p;
-            if dx == 0 { continue; }
+            if dx == 0 {
+                continue;
+            }
             let tag = (dy + dx) % p;
-            if tag == 0 { continue; }
+            if tag == 0 {
+                continue;
+            }
             support += 1;
-            let mut st = ToyLinState { u: p, v: dx, r: 0, s: tag, f: 1 };
+            let mut st = ToyLinState {
+                u: p,
+                v: dx,
+                r: 0,
+                s: tag,
+                f: 1,
+            };
             let mut zr = zr0 & mask;
             let mut zs = zs0 & mask;
             for iter in 0..(2 * n - 1) {
@@ -934,7 +1148,9 @@ fn toy_curve_restricted_mod2_sidecar_conflicts(
                 toy_update_mod2_sidecar(&mut zr, &mut zs, br, mask);
                 let key = (iter, st.u, st.v, st.r, st.s, st.f, zr, zs);
                 if let Some(prev) = seen.insert(key, br) {
-                    if prev != br { conflicts += 1; }
+                    if prev != br {
+                        conflicts += 1;
+                    }
                 }
             }
         }
@@ -956,7 +1172,10 @@ fn toy_sidecar_left_coefficients(alpha: u64, beta: u64, br: Branch, mask: u64) -
 
 type ToyPostKey = (usize, u64, u64, u64, u64, u8);
 
-fn toy_curve_restricted_ambiguous_poststates(n: usize, p: u64) -> std::collections::HashSet<ToyPostKey> {
+fn toy_curve_restricted_ambiguous_poststates(
+    n: usize,
+    p: u64,
+) -> std::collections::HashSet<ToyPostKey> {
     use std::collections::HashMap;
     let q = toy_first_curve_point(p);
     let roots = toy_sqrt_buckets(p);
@@ -966,10 +1185,20 @@ fn toy_curve_restricted_ambiguous_poststates(n: usize, p: u64) -> std::collectio
         for &py in &roots[rhs as usize] {
             let dx = (px + p - q.0) % p;
             let dy = (py + p - q.1) % p;
-            if dx == 0 { continue; }
+            if dx == 0 {
+                continue;
+            }
             let tag = (dy + dx) % p;
-            if tag == 0 { continue; }
-            let mut st = ToyLinState { u: p, v: dx, r: 0, s: tag, f: 1 };
+            if tag == 0 {
+                continue;
+            }
+            let mut st = ToyLinState {
+                u: p,
+                v: dx,
+                r: 0,
+                s: tag,
+                f: 1,
+            };
             for iter in 0..(2 * n - 1) {
                 let br = toy_step_linear_canonical(&mut st, p);
                 let key = (iter, st.u, st.v, st.r, st.s, st.f);
@@ -979,7 +1208,13 @@ fn toy_curve_restricted_ambiguous_poststates(n: usize, p: u64) -> std::collectio
         }
     }
     seen.into_iter()
-        .filter_map(|(key, mask)| if mask.count_ones() > 1 { Some(key) } else { None })
+        .filter_map(|(key, mask)| {
+            if mask.count_ones() > 1 {
+                Some(key)
+            } else {
+                None
+            }
+        })
         .collect()
 }
 
@@ -993,10 +1228,20 @@ fn toy_curve_collision_event_anf_stats(n: usize, p: u64) -> (usize, usize, usize
     for idx in 0..size {
         let dx = (idx as u64) & limb_mask;
         let dy = ((idx >> n) as u64) & limb_mask;
-        if dx == 0 || dx >= p || dy >= p { continue; }
+        if dx == 0 || dx >= p || dy >= p {
+            continue;
+        }
         let tag = (dx + dy) % p;
-        if tag == 0 { continue; }
-        let mut st = ToyLinState { u: p, v: dx, r: 0, s: tag, f: 1 };
+        if tag == 0 {
+            continue;
+        }
+        let mut st = ToyLinState {
+            u: p,
+            v: dx,
+            r: 0,
+            s: tag,
+            f: 1,
+        };
         let mut hit = 0u8;
         for iter in 0..(2 * n - 1) {
             toy_step_linear_canonical(&mut st, p);
@@ -1018,7 +1263,13 @@ fn toy_curve_collision_event_anf_stats(n: usize, p: u64) -> (usize, usize, usize
     let degree = anf
         .iter()
         .enumerate()
-        .filter_map(|(i, &c)| if c != 0 { Some(i.count_ones() as usize) } else { None })
+        .filter_map(|(i, &c)| {
+            if c != 0 {
+                Some(i.count_ones() as usize)
+            } else {
+                None
+            }
+        })
         .max()
         .unwrap_or(0);
     (degree, density, ambiguous.len())
@@ -1028,15 +1279,29 @@ fn toy_one_lane_common_linear_sidecar_count(bits: usize) -> usize {
     let modulus = 1u64 << bits;
     let mask = modulus - 1;
     let branches = [
-        Branch { a_swap: false, add: false },
-        Branch { a_swap: false, add: true },
-        Branch { a_swap: true, add: false },
-        Branch { a_swap: true, add: true },
+        Branch {
+            a_swap: false,
+            add: false,
+        },
+        Branch {
+            a_swap: false,
+            add: true,
+        },
+        Branch {
+            a_swap: true,
+            add: false,
+        },
+        Branch {
+            a_swap: true,
+            add: true,
+        },
     ];
     let mut count = 0usize;
     for alpha in 0..modulus {
         for beta in 0..modulus {
-            if alpha == 0 && beta == 0 { continue; }
+            if alpha == 0 && beta == 0 {
+                continue;
+            }
             let mut ok = true;
             for &br in &branches {
                 let (cr, cs) = toy_sidecar_left_coefficients(alpha, beta, br, mask);
@@ -1052,7 +1317,9 @@ fn toy_one_lane_common_linear_sidecar_count(bits: usize) -> usize {
                     break;
                 }
             }
-            if ok { count += 1; }
+            if ok {
+                count += 1;
+            }
         }
     }
     count
@@ -1067,27 +1334,43 @@ fn toy_curve_restricted_mod2_sidecar_best_bits(
     let mut best = (usize::MAX, 0u64, 0u64, 0usize);
     for &(zr0, zs0) in candidates {
         for bits in 0..=max_bits {
-            let (conflicts, support) = toy_curve_restricted_mod2_sidecar_conflicts(n, p, bits, zr0, zs0);
+            let (conflicts, support) =
+                toy_curve_restricted_mod2_sidecar_conflicts(n, p, bits, zr0, zs0);
             if conflicts == 0 {
-                if bits < best.0 { best = (bits, zr0, zs0, support); }
+                if bits < best.0 {
+                    best = (bits, zr0, zs0, support);
+                }
                 break;
             }
         }
     }
-    assert!(best.0 != usize::MAX, "no exact mod-2^b sidecar found within {max_bits} bits");
+    assert!(
+        best.0 != usize::MAX,
+        "no exact mod-2^b sidecar found within {max_bits} bits"
+    );
     best
 }
 
 fn toy_hash_sidecar_update(h: u64, bits: usize, br: Branch) -> u64 {
-    if bits == 0 { return 0; }
-    let mask = if bits >= 64 { u64::MAX } else { (1u64 << bits) - 1 };
+    if bits == 0 {
+        return 0;
+    }
+    let mask = if bits >= 64 {
+        u64::MAX
+    } else {
+        (1u64 << bits) - 1
+    };
     let rotated = ((h << 1) | (h >> (bits - 1))) & mask;
     let idx = (br.a_swap as usize) * 2 + br.add as usize;
     let constants = [1u64, 3u64, 5u64, 7u64];
     rotated ^ (constants[idx] & mask)
 }
 
-fn toy_curve_restricted_hash_sidecar_conflicts(n: usize, p: u64, bits: usize) -> (usize, usize, usize, usize) {
+fn toy_curve_restricted_hash_sidecar_conflicts(
+    n: usize,
+    p: u64,
+    bits: usize,
+) -> (usize, usize, usize, usize) {
     use std::collections::BTreeMap;
     type Key = (usize, u64, u64, u64, u64, u8, u64);
     let q = toy_first_curve_point(p);
@@ -1101,18 +1384,30 @@ fn toy_curve_restricted_hash_sidecar_conflicts(n: usize, p: u64, bits: usize) ->
         for &py in &roots[rhs as usize] {
             let dx = (px + p - q.0) % p;
             let dy = (py + p - q.1) % p;
-            if dx == 0 { continue; }
+            if dx == 0 {
+                continue;
+            }
             let tag = (dx + dy) % p;
-            if tag == 0 { continue; }
+            if tag == 0 {
+                continue;
+            }
             support += 1;
-            let mut st = ToyLinState { u: p, v: dx, r: 0, s: tag, f: 1 };
+            let mut st = ToyLinState {
+                u: p,
+                v: dx,
+                r: 0,
+                s: tag,
+                f: 1,
+            };
             let mut h = 0u64;
             for iter in 0..(2 * n - 1) {
                 let br = toy_step_linear_canonical(&mut st, p);
                 h = toy_hash_sidecar_update(h, bits, br);
                 let key = (iter, st.u, st.v, st.r, st.s, st.f, h);
                 if let Some(prev) = seen.insert(key, br) {
-                    if prev != br { conflicts += 1; }
+                    if prev != br {
+                        conflicts += 1;
+                    }
                 }
                 total += 1;
             }
@@ -1121,7 +1416,12 @@ fn toy_curve_restricted_hash_sidecar_conflicts(n: usize, p: u64, bits: usize) ->
     (conflicts, total, seen.len(), support)
 }
 
-fn toy_hash_sidecar_decoder_anf_stats(n: usize, p: u64, bits: usize, decode_add: bool) -> (usize, usize, usize) {
+fn toy_hash_sidecar_decoder_anf_stats(
+    n: usize,
+    p: u64,
+    bits: usize,
+    decode_add: bool,
+) -> (usize, usize, usize) {
     // Full-domain branch decoder for the rolling-hash sidecar.  Invalid states
     // map to zero, matching the other dense-phase probes in this file.
     assert!(4 * n + 1 + bits <= 24, "truth table kept modest");
@@ -1136,23 +1436,42 @@ fn toy_hash_sidecar_decoder_anf_stats(n: usize, p: u64, bits: usize, decode_add:
         for &py in &roots[rhs as usize] {
             let dx = (px + p - q.0) % p;
             let dy = (py + p - q.1) % p;
-            if dx == 0 { continue; }
+            if dx == 0 {
+                continue;
+            }
             let tag = (dx + dy) % p;
-            if tag == 0 { continue; }
-            let mut st = ToyLinState { u: p, v: dx, r: 0, s: tag, f: 1 };
+            if tag == 0 {
+                continue;
+            }
+            let mut st = ToyLinState {
+                u: p,
+                v: dx,
+                r: 0,
+                s: tag,
+                f: 1,
+            };
             let mut h = 0u64;
             for _iter in 0..(2 * n - 1) {
                 let br = toy_step_linear_canonical(&mut st, p);
                 h = toy_hash_sidecar_update(h, bits, br);
                 let key = (st.u, st.v, st.r, st.s, st.f, h);
-                let value = if decode_add { br.add as u8 } else { br.a_swap as u8 };
+                let value = if decode_add {
+                    br.add as u8
+                } else {
+                    br.a_swap as u8
+                };
                 if let Some(prev) = decoder.insert(key, value) {
-                    if prev != value { conflicts += 1; }
+                    if prev != value {
+                        conflicts += 1;
+                    }
                 }
             }
         }
     }
-    assert_eq!(conflicts, 0, "hash sidecar decoder conflicts; increase bits");
+    assert_eq!(
+        conflicts, 0,
+        "hash sidecar decoder conflicts; increase bits"
+    );
     let vars = 4 * n + 1 + bits;
     let size = 1usize << vars;
     let mut anf = vec![0u8; size];
@@ -1163,7 +1482,9 @@ fn toy_hash_sidecar_decoder_anf_stats(n: usize, p: u64, bits: usize, decode_add:
             | ((s as usize) << (3 * n))
             | ((f as usize) << (4 * n))
             | ((h as usize) << (4 * n + 1));
-        if idx < size { anf[idx] = value; }
+        if idx < size {
+            anf[idx] = value;
+        }
     }
     for bit in 0..vars {
         for idx in 0..size {
@@ -1176,13 +1497,23 @@ fn toy_hash_sidecar_decoder_anf_stats(n: usize, p: u64, bits: usize, decode_add:
     let degree = anf
         .iter()
         .enumerate()
-        .filter_map(|(i, &c)| if c != 0 { Some(i.count_ones() as usize) } else { None })
+        .filter_map(|(i, &c)| {
+            if c != 0 {
+                Some(i.count_ones() as usize)
+            } else {
+                None
+            }
+        })
         .max()
         .unwrap_or(0);
     (degree, density, decoder.len())
 }
 
-fn toy_unreduced_coeff_highbit_phase_anf_stats(n: usize, p: u64, bit_shift: usize) -> (usize, usize) {
+fn toy_unreduced_coeff_highbit_phase_anf_stats(
+    n: usize,
+    p: u64,
+    bit_shift: usize,
+) -> (usize, usize) {
     assert!(n <= 10, "truth table kept small");
     let vars = 2 * n;
     let size = 1usize << vars;
@@ -1206,7 +1537,13 @@ fn toy_unreduced_coeff_highbit_phase_anf_stats(n: usize, p: u64, bit_shift: usiz
     let degree = anf
         .iter()
         .enumerate()
-        .filter_map(|(i, &c)| if c != 0 { Some(i.count_ones() as usize) } else { None })
+        .filter_map(|(i, &c)| {
+            if c != 0 {
+                Some(i.count_ones() as usize)
+            } else {
+                None
+            }
+        })
         .max()
         .unwrap_or(0);
     (degree, density)
@@ -1222,15 +1559,25 @@ fn toy_unreduced_coeff_branch_stats(n: usize, p: u64) -> (usize, usize, usize, u
     for x in 1..p {
         for y in 0..p {
             let tag = (x + y) % p;
-            if tag == 0 { continue; }
-            let mut st = ToyUnreducedCoeffState { u: p, v: x, r: 0, s: tag as u128, f: 1 };
+            if tag == 0 {
+                continue;
+            }
+            let mut st = ToyUnreducedCoeffState {
+                u: p,
+                v: x,
+                r: 0,
+                s: tag as u128,
+                f: 1,
+            };
             for iter in 0..(2 * n - 1) {
                 let br = toy_step_unreduced_coeff(&mut st);
                 max_bits = max_bits.max((128 - st.r.leading_zeros()) as usize);
                 max_bits = max_bits.max((128 - st.s.leading_zeros()) as usize);
                 let key = (iter, st.u, st.v, st.r, st.s, st.f);
                 if let Some(prev) = seen.insert(key, br) {
-                    if prev != br { conflicts += 1; }
+                    if prev != br {
+                        conflicts += 1;
+                    }
                 }
                 total += 1;
             }
@@ -1242,14 +1589,20 @@ fn toy_unreduced_coeff_branch_stats(n: usize, p: u64) -> (usize, usize, usize, u
 fn toy_sidecar_branch_conflicts(n: usize, p: u64, sidecar_bits: usize) -> (usize, usize, usize) {
     use std::collections::BTreeMap;
     type Key = (usize, u64, u64, u64, u64, u8, u64, u64);
-    let mask = if sidecar_bits >= 64 { u64::MAX } else { (1u64 << sidecar_bits) - 1 };
+    let mask = if sidecar_bits >= 64 {
+        u64::MAX
+    } else {
+        (1u64 << sidecar_bits) - 1
+    };
     let mut seen: BTreeMap<Key, Branch> = BTreeMap::new();
     let mut conflicts = 0usize;
     let mut total = 0usize;
     for x in 1..p {
         for y in 0..p {
             let tag = (x + y) % p;
-            if tag == 0 { continue; }
+            if tag == 0 {
+                continue;
+            }
             let mut st = ToyLinStateWithSidecar {
                 u: p,
                 v: x,
@@ -1275,7 +1628,9 @@ fn toy_sidecar_branch_conflicts(n: usize, p: u64, sidecar_bits: usize) -> (usize
                     st.tag_s & mask,
                 );
                 if let Some(prev) = seen.insert(key, br) {
-                    if prev != br { conflicts += 1; }
+                    if prev != br {
+                        conflicts += 1;
+                    }
                 }
                 total += 1;
             }
@@ -1286,19 +1641,28 @@ fn toy_sidecar_branch_conflicts(n: usize, p: u64, sidecar_bits: usize) -> (usize
 
 fn toy_step_linear_canonical(st: &mut ToyLinState, p: u64) -> Branch {
     let mut m = 0u8;
-    if st.f == 1 && st.v == 0 { m ^= 1; }
+    if st.f == 1 && st.v == 0 {
+        m ^= 1;
+    }
     st.f ^= m;
     let u0 = (st.u & 1) as u8;
     let v0 = (st.v & 1) as u8;
     let mut a = 0u8;
-    if st.f == 1 && u0 == 0 { a ^= 1; }
-    if st.f == 1 && u0 == 1 && v0 == 0 { m ^= 1; }
+    if st.f == 1 && u0 == 0 {
+        a ^= 1;
+    }
+    if st.f == 1 && u0 == 1 && v0 == 0 {
+        m ^= 1;
+    }
     let b = a ^ m;
     let gt = if st.u > st.v { 1u8 } else { 0u8 };
     let delta = (st.f & gt) & (1 ^ b);
     a ^= delta;
     m ^= delta;
-    let br = Branch { a_swap: a == 1, add: (st.f & (1 ^ b)) == 1 };
+    let br = Branch {
+        a_swap: a == 1,
+        add: (st.f & (1 ^ b)) == 1,
+    };
     if br.a_swap {
         core::mem::swap(&mut st.u, &mut st.v);
         core::mem::swap(&mut st.r, &mut st.s);
@@ -1345,7 +1709,13 @@ fn secp_curve_support_does_not_make_kaliski_branch_choice_locally_free() {
         if tag.is_zero() {
             continue;
         }
-        let mut st = LinState { u: SECP256K1_P, v: dx, r: U256::ZERO, s: tag, f: 1 };
+        let mut st = LinState {
+            u: SECP256K1_P,
+            v: dx,
+            r: U256::ZERO,
+            s: tag,
+            f: 1,
+        };
         for _ in 0..ITERS {
             step_linear_canonical(&mut st);
             let count = exact_local_predecessor_branch_count(st);
@@ -1363,7 +1733,10 @@ fn secp_curve_support_does_not_make_kaliski_branch_choice_locally_free() {
     println!("METRIC secp_curve_local_candidate_ambiguity_frac={frac:.6}");
     println!("METRIC secp_curve_local_candidate_ambiguous_steps={ambiguous}");
     println!("METRIC secp_curve_local_candidate_total_steps={total}");
-    assert!(frac > 0.80, "curve support unexpectedly made the local branch predicate easy: frac={frac}");
+    assert!(
+        frac > 0.80,
+        "curve support unexpectedly made the local branch predicate easy: frac={frac}"
+    );
 }
 
 #[test]
@@ -1380,7 +1753,8 @@ fn curve_restricted_tagged_kaliski_poststate_ambiguity_is_small_but_not_exact() 
     let cases = [(8usize, 251u64), (10, 1021), (12, 4093), (14, 16381)];
     let mut last_frac = 1.0f64;
     for &(n, p) in &cases {
-        let (amb_keys, amb_occ, total, support, states) = toy_curve_restricted_branch_ambiguity(n, p, 1);
+        let (amb_keys, amb_occ, total, support, states) =
+            toy_curve_restricted_branch_ambiguity(n, p, 1);
         let frac = amb_occ as f64 / total as f64;
         let sidecar = toy_curve_restricted_sidecar_min_bits(n, p, 1, n).unwrap();
         eprintln!(
@@ -1390,7 +1764,10 @@ fn curve_restricted_tagged_kaliski_poststate_ambiguity_is_small_but_not_exact() 
             println!("METRIC curve_restricted_kaliski_ambiguity_frac_n14={frac:.6}");
             println!("METRIC curve_restricted_kaliski_sidecar_bits_n14={sidecar}");
         }
-        assert!(frac < last_frac || n == 10, "curve ambiguity stopped decreasing enough to be interesting");
+        assert!(
+            frac < last_frac || n == 10,
+            "curve ambiguity stopped decreasing enough to be interesting"
+        );
         last_frac = frac;
     }
     assert!(last_frac < 0.005);
@@ -1462,7 +1839,10 @@ fn one_lane_linear_sidecar_has_no_closed_update_for_all_kaliski_branches() {
         eprintln!("one-lane linear sidecar common eigenvectors mod 2^{bits}: {count}");
         total += count;
     }
-    println!("METRIC one_lane_linear_sidecar_common_eigenvectors_mod256={}", toy_one_lane_common_linear_sidecar_count(8));
+    println!(
+        "METRIC one_lane_linear_sidecar_common_eigenvectors_mod256={}",
+        toy_one_lane_common_linear_sidecar_count(8)
+    );
     assert_eq!(total, 0);
 }
 
@@ -1476,25 +1856,53 @@ fn implementable_curve_sidecar_still_extrapolates_over_88q_slack() {
     // 12 pair bits; linear secp extrapolation is 192 bits, above the 88-bit
     // slack left by folded one-pair Kaliski.  Only a strongly sublinear or
     // entropy-coded sidecar would revive this simple curve-support tag route.
-    let candidates = [(1, 3), (1, 5), (1, 7), (2, 1), (2, 3), (3, 1), (5, 1), (6, 1), (7, 1), (7, 12)];
-    let cases = [(8usize, 251u64), (10, 1021), (12, 4093), (14, 16381), (16, 65521)];
+    let candidates = [
+        (1, 3),
+        (1, 5),
+        (1, 7),
+        (2, 1),
+        (2, 3),
+        (3, 1),
+        (5, 1),
+        (6, 1),
+        (7, 1),
+        (7, 12),
+    ];
+    let cases = [
+        (8usize, 251u64),
+        (10, 1021),
+        (12, 4093),
+        (14, 16381),
+        (16, 65521),
+    ];
     let mut n16_lane_bits = 0usize;
     for &(n, p) in &cases {
-        let (bits, zr0, zs0, support) = toy_curve_restricted_mod2_sidecar_best_bits(n, p, &candidates, 12);
+        let (bits, zr0, zs0, support) =
+            toy_curve_restricted_mod2_sidecar_best_bits(n, p, &candidates, 12);
         eprintln!(
             "curve-supported implementable 2-adic sidecar: n={n}, p={p}, support={support}, lane_bits={bits}, pair_bits={}, seed=({zr0},{zs0})",
             2 * bits
         );
-        if n == 16 { n16_lane_bits = bits; }
+        if n == 16 {
+            n16_lane_bits = bits;
+        }
     }
     let pair_bits_n16 = 2 * n16_lane_bits;
     let linear_extrapolated_pair_bits = (pair_bits_n16 * 256 + 15) / 16;
     println!("METRIC curve_mod2_sidecar_lane_bits_n16={n16_lane_bits}");
     println!("METRIC curve_mod2_sidecar_pair_bits_n16={pair_bits_n16}");
-    println!("METRIC curve_mod2_sidecar_linear_extrapolated_pair_bits={linear_extrapolated_pair_bits}");
+    println!(
+        "METRIC curve_mod2_sidecar_linear_extrapolated_pair_bits={linear_extrapolated_pair_bits}"
+    );
     println!("METRIC curve_mod2_sidecar_slack_bits=88");
-    assert!(n16_lane_bits <= 7, "candidate sidecar search regressed on n=16");
-    assert!(linear_extrapolated_pair_bits > 88, "simple sidecar would fit 88q slack; revisit folded Kaliski");
+    assert!(
+        n16_lane_bits <= 7,
+        "candidate sidecar search regressed on n=16"
+    );
+    assert!(
+        linear_extrapolated_pair_bits > 88,
+        "simple sidecar would fit 88q slack; revisit folded Kaliski"
+    );
 }
 
 #[test]
@@ -1510,11 +1918,15 @@ fn rolling_hash_sidecar_is_state_small_but_decoder_dense() {
     // without a cheap pop operation.
     let cases = [(4usize, 13u64, 1usize), (5, 31, 3), (6, 61, 4), (8, 251, 3)];
     for &(n, p, bits) in &cases {
-        let (conflicts, total, states, support) = toy_curve_restricted_hash_sidecar_conflicts(n, p, bits);
+        let (conflicts, total, states, support) =
+            toy_curve_restricted_hash_sidecar_conflicts(n, p, bits);
         eprintln!(
             "rolling hash Kaliski sidecar: n={n}, p={p}, bits={bits}, conflicts={conflicts}, states={states}, total={total}, support={support}"
         );
-        assert_eq!(conflicts, 0, "rolling hash failed to disambiguate toy curve support");
+        assert_eq!(
+            conflicts, 0,
+            "rolling hash failed to disambiguate toy curve support"
+        );
         if n == 8 {
             println!("METRIC rolling_hash_sidecar_bits_n8={bits}");
         }
@@ -1598,7 +2010,13 @@ fn scratch600_sidecar_tag_bits_do_not_fix_kaliski_branch_recovery() {
     // low sidecar bits, the minimum exact disambiguating sidecar grows as n-1.
     // This is not a proof for all transforms, but it kills the hoped-for
     // "one coefficient pair + small tag" Kaliski layout under a 600q scratch cap.
-    let cases = [(4usize, 13u64, 3usize), (5, 31, 4), (6, 61, 5), (7, 127, 6), (8, 251, 7)];
+    let cases = [
+        (4usize, 13u64, 3usize),
+        (5, 31, 4),
+        (6, 61, 5),
+        (7, 127, 6),
+        (8, 251, 7),
+    ];
     let mut last_min = 0usize;
     for &(n, p, expected_min) in &cases {
         let mut min_bits = None;
@@ -1646,13 +2064,30 @@ fn exhaustive_toy_full_poststate_does_not_recover_forward_branch() {
         for x in 1..p {
             for y in 0..p {
                 let tag = (x + y) % p;
-                if tag == 0 { continue; }
-                let mut st = ToyLinState { u: p, v: x, r: 0, s: tag, f: 1 };
+                if tag == 0 {
+                    continue;
+                }
+                let mut st = ToyLinState {
+                    u: p,
+                    v: x,
+                    r: 0,
+                    s: tag,
+                    f: 1,
+                };
                 for iter in 0..(2 * n - 1) {
                     let br = toy_step_linear_canonical(&mut st, p);
-                    let key = ToyLinKey { iter, u: st.u, v: st.v, r: st.r, s: st.s, f: st.f };
+                    let key = ToyLinKey {
+                        iter,
+                        u: st.u,
+                        v: st.v,
+                        r: st.r,
+                        s: st.s,
+                        f: st.f,
+                    };
                     if let Some(prev) = seen.insert(key, br) {
-                        if prev != br { conflicts += 1; }
+                        if prev != br {
+                            conflicts += 1;
+                        }
                     }
                     total += 1;
                 }
@@ -1662,7 +2097,10 @@ fn exhaustive_toy_full_poststate_does_not_recover_forward_branch() {
             "toy full-poststate branch recovery: n={n}, p={p}, total={total}, states={}, conflicts={conflicts}",
             seen.len()
         );
-        assert!(conflicts > 0, "toy full post-state unexpectedly determined every branch");
+        assert!(
+            conflicts > 0,
+            "toy full post-state unexpectedly determined every branch"
+        );
     }
 }
 
@@ -1698,11 +2136,21 @@ fn exact_local_predecessor_branch_count(post: LinState) -> usize {
                 (u_after_shift, v_before_add, r_before_double, s_before_add)
             };
             for f0 in [0u8, 1u8] {
-                let terminal_m = if f0 == 1 && v0 == U256::ZERO { 1u8 } else { 0u8 };
+                let terminal_m = if f0 == 1 && v0 == U256::ZERO {
+                    1u8
+                } else {
+                    0u8
+                };
                 if (f0 ^ terminal_m) != post.f {
                     continue;
                 }
-                let mut cand = LinState { u: u0, v: v0, r: r0, s: s0, f: f0 };
+                let mut cand = LinState {
+                    u: u0,
+                    v: v0,
+                    r: r0,
+                    s: s0,
+                    f: f0,
+                };
                 let br = step_linear_canonical(&mut cand);
                 if br == (Branch { a_swap, add }) && same_lin_state(&cand, &post) {
                     branches.insert((a_swap, add));
@@ -1747,7 +2195,10 @@ fn secp_local_poststate_predecessor_branch_is_ambiguous() {
     eprintln!(
         "secp exact local poststate predecessor branch counts: hist={hist:?}, ambiguous={ambiguous}/{total}, frac={frac:.6}"
     );
-    assert!(frac > 0.60, "local poststate ambiguity unexpectedly rare: frac={frac}");
+    assert!(
+        frac > 0.60,
+        "local poststate ambiguity unexpectedly rare: frac={frac}"
+    );
 }
 
 #[test]
@@ -1767,11 +2218,26 @@ fn tagged_full_poststate_branch_ambiguity_is_not_a_rare_exception() {
         for x in 1..p {
             for y in 0..p {
                 let tag = (x + y) % p;
-                if tag == 0 { continue; }
-                let mut st = ToyLinState { u: p, v: x, r: 0, s: tag, f: 1 };
+                if tag == 0 {
+                    continue;
+                }
+                let mut st = ToyLinState {
+                    u: p,
+                    v: x,
+                    r: 0,
+                    s: tag,
+                    f: 1,
+                };
                 for iter in 0..(2 * n - 1) {
                     let br = toy_step_linear_canonical(&mut st, p);
-                    let key = ToyLinKey { iter, u: st.u, v: st.v, r: st.r, s: st.s, f: st.f };
+                    let key = ToyLinKey {
+                        iter,
+                        u: st.u,
+                        v: st.v,
+                        r: st.r,
+                        s: st.s,
+                        f: st.f,
+                    };
                     let idx = (br.a_swap as usize) * 2 + (br.add as usize);
                     seen.entry(key).or_insert([0; 4])[idx] += 1;
                     total += 1;
@@ -1791,7 +2257,10 @@ fn tagged_full_poststate_branch_ambiguity_is_not_a_rare_exception() {
             "toy tagged full-poststate branch ambiguity: n={n}, p={p}, total={total}, states={}, ambiguous_keys={ambiguous_keys}, ambiguous_occurrences={ambiguous_occurrences}, frac={frac:.6}",
             seen.len()
         );
-        assert!(frac > 0.18, "branch ambiguity unexpectedly looked rare: frac={frac}");
+        assert!(
+            frac > 0.18,
+            "branch ambiguity unexpectedly looked rare: frac={frac}"
+        );
     }
 }
 
@@ -1806,11 +2275,26 @@ where
         let hx = tag_of_x(x, p) % p;
         for y in 0..p {
             let tag = (y + hx) % p;
-            if tag == 0 { continue; }
-            let mut st = ToyLinState { u: p, v: x, r: 0, s: tag, f: 1 };
+            if tag == 0 {
+                continue;
+            }
+            let mut st = ToyLinState {
+                u: p,
+                v: x,
+                r: 0,
+                s: tag,
+                f: 1,
+            };
             for iter in 0..(2 * n - 1) {
                 let br = toy_step_linear_canonical(&mut st, p);
-                let key = ToyLinKey { iter, u: st.u, v: st.v, r: st.r, s: st.s, f: st.f };
+                let key = ToyLinKey {
+                    iter,
+                    u: st.u,
+                    v: st.v,
+                    r: st.r,
+                    s: st.s,
+                    f: st.f,
+                };
                 let idx = (br.a_swap as usize) * 2 + (br.add as usize);
                 seen.entry(key).or_insert([0; 4])[idx] += 1;
                 total += 1;
@@ -1840,7 +2324,9 @@ fn changing_linear_x_tag_does_not_fix_poststate_branch_ambiguity() {
     for &(n, p) in &[(4usize, 13u64), (6, 61), (8, 251)] {
         let base = toy_tagged_poststate_ambiguous_fraction(n, p, 1);
         for &beta in &[2u64, 7, 17] {
-            if beta >= p { continue; }
+            if beta >= p {
+                continue;
+            }
             let got = toy_tagged_poststate_ambiguous_fraction(n, p, beta);
             eprintln!(
                 "linear-x tag ambiguity: n={n}, p={p}, beta={beta}, frac={got:.6} (base={base:.6})"
@@ -1892,17 +2378,49 @@ fn bilinear_invariant_does_not_recover_inverse_branch() {
     for seed in 1..=200u64 {
         let x = random_element(seed);
         let y = random_element(seed + 10_000);
-        let mut st = LinState { u: p, v: x, r: U256::ZERO, s: add_mod(y, x, p), f: 1 };
+        let mut st = LinState {
+            u: p,
+            v: x,
+            r: U256::ZERO,
+            s: add_mod(y, x, p),
+            f: 1,
+        };
         for _ in 0..ITERS {
             let br = step_linear_canonical(&mut st);
-            if st.f == 0 { continue; }
+            if st.f == 0 {
+                continue;
+            }
             let mut survivors = 0usize;
             let candidates = [
                 // (case_is_true, pre_u, pre_v, pre_r, pre_s)
-                (!br.a_swap && !br.add, st.u, st.v << 1, st.r.mul_mod(inv2, p), st.s),
-                ( br.a_swap && !br.add, st.u << 1usize, st.v, st.r, st.s.mul_mod(inv2, p)),
-                ( br.a_swap &&  br.add, (st.u << 1usize).wrapping_add(st.v), st.v, sub_mod(st.r, st.s.mul_mod(inv2, p), p), st.s.mul_mod(inv2, p)),
-                (!br.a_swap &&  br.add, st.u, (st.v << 1usize).wrapping_add(st.u), st.r.mul_mod(inv2, p), sub_mod(st.s, st.r.mul_mod(inv2, p), p)),
+                (
+                    !br.a_swap && !br.add,
+                    st.u,
+                    st.v << 1,
+                    st.r.mul_mod(inv2, p),
+                    st.s,
+                ),
+                (
+                    br.a_swap && !br.add,
+                    st.u << 1usize,
+                    st.v,
+                    st.r,
+                    st.s.mul_mod(inv2, p),
+                ),
+                (
+                    br.a_swap && br.add,
+                    (st.u << 1usize).wrapping_add(st.v),
+                    st.v,
+                    sub_mod(st.r, st.s.mul_mod(inv2, p), p),
+                    st.s.mul_mod(inv2, p),
+                ),
+                (
+                    !br.a_swap && br.add,
+                    st.u,
+                    (st.v << 1usize).wrapping_add(st.u),
+                    st.r.mul_mod(inv2, p),
+                    sub_mod(st.s, st.r.mul_mod(inv2, p), p),
+                ),
             ];
             for (_is_true, pu, pv, pr, ps) in candidates {
                 let branch_valid = if pu.bit(0) == false {
@@ -1915,17 +2433,23 @@ fn bilinear_invariant_does_not_recover_inverse_branch() {
                     // Odd/odd candidate; either ordering is locally valid.
                     true
                 };
-                let invariant = add_mod(pr.mul_mod(pv % p, p), ps.mul_mod(pu % p, p), p) == U256::ZERO;
+                let invariant =
+                    add_mod(pr.mul_mod(pv % p, p), ps.mul_mod(pu % p, p), p) == U256::ZERO;
                 if branch_valid && invariant {
                     survivors += 1;
                 }
             }
-            if survivors > 1 { ambiguous += 1; }
+            if survivors > 1 {
+                ambiguous += 1;
+            }
             total += 1;
         }
     }
     let frac = ambiguous as f64 / total as f64;
-    assert!(frac > 0.90, "bilinear invariant unexpectedly disambiguated branches: ambiguous={frac}");
+    assert!(
+        frac > 0.90,
+        "bilinear invariant unexpectedly disambiguated branches: ambiguous={frac}"
+    );
 }
 
 #[test]
@@ -1953,7 +2477,13 @@ fn low_bit_end_state_branch_classifier_is_not_approx_good_enough() {
     let idx = |br: Branch| -> usize { (br.a_swap as usize) * 2 + (br.add as usize) };
 
     for seed in 1..=120u64 {
-        let mut st = LinState { u: SECP256K1_P, v: random_element(seed), r: U256::ZERO, s: random_element(seed + 10_000), f: 1 };
+        let mut st = LinState {
+            u: SECP256K1_P,
+            v: random_element(seed),
+            r: U256::ZERO,
+            s: random_element(seed + 10_000),
+            f: 1,
+        };
         for _ in 0..ITERS {
             let br = step_linear_canonical(&mut st);
             let k = key_of(&st);
@@ -1966,7 +2496,10 @@ fn low_bit_end_state_branch_classifier_is_not_approx_good_enough() {
         let mut best_i = 0usize;
         let mut best_c = 0usize;
         for (i, &v) in c.iter().enumerate() {
-            if v > best_c { best_c = v; best_i = i; }
+            if v > best_c {
+                best_c = v;
+                best_i = i;
+            }
         }
         table.insert(k, best_i);
     }
@@ -1974,18 +2507,29 @@ fn low_bit_end_state_branch_classifier_is_not_approx_good_enough() {
     let mut wrong = 0usize;
     let mut total = 0usize;
     for seed in 10_001..=10_120u64 {
-        let mut st = LinState { u: SECP256K1_P, v: random_element(seed), r: U256::ZERO, s: random_element(seed + 10_000), f: 1 };
+        let mut st = LinState {
+            u: SECP256K1_P,
+            v: random_element(seed),
+            r: U256::ZERO,
+            s: random_element(seed + 10_000),
+            f: 1,
+        };
         for _ in 0..ITERS {
             let br = step_linear_canonical(&mut st);
             let k = key_of(&st);
             // All 3-bit keys are present in the train set; fallback is arbitrary.
             let pred = table.get(&k).copied().unwrap_or(0);
-            if pred != idx(br) { wrong += 1; }
+            if pred != idx(br) {
+                wrong += 1;
+            }
             total += 1;
         }
     }
     let err_rate = wrong as f64 / total as f64;
-    assert!(err_rate > 0.50, "low-bit branch classifier unexpectedly good: err={err_rate}");
+    assert!(
+        err_rate > 0.50,
+        "low-bit branch classifier unexpectedly good: err={err_rate}"
+    );
 }
 
 #[test]
@@ -2012,11 +2556,16 @@ fn zero_coefficient_seed_loses_branch_information() {
             let br = step_linear_canonical(&mut st);
             let key = (limbs(st.u), limbs(st.v), limbs(st.r), limbs(st.s), st.f);
             if let Some(prev) = seen.insert(key, br) {
-                if prev != br { conflicts += 1; }
+                if prev != br {
+                    conflicts += 1;
+                }
             }
         }
     }
-    assert!(conflicts > 0, "zero coefficient seed unexpectedly preserved branch information");
+    assert!(
+        conflicts > 0,
+        "zero coefficient seed unexpectedly preserved branch information"
+    );
 }
 
 #[test]

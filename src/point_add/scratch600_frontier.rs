@@ -28,6 +28,18 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
             blocker: "lowword selector is 120480 CCX over the 87840 selector margin",
         },
         Candidate {
+            name: "streamed_mask_lowword_fused_modavg_break_even",
+            scratch_bits: 510,
+            charged_toffoli: None,
+            blocker: "hardest-piece-first BY replay rescue: with the lowword selector already charged, the fully charged row misses by 65676; over two 560-step replays a fused modular-average microstep must save at least 59 CCX/step and stay phase-clean. This is a structural primitive target, not selector optimism",
+        },
+        Candidate {
+            name: "streamed_mask_fused_modavg_canonical_flag_recovery",
+            scratch_bits: 510,
+            charged_toffoli: Some(3_051_276),
+            blocker: "canonical flag recovery for the fused modular average is too expensive: recovering the add/subtract flag via z=2*out and z<r costs at least one modular double (255 CCX) per microstep, already 196 CCX/step over the 59 CCX break-even before any comparator or cleanup",
+        },
+        Candidate {
             name: "by_consumed_high_state_selector",
             scratch_bits: 3_892,
             charged_toffoli: Some(3_917_624),
@@ -46,28 +58,28 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
             blocker: "one clean 560-step replay body is 2618000 CCX at 2720q; exact parity cleanup alone exceeds the per-DIV budget and two clean DIVs project 3178716 over target",
         },
         Candidate {
-            name: "partial_prefix32_qoffset_lowword_model",
+            name: "partial_prefix32_qoffset_lowword_measured",
             scratch_bits: 542,
             charged_toffoli: None,
-            blocker: "one-DIV local pieces project 2697524, but adversarial two-denominator ledger misses by 1368262",
+            blocker: "measured one-DIV local pieces project 2556716 with charged branch/decode margin, but affine point-add still needs a second exact denominator path or an algebraic deletion of it",
         },
         Candidate {
-            name: "partial_prefix48_qoffset_lowword_model",
+            name: "partial_prefix48_qoffset_lowword_measured",
             scratch_bits: 558,
             charged_toffoli: None,
-            blocker: "one-DIV local pieces project 2652404, but no charged algebra deletes the second denominator/replay",
+            blocker: "measured one-DIV local pieces project 2511916, but no charged algebra deletes the second denominator/replay",
         },
         Candidate {
-            name: "partial_prefix80_qoffset_lowword_model",
+            name: "partial_prefix80_qoffset_lowword_measured",
             scratch_bits: 590,
             charged_toffoli: None,
-            blocker: "one-DIV local pieces project 2562164, but only 10 scratch bits remain and two-denominator point-add is not viable",
+            blocker: "measured one-DIV local pieces project 2422316, but only 10 strict-scratch bits remain and two-denominator point-add is not viable",
         },
         Candidate {
-            name: "partial_prefix90_qoffset_lowword_model",
+            name: "partial_prefix90_qoffset_lowword_measured",
             scratch_bits: 600,
             charged_toffoli: None,
-            blocker: "one-DIV local pieces project 2533964 at strict scratch cap, but two-denominator ledger projects 4068262",
+            blocker: "measured one-DIV local pieces project 2394316 at strict scratch cap, but the recorded two-denominator ledger still projects 4068262 without a second-denominator deletion",
         },
         Candidate {
             name: "scaled_by_compressed_pattern_fixed_id_decode",
@@ -109,7 +121,7 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
             name: "compact_by_denpair_plus_sidecar",
             scratch_bits: 564,
             charged_toffoli: Some(3_793_920),
-            blocker: "state fits, direct denominator compute+uncompute is too costly",
+            blocker: "state fits and nominally clears the 5% line by 82842, but the 50-bit sidecar is only sampled. A disjoint 32768-trace secp holdout of the trained fixed slack schedule already needs 53 sidecar bits, has 1968 schedule misses, and sees 10 extra width bits; exhaustive toys scale to a 128-bit sidecar floor, so exactness still needs a secp tail proof/fallback before promotion",
         },
         Candidate {
             name: "plusminus_raw_k_stream_without_parser",
@@ -127,13 +139,103 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
             name: "plusminus_scaled_solinas_history_scale_packed",
             scratch_bits: 822,
             charged_toffoli: Some(2_230_850),
-            blocker: "optimistic Solinas history-carry scale model is gate-shaped, but the actual k22 split multihalve chunk peaks at 822q; even granting one reusable 256-bit lane remains 159 scratch bits over Google, and naive overlap is 1078 scratch",
+            blocker: "optimistic Solinas history-carry scale model is gate-shaped, but split multihalve workspace still breaks packed scratch for every k. The cost-optimal no-threshold chunk is k=7 at 739 CCX, but one-lane reuse still needs 792 scratch; even k=1 needs 780, over the Google663 envelope",
         },
         Candidate {
             name: "plusminus_scaled_affine_absorbed_scale",
             scratch_bits: 517,
             charged_toffoli: None,
             blocker: "scaled affine formulas are exact, but the second raw cleanup DIV over 2^(2S1)*(Qx-Rx) returns lambda*2^(S1+S2), not lambda*2^S1; on 200 secp point-add samples S2 was nonzero every time and had 50 distinct values, so a variable scale cleanup is still required",
+        },
+        Candidate {
+            name: "strategy_e_partial_prefix_current_product_trap",
+            scratch_bits: 600,
+            charged_toffoli: Some(4_118_318),
+            blocker: "measured prefix-90 one-DIV plus current product-clean replay is 3840110 before the required second selector/parser, which superficially beats the 5% target by 36652; charging that missing selector/parser adds 278208 and gives 4118318, missing the 5% target by 241556. A real Strategy-E route needs a new non-DIV product-clean multiply, not the current denominator replay",
+        },
+        Candidate {
+            name: "strategy_e_partial_prefix_schoolbook_product_moonshot",
+            scratch_bits: 600,
+            charged_toffoli: None,
+            blocker: "if a genuinely new schoolbook-like in-place product-clean multiply cost 180000, measured prefix-90 Strategy E would project 2874350: under 3M but still 174350 above the 2.7M low-qubit target. It is a possible >5% moonshot only after inventing that primitive and proving cleanup",
+        },
+        Candidate {
+            name: "strategy_c_secp_chord_product_cleanup",
+            scratch_bits: 600,
+            charged_toffoli: None,
+            blocker: "secp a=0 chord algebra gives dx*(Rx-Qx)=3*Qx^2-2*lambda*Qy, so the reverse cleanup denominator can be expressed from the one-inversion slope state, but recovering 1/(Rx-Qx) still requires inverting that product and multiplying by dx. The measured alternative floor is 1749889 CCX versus the current 1600000 second-inverse floor, so the identity moves the inverse instead of deleting it",
+        },
+        Candidate {
+            name: "strategy_d_one_kaliski_dx3_fresh_output",
+            scratch_bits: 600,
+            charged_toffoli: None,
+            blocker: "one Kaliski inversion of dx^3 can compute fresh affine outputs with an optimistic 2561q inside-body peak, but it does not make the point-add map self-cleaning. On 200 secp samples the fresh outputs were correct, yet the post-swap old lanes were nonzero in 200/200 cases and the reverse cleanup denominator Rx-Qx differed from dx in 200/200 cases; promotion falls back to the same second affine inverse floor of 1600000 CCX",
+        },
+        Candidate {
+            name: "secp_lambda_square_sqrt_cleanup",
+            scratch_bits: 600,
+            charged_toffoli: None,
+            blocker: "secp a=0 exposes lambda^2=Rx+Px+Qx, but a reversible cleanup still needs a canonical choice of lambda. Toy p=2^n-c fields already make the canonical sqrt phase full-degree and dense (n12 degree 12, density 2072/4096), so this replaces the second affine inverse with an exponentiation/dense phase rather than a small secp-specific cleanup",
+        },
+        Candidate {
+            name: "secp_xonly_output_sqrt_recovery",
+            scratch_bits: 600,
+            charged_toffoli: None,
+            blocker: "computing Rx first and recovering Ry from y^2=x^3+7 would delete the second affine denominator only if canonical sqrt/sign recovery were cheap. It is not with current primitives: the measured modular-square floor is 148342 CCX and even a secp sqrt addition-chain lower bound has 254 layers, giving a 37678868 CCX floor before sign selection, Bennett cleanup, or output uncomputation",
+        },
+        Candidate {
+            name: "secp_efficient_curve_model_transform",
+            scratch_bits: 600,
+            charged_toffoli: None,
+            blocker: "switching secp256k1 into a model with cheaper complete addition laws is not a base-field escape hatch. Montgomery/Edwards models need rational 2-torsion and Hessian-style models need rational 3-torsion; the secp256k1 group order is odd and not divisible by 3, with order mod 2 = 1 and order mod 3 = 1, so these efficient-model transforms are unavailable for the target curve",
+        },
+        Candidate {
+            name: "secp_scalar_source_glv_interface_escape",
+            scratch_bits: 600,
+            charged_toffoli: None,
+            blocker: "the harness samples target and offset points as scalar multiples of G, but the circuit interface exposes only four affine-coordinate registers: target x/y qubits and offset x/y classical bits. There are 0 scalar registers, and secp256k1 has cofactor 1, so subgroup membership gives no extra coordinate predicate beyond being a valid non-infinity curve point. GLV/scalar-add shortcuts are therefore unavailable inside this coordinate-only point-add benchmark",
+        },
+        Candidate {
+            name: "secp_endomorphism_beta_branch_reuse",
+            scratch_bits: 600,
+            charged_toffoli: None,
+            blocker: "secp j=0 automorphism maps x to beta*x and gives lambda=(Px^2+Px*Qx+Qx^2)/(Py+Qy), but sampled BY branch cases for x vs beta*x are essentially independent: odd MI 2.371 millibits, case MI 5.116 millibits over 256 secp samples. The x-only numerator lower bound alone costs 553603 CCX one-way and 1107206 CCX roundtrip before the constant Qx^2 term. Cleanup is not free either: toy endomorphism output-lambda phase is degree 20 and density 297278/1048576, support-restricted cleanup still reaches degree 4 at n12, and y-support inverse reaches degree 6 at n14. Beta is not a sparse-multiply escape: exact-adds/fast-shifts beta constmul costs 379396 CCX and saves only 2048 CCX versus the best generator-coordinate constmul",
+        },
+        Candidate {
+            name: "secp_j0_y_sum_denominator_route",
+            scratch_bits: 600,
+            charged_toffoli: None,
+            blocker: "the j=0 identity lambda=(Px^2+Px*Qx+Qx^2)/(Py+Qy) can swap the first denominator family, but it does not make the slope free. Even granting the optimistic fixed-Qx numerator lower bound, the Bennett-clean numerator roundtrip is 1107206 CCX before Qx^2; deleting both current pair1 slope multiplications saves only 149734 CCX, so the denominator swap is at least 957472 CCX worse before cleanup-denominator issues",
+        },
+        Candidate {
+            name: "secp_pseudo_mersenne_modular_primitive_rewrite",
+            scratch_bits: 600,
+            charged_toffoli: None,
+            blocker: "the current fast modular primitives already exploit p=2^256-(2^32+977): measured add/sub/double/halve are 1024/1277/255/255 CCX. Full phase attribution at the OK baseline shows top-level pair1_halve+pair2_double is 205020 emitted CCX and each ordinary point-add multiply is only about 75k, so a >5% win cannot come from merely retuning the secp correction constant; it needs a whole inversion/product deletion",
+        },
+        Candidate {
+            name: "secp_pair1_mul2_ty_zeroing_deletion",
+            scratch_bits: 600,
+            charged_toffoli: None,
+            blocker: "secp a=0 algebra lets the B2 schedule compute both affine outputs if it keeps a copied slope live, so deleting pair1_mul2 is only valid if that lam_copy can be cleaned cheaply. The schedule passes Rx/Ry on 200/200 samples, but 10 low-cost expressions in {Rx,Ry,Qx,Qy,dx,dx^-1,dx^-2} each match -lambda on 0/200 samples; the apparent 74995-CCX deletion leaks a slope ancilla or needs the same second affine inverse",
+        },
+        Candidate {
+            name: "secp_offset_sign_symmetry_not_free",
+            scratch_bits: 600,
+            charged_toffoli: None,
+            blocker: "using the cheap negation Q -> -Q computes P-Q with the original x-denominator, but P-Q is not a cheap relabel of P+Q. On 200 secp samples P-Q shared x with P+Q in 0 cases and y-negation in 0 cases. The exact bridge (P-Q)+2Q recovered P+Q on 200/200 samples, but its affine denominator differed from the original dx on 200/200 samples, so the sign trick simply introduces another point addition with the same second-add floor",
+        },
+        Candidate {
+            name: "secp_coset_repeated_add_canonicalization",
+            scratch_bits: 1_806,
+            charged_toffoli: None,
+            blocker: "Bennett-clean padded coset accumulation is exact and starts saving CCX only for long chains: at 256 repeated additions it saves 115456 CCX versus direct modular add, but costs +521q for qb and +777q for qq locally. Top-level affine correction chains are far shorter than that, so this is a reusable long-chain primitive candidate, not a standalone >5% point-add promotion",
+        },
+        Candidate {
+            name: "kim_scale_loop_deletion_only",
+            scratch_bits: 600,
+            charged_toffoli: None,
+            blocker: "Kim wide-r algebra deletes pair1_halve+pair2_double for 206805 CCX, which would project 3873997 and clear the 5% target by only 2765 if imported at zero cost. The wide-r sign is fixed negative on toy fields and 128 sampled secp inputs, so sign ambiguity is not the blocker. The real Bennett-clean Kim primitive is 2530240 CCX at 4102q, so standalone scale-loop deletion needs a separate near-free Kim-scale import to be a valid >5% harness change",
         },
         Candidate {
             name: "plusminus_unary_google663_existing_controlled_parser",
@@ -181,7 +283,7 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
             name: "direct_centered_restoring_final_low_branch_digit_mixed4to8_floor",
             scratch_bits: 663,
             charged_toffoli: Some(2_643_614),
-            blocker: "low-candidate branch-as-final-digit lower bound clears binary lookup by 56386, high_q=low_q+1 on the sample set, and a 23-CCX branch digit toy is Bennett-clean; but the hidden high/low branch is not locally recoverable: exact n14 still has 1068 collisions after granting det-low14, row signs, decoded q sign, step, and low-width/alignment metadata; free neighboring low-alignment lookahead still leaves 4865 n14 / 14160 n16 colliding contexts, even granting neighboring low alignment plus denominator/low widths leaves 4828 n14 / 14191 n16 collisions, and a radius-3 window of full low-branch metadata still leaves 4111 n14 / 21946 n16 collisions. An explicit branch sidecar is not a wire-in either: secp step+low-metadata entropy is p99 109 bits, exact n16 full-local entropy is p99 8 bits, and the peak low-branch schedule already spends 381/381 prefix bits",
+            blocker: "low-candidate branch-as-final-digit lower bound clears binary lookup by 56386, high_q=low_q+1 on the sample set, and a 23-CCX branch digit toy is Bennett-clean; but the hidden high/low branch is not locally recoverable: exact n14 still has 1068 collisions after granting det-low14, row signs, decoded q sign, step, and low-width/alignment metadata; free neighboring low-alignment lookahead still leaves 4865 n14 / 14160 n16 colliding contexts, even granting neighboring low alignment plus denominator/low widths leaves 4828 n14 / 14191 n16 collisions, and a radius-3 window of full low-branch metadata still leaves 4111 n14 / 21946 n16 collisions. An explicit branch sidecar is not a wire-in either: secp step+low-metadata entropy is p99 109 bits on training, disjoint secp holdout has 7635 unseen contexts and p99 raw-escape 162 bits, exact n16 full-local entropy is p99 8 bits, and the peak low-branch schedule already spends 381/381 prefix bits",
         },
         Candidate {
             name: "direct_centered_restoring_final_low_branch_align_only_prefix_tree_floor",
@@ -200,6 +302,12 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
             scratch_bits: 663,
             charged_toffoli: None,
             blocker: "p99-only selective length-flattening has 394 sampled max prefix bits and would need 676 scratch; trimming 9 balanced steps gives a 381-bit sampled max, fits 663 scratch, and projects 2661534 with 38466 margin; support-2..18 generated balanced block2 selected-add/sub roundtrip family is phase-clean across 289 pairs with max 804 CCX, and peak-fit mixed schedule codebooks decode 856854 sampled symbols with no collisions or mismatches; disjoint 8192 secp holdout already has 182 missing symbols, 170 missing traces, 7 over-budget rows, 391 seen bits, and 10-bit raw-escape charging raises this to 13 over-budget rows / 432 bits; a parity scaling probe at 65536 training / 32768 holdout still leaves 105 missing symbols and only about 631 Toffoli margin; toy exact-domain train/exhaust probes miss symbols in all 4 cases, support-only toys find modest but real misses (n16: 26 symbols over 11 steps, exact contiguous span 16), and charged fallbacks do not rescue it: a raw escape fallback still reaches 3092 over-budget traces / 38 bits, guard4 intervals cover 0/4 toy domains, a full 0..n per-step envelope covers 4/4 but fits 0/4 and reaches 4268 over-budget traces / 37 bits vs n16 budget 24, exact denominator-width context fits 0/4 even when the width is free (n16 free 35/38 bits vs budget 24), exact previous-alignment context also fits 0/4 (n16 prev 36/39 bits, prev+width-free 33/37), and two-sided previous+next+width context fits only 1/4 free and 0/4 charged (n16 free 29/32, charged 129/152); promotion now needs a non-sampled support proof or a different decoder, not the simple fallback/context/lookahead family",
+        },
+        Candidate {
+            name: "direct_centered_low_branch_holdout_budget_gate",
+            scratch_bits: 714,
+            charged_toffoli: None,
+            blocker: "hardest-piece-first support gate for low-branch selective prefix: the best max-constrained row has 38466 Toffoli margin at exactly 663 scratch, but disjoint holdout raw-escape reaches 432 prefix bits, 51 bits over scratch, with 13 over-budget rows. This is a proof problem, not a decoder-cost tuning problem",
         },
         Candidate {
             name: "direct_centered_restoring_final_mixed4to8_joint_binary_floor",
@@ -262,6 +370,18 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
             blocker: "sample plus targeted adversarial slot envelope has only 3 prefix, 3 decoder, and 1 tail high-layer slots; popcount app projects 2345809 mean / 2408100 p99 and static quantum coefficient application projects 2539415 mean / 2612732 p99, but exact toy domains n=8..16 show target rows miss the full slot envelope in 5/5 cases. At n16 the 577-row target set needs 16897 rows with radius exponent 13 to cover exact slots, so the proof family scales exponentially. New CF-spike target rows are a partial repair: they cover all exact toy prefix/decoder slots and fully cover n10/n12 with 1981 rows at n16, but tail slots still have a 2-bit gap. Charging a conservative 8-bit tail already pushes p99 to 2711178, and a one-layer prefix/decoder guard pushes mean to 2715840, so this is not production-charged until the tail envelope has a proof/fallback or a fixed-depth extractor/application circuit exists",
         },
         Candidate {
+            name: "halfgcd_slot_envelope_tail_fallback_budget",
+            scratch_bits: 515,
+            charged_toffoli: None,
+            blocker: "hardest-piece-first tail gate: public slot-envelope static application has only 87268 p99 CCX tail budget. The conservative tail8 charge costs 98446 p99 and misses by 11178, so any production tail fallback must be <=7 equivalent tail bits or prove the missing tail layers away",
+        },
+        Candidate {
+            name: "halfgcd_slot_envelope_tail_only_exact_toy_blocker",
+            scratch_bits: 515,
+            charged_toffoli: None,
+            blocker: "tail-only exact toy fallback is not small: targeted public rows cover 0/5 exact toy tails, leave largest tail gap 3, and n16 needs 16897 rows (29x the 577-row target set) to cover tail slots alone. The missing tail is not just a prefix/decoder artifact; it scales like the same exponential cover family",
+        },
+        Candidate {
             name: "halfgcd_second_column_fixed_depth64_tail_stream",
             scratch_bits: 515,
             charged_toffoli: Some(2_934_322),
@@ -304,10 +424,154 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
             blocker: "the outgoing endpoint value can be compressed to a two-bit branch rank per active b32 block: exact n10/n12/n14/n16/n17 toys have at most 4 compatible endpoint/pattern branches per local key, and each coefficient lane has at most two outgoing carry values. A local min-cost endpoint DP reproduces every traced active block in the 4096 secp sample and exact toys (16202 sample blocks, 299013 toy blocks, 0 mismatches), so this is an algorithmic decoder shape rather than pure support lookup. The secp rank-source projection is 2659620 (-40380). The DP choice stream is not an 8-pair local rule (697 collision keys in a 65536-sample holdout), but has a sampled 12-pair horizon (0 collisions over 7370995 choices); exact toys still need the full toy block (k4 has 48 collision keys, k5 has 0). A generic k12 choice table is dead by lower bound: 6874430 sampled keys already imply a one-roundtrip row floor 13708480 over target. Exact toys also have coupled non-cartesian endpoint sets (n17=216 keys, largest=227), so independent carry decoders are not enough; splitting the DP choice by coefficient lane is also false (sample k12 lane collisions 75247/79247, exact full-toy lane collisions 89/101). Standard joint sparse form is not the missing algebraic parser either: it mismatches the active mask on 12599/16152 sampled active blocks and 55834/299013 exact toy active blocks, with full digit mismatches 12701/16152 and 59445/299013. Generic rank-sidecar cleanup is not cheap: exact toy endpoint-rank payload parity has n14 degree 13 and density 8178/16384. It still needs a proof of the 12-pair horizon plus a non-JSF phase-clean joint local DP/rank parser and cleanup",
         },
         Candidate {
+            name: "halfgcd_endpoint_rank_one_ccx_per_block_decoder_floor",
+            scratch_bits: 539,
+            charged_toffoli: None,
+            blocker: "new hardest-piece-first gate: the endpoint-rank opening survives 2.7M only if the rank decoder costs at most one CCX per active block roundtrip on the 16190-block sample. A two-CCX/block decoder projects 2724380 and is dead before proof, cleanup, or broad-domain slack; generic k12 lookup is already many millions over target",
+        },
+        Candidate {
+            name: "halfgcd_endpoint_rank_with_active_predicate_floor",
+            scratch_bits: 539,
+            charged_toffoli: Some(2_736_520),
+            blocker: "charging the known joint-signed-binary active predicate floor (38450 one-way, 76900 roundtrip) to the endpoint-rank opening gives 2736520, so endpoint-rank is dead unless block activity is supplied by the half-GCD schedule without a separate dense active predicate",
+        },
+        Candidate {
+            name: "halfgcd_endpoint_rank_active_plus_oneccx_decoder",
+            scratch_bits: 539,
+            charged_toffoli: Some(2_768_900),
+            blocker: "combined hardest-piece charge for endpoint rank: known active predicate floor plus the cheapest nonzero rank decoder floor is 2768900, so the route has no margin if either block activity or endpoint-rank decoding is an extra computed stream",
+        },
+        Candidate {
+            name: "halfgcd_endpoint_local_dp_transition_floor",
+            scratch_bits: 539,
+            charged_toffoli: None,
+            blocker: "local endpoint DP has a promising transition floor: one CCX per feasible transition gives 2668784 one-roundtrip / 2677948 two-app, but any generic 17-bit cost-word comparison floor gives 2971188 and kills the parser. Wiring needs a specialized min-choice decoder, not a generic DP table",
+        },
+        Candidate {
+            name: "halfgcd_endpoint_dp_local_lookahead_parser",
+            scratch_bits: 539,
+            charged_toffoli: None,
+            blocker: "k12 local lookahead determines sampled endpoint-DP choices, and full toy-block lookahead determines exact toy choices, but the support table is enormous: sampled k12 has 6874430 keys, giving a 13748860 one-roundtrip row floor. This must become an algorithmic recurrence, not a lookup parser",
+        },
+        Candidate {
+            name: "halfgcd_endpoint_dp_public_block_k11_horizon",
+            scratch_bits: 539,
+            charged_toffoli: None,
+            blocker: "adding public block index makes k11 lookahead collision-free on the 65k secp sample, but support remains 6888255 keys and exact toys still need full toy-block lookahead. This slightly sharpens the local recurrence target but still kills lookup-based wiring",
+        },
+        Candidate {
+            name: "halfgcd_endpoint_dp_toy_k4_context_blocker",
+            scratch_bits: 539,
+            charged_toffoli: None,
+            blocker: "exact toy domains still have 50 k4 collisions even after adding block index and coefficient signs; only k5/full-toy suffix clears. The endpoint choice recurrence therefore needs at least a five-bit-pair local rule or a nonlocal invariant, not a four-pair context patch",
+        },
+        Candidate {
+            name: "halfgcd_endpoint_transition_oracle_budget",
+            scratch_bits: 539,
+            charged_toffoli: None,
+            blocker: "endpoint local-DP wiring budget is now explicit: sampled transition mean leaves only 2.203 CCX per transition for both applications. A 2-CCX transition oracle would project 2696968, but 3 CCX/transition already projects 2714602, before cleanup or proof slack",
+        },
+        Candidate {
+            name: "halfgcd_endpoint_minplus_suffix_signature_parser",
+            scratch_bits: 539,
+            charged_toffoli: None,
+            blocker: "a normalized/clipped min-plus suffix signature compresses the endpoint-DP choice oracle to 108 sampled signatures over 16192 active blocks and 147 signatures over 299013 exact toy blocks, with 0 mismatches. Hard online-recurrence wiring fails: even adding public block index and remaining length, sampled suffix update has 2777 collision keys and the exact toys have 180, so the compact signature is an offline classifier rather than a reversible streamed parser",
+        },
+        Candidate {
+            name: "halfgcd_endpoint_parser_invalidation_gate",
+            scratch_bits: 539,
+            charged_toffoli: None,
+            blocker: "endpoint-DP parser has now failed all cheap wiring shapes tested: k4 local context collides in exact toys even with block/sign context, k12/public-block lookup is collision-free only as a multi-million-row table, min-plus signatures are compact only offline and collide as an online recurrence, JSF mismatches most active blocks, and independent coefficient-lane splitting collides. The remaining viable parser would need a new algebraic invariant, not another finite-context/table variant",
+        },
+        Candidate {
             name: "halfgcd_second_column_zero_row_id_noactive_floor",
             scratch_bits: 515,
             charged_toffoli: Some(2_831_471),
             blocker: "zero-inclusive row ids do not remove the active/source bottleneck: {-1,0,1}^2 needs four source bits per occupied slot. Even granting the active route's occupied-slot application floor and not charging any extra zero-slot no-op adds, the row-id source averages 114538 and adds 37570 per coefficient application, projecting 2831471 mean (+131471)",
+        },
+        Candidate {
+            name: "kaliski_pair2_prescale_chunked_safe_probe",
+            scratch_bits: 665,
+            charged_toffoli: Some(4_188_014),
+            blocker: "direct wiring probe with KAL_PRESCALE_PAIR2_CHUNKED=1 is phase-clean, but increases average Toffoli to 4188014 and peaks at 2962q, so the exact safe prescaler/chunked denominator path is a regression rather than a route to SOTA",
+        },
+        Candidate {
+            name: "kaliski_pair2_folded_prescale_probe",
+            scratch_bits: 386,
+            charged_toffoli: None,
+            blocker: "direct wiring probe with KAL_PRESCALE_PAIR2_FOLDED=1 lowers ops/qubits but is phase-unsafe: alt-seed saw phase-garbage batches before harness execution. The folded prescale path cannot be promoted without a phase-clean prescaler",
+        },
+        Candidate {
+            name: "kaliski_pair2_folded_chunked_prescale_probe",
+            scratch_bits: 386,
+            charged_toffoli: None,
+            blocker: "direct wiring probe with KAL_PRESCALE_PAIR2_FOLDED_CHUNKED=1 is alt-seed clean but harness phase-unsafe. It projects 4073354 average Toffoli at 2897q before failing correctness, so even the apparent Toffoli reduction is too small and the qubit peak is over the hard cap",
+        },
+        Candidate {
+            name: "kaliski_pair2_iter399_probe",
+            scratch_bits: 513,
+            charged_toffoli: None,
+            blocker: "direct wiring probe with KAL_PAIR2_ITERS=399 lowers average Toffoli to 4077694 and qubits to 2712, but has a full-harness classical mismatch. The current pair2=400 boundary is real for the exact checked scaffold",
+        },
+        Candidate {
+            name: "kaliski_pair1_iter403_probe",
+            scratch_bits: 513,
+            charged_toffoli: None,
+            blocker: "direct wiring probe with KAL_PAIR1_ITERS=403 fails alt-seed phase checks, so pair1=404 remains the exact checked boundary for the current Kaliski scaffold",
+        },
+        Candidate {
+            name: "kaliski_tagged_coeff_channel_probe",
+            scratch_bits: 513,
+            charged_toffoli: None,
+            blocker: "direct wiring probe with KAL_TAGGED_DIV_COEFF_CHANNEL=1 fails alt-seed checks with both classical mismatches and phase-garbage batches; the external coefficient channel is not a valid drop-in replacement for pair1's multiplication cleanup",
+        },
+        Candidate {
+            name: "kaliski_branch_term_roll_probe",
+            scratch_bits: 514,
+            charged_toffoli: Some(4_700_824),
+            blocker: "direct wiring probe with KAL_TAGGED_DIV_BRANCH_TERM_ROLL=1 is phase-clean and harness-correct, but raises average Toffoli to 4700824, so compressed branch-term replay is a large regression in the live circuit",
+        },
+        Candidate {
+            name: "kaliski_bulk_prefix379_probe",
+            scratch_bits: 513,
+            charged_toffoli: None,
+            blocker: "direct wiring probe with KAL_BULK3_ITERS=379 fails harness phase checks even though alt-seed is clean; the default 378 bulk-prefix boundary is the current phase-clean limit",
+        },
+        Candidate {
+            name: "kaliski_bulk_prefix380_probe",
+            scratch_bits: 513,
+            charged_toffoli: None,
+            blocker: "direct wiring probe with KAL_BULK3_ITERS=380 fails alt-seed phase checks, so extra bulk-prefix iterations are not wireable without new correctness proof",
+        },
+        Candidate {
+            name: "kaliski_vent_halve_probe",
+            scratch_bits: 513,
+            charged_toffoli: None,
+            blocker: "direct wiring probe with KAL_VENT_HALVE=1 fails alt-seed phase checks, so the vented halve path is not phase-clean in the live circuit",
+        },
+        Candidate {
+            name: "kaliski_direct_const_halve_probe",
+            scratch_bits: 512,
+            charged_toffoli: Some(4_090_690),
+            blocker: "direct wiring probe with KAL_DIRECT_CONST_HALVE=1 is phase-clean and trims one qubit / ops, but raises average Toffoli to 4090690; it is not a Toffoli optimization",
+        },
+        Candidate {
+            name: "kaliski_direct_const_double_probe",
+            scratch_bits: 512,
+            charged_toffoli: None,
+            blocker: "direct wiring probe with KAL_DIRECT_CONST_DOUBLE=1 fails alt-seed phase checks, so direct constant double is not wireable in the current scaffold",
+        },
+        Candidate {
+            name: "kaliski_r_small_threshold261_live",
+            scratch_bits: 513,
+            charged_toffoli: Some(4_080_802),
+            blocker: "wired live: R_SMALL_THRESHOLD=261 is alt-seed clean and harness-correct, saving 1020 average Toffoli at unchanged 2713q. This is only a small exact-bound improvement, not a SOTA route",
+        },
+        Candidate {
+            name: "kaliski_r_small_threshold262_blocker",
+            scratch_bits: 513,
+            charged_toffoli: None,
+            blocker: "direct wiring probe with KAL_R_SMALL_THRESHOLD=262 fails alt-seed phase checks, so 261 is the current phase-clean r-small boundary",
         },
         Candidate {
             name: "folded_kaliski_one_pair_plus_required_sidecar",
@@ -328,7 +592,37 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let streamed_selector_budget = 87_840usize;
     let streamed_lowword_selector = 208_320usize;
     let streamed_selector_shortfall = streamed_lowword_selector - streamed_selector_budget;
-    let streamed_gap_to_google = best_charged_sota_shaped.2 as isize - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+    let streamed_gap_to_google =
+        best_charged_sota_shaped.2 as isize - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+    let streamed_fused_modavg_current_projection = 2_765_676usize;
+    let streamed_fused_modavg_current_gap =
+        streamed_fused_modavg_current_projection as isize - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+    let streamed_fused_modavg_microsteps = 2 * 560usize;
+    let streamed_fused_modavg_required_total_saving =
+        streamed_fused_modavg_current_projection + 1 - GOOGLE_LOW_QUBIT_TOFFOLI;
+    let streamed_fused_modavg_required_per_step =
+        streamed_fused_modavg_required_total_saving.div_ceil(streamed_fused_modavg_microsteps);
+    let streamed_fused_modavg_saving59_projection = streamed_fused_modavg_current_projection
+        - streamed_fused_modavg_microsteps * streamed_fused_modavg_required_per_step;
+    let streamed_fused_modavg_saving59_gap =
+        streamed_fused_modavg_saving59_projection as isize - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+    let streamed_fused_modavg_saving58_projection = streamed_fused_modavg_current_projection
+        - streamed_fused_modavg_microsteps * (streamed_fused_modavg_required_per_step - 1);
+    let streamed_fused_modavg_saving58_gap =
+        streamed_fused_modavg_saving58_projection as isize - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+    let streamed_fused_modavg_flag_recovery_double_floor_per_step = 255usize;
+    let streamed_fused_modavg_flag_recovery_double_floor_total =
+        streamed_fused_modavg_flag_recovery_double_floor_per_step
+            * streamed_fused_modavg_microsteps;
+    let streamed_fused_modavg_flag_recovery_double_floor_projection =
+        streamed_fused_modavg_current_projection
+            + streamed_fused_modavg_flag_recovery_double_floor_total;
+    let streamed_fused_modavg_flag_recovery_double_floor_gap =
+        streamed_fused_modavg_flag_recovery_double_floor_projection as isize
+            - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+    let streamed_fused_modavg_flag_recovery_floor_over_budget_per_step =
+        streamed_fused_modavg_flag_recovery_double_floor_per_step
+            - streamed_fused_modavg_required_per_step;
 
     let streamed_replay_body_projection = 2_645_196usize;
     let streamed_replay_unfunded_selector_budget =
@@ -337,16 +631,128 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let tiny_lowword_w1_selector_slack =
         GOOGLE_LOW_QUBIT_TOFFOLI - tiny_lowword_w1_selector_projection;
     let tiny_lowword_best_fixed_update_excess = 304_132usize;
-    let partial_prefix32_projection = 2_697_524usize;
-    let partial_prefix48_projection = 2_652_404usize;
-    let partial_prefix80_projection = 2_562_164usize;
-    let partial_prefix90_projection = 2_533_964usize;
+    let partial_prefix32_projection = 2_556_716usize;
+    let partial_prefix48_projection = 2_511_916usize;
+    let partial_prefix80_projection = 2_422_316usize;
+    let partial_prefix90_projection = 2_394_316usize;
     let partial_prefix_two_den_projection = 4_068_262usize;
-    let partial_prefix32_gap = partial_prefix32_projection as isize - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
-    let partial_prefix48_gap = partial_prefix48_projection as isize - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
-    let partial_prefix80_gap = partial_prefix80_projection as isize - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
-    let partial_prefix90_gap = partial_prefix90_projection as isize - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
-    let partial_prefix_two_den_gap = partial_prefix_two_den_projection as isize - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+    let partial_prefix32_gap =
+        partial_prefix32_projection as isize - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+    let partial_prefix48_gap =
+        partial_prefix48_projection as isize - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+    let partial_prefix80_gap =
+        partial_prefix80_projection as isize - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+    let partial_prefix90_gap =
+        partial_prefix90_projection as isize - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+    let partial_prefix_two_den_gap =
+        partial_prefix_two_den_projection as isize - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+    let baseline_point_add_toffoli = 4_080_802usize;
+    let target_five_percent = 3_876_762usize;
+    let target_five_percent_gap = baseline_point_add_toffoli - target_five_percent;
+    let compact_denpair_projection = 3_793_920usize;
+    let compact_denpair_gap_to_5pct =
+        compact_denpair_projection as isize - target_five_percent as isize;
+    let compact_denpair_sampled_sidecar_bits = 50usize;
+    let compact_denpair_holdout_sidecar_bits = 53usize;
+    let compact_denpair_holdout_schedule_misses = 1_968usize;
+    let compact_denpair_holdout_extra_width_bits = 10usize;
+    let compact_denpair_toy_scaled_sidecar_floor_bits = 128usize;
+    let compact_denpair_exact_tail_extra_bits =
+        compact_denpair_toy_scaled_sidecar_floor_bits - compact_denpair_sampled_sidecar_bits;
+    let strategy_e_partial_prefix_current_without_second_selector = 3_840_110usize;
+    let strategy_e_partial_prefix_second_selector = 278_208usize;
+    let strategy_e_partial_prefix_current_with_second_selector =
+        strategy_e_partial_prefix_current_without_second_selector
+            + strategy_e_partial_prefix_second_selector;
+    let strategy_e_partial_prefix_without_second_selector_gap_to_5pct =
+        strategy_e_partial_prefix_current_without_second_selector as isize
+            - target_five_percent as isize;
+    let strategy_e_partial_prefix_with_second_selector_gap_to_5pct =
+        strategy_e_partial_prefix_current_with_second_selector as isize
+            - target_five_percent as isize;
+    let strategy_e_partial_prefix_schoolbook_product_projection = 2_874_350usize;
+    let strategy_e_partial_prefix_schoolbook_product_gap_to_2700k =
+        strategy_e_partial_prefix_schoolbook_product_projection as isize
+            - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+    let strategy_e_partial_prefix_schoolbook_product_gap_to_3m =
+        strategy_e_partial_prefix_schoolbook_product_projection as isize - 3_000_000isize;
+    let strategy_c_cleanup_second_inverse_floor = 1_600_000usize;
+    let strategy_c_chord_product_extra_mul_floor = 149_889usize;
+    let strategy_c_chord_product_alt_total_floor =
+        strategy_c_cleanup_second_inverse_floor + strategy_c_chord_product_extra_mul_floor;
+    let strategy_d_dx3_samples = 200usize;
+    let strategy_d_dx3_fresh_outputs_ok = 200usize;
+    let strategy_d_dx3_swapped_old_lanes_nonzero = 200usize;
+    let strategy_d_dx3_reverse_den_differs_from_dx = 200usize;
+    let strategy_d_dx3_optimistic_inside_body_peak_qubits = 2_561usize;
+    let strategy_d_dx3_naive_inside_body_peak_qubits = 3_325usize;
+    let strategy_d_dx3_second_inverse_floor = 1_600_000usize;
+    let secp_lambda_square_sqrt_phase_max_degree = 12usize;
+    let secp_lambda_square_sqrt_phase_max_density = 2_072usize;
+    let secp_lambda_square_sqrt_phase_max_table = 4_096usize;
+    let secp_xonly_sqrt_square_floor_ccx = 148_342usize;
+    let secp_xonly_sqrt_chain_layer_lower_bound = 254usize;
+    let secp_xonly_sqrt_chain_floor_ccx =
+        secp_xonly_sqrt_square_floor_ccx * secp_xonly_sqrt_chain_layer_lower_bound;
+    let secp_order_mod2 = 1usize;
+    let secp_order_mod3 = 1usize;
+    let secp_beta_branch_odd_mi_millibits = 2.371f64;
+    let secp_beta_branch_case_mi_millibits = 5.116f64;
+    let secp_endomorphism_slope_phase_degree_n10 = 20usize;
+    let secp_endomorphism_slope_phase_density_n10 = 297_278usize;
+    let secp_endomorphism_slope_phase_table_n10 = 1_048_576usize;
+    let secp_endomorphism_slope_support_min_degree_n12 = 4usize;
+    let secp_endomorphism_y_support_inv_min_degree_n14 = 6usize;
+    let secp_endomorphism_xonly_numerator_square_ccx = 147_583usize;
+    let secp_endomorphism_xonly_numerator_oneway_lower_ccx = 553_603usize;
+    let secp_endomorphism_xonly_numerator_roundtrip_lower_ccx = 1_107_206usize;
+    let secp_constmul_beta_ccx = 379_396usize;
+    let secp_constmul_beta2_ccx = 398_338usize;
+    let secp_constmul_gx_ccx = 406_020usize;
+    let secp_constmul_gy_ccx = 381_444usize;
+    let secp_constmul_beta_saving_vs_best_generator_ccx = 2_048isize;
+    let secp_mod_primitive_add_ccx = 1_024usize;
+    let secp_mod_primitive_sub_ccx = 1_277usize;
+    let secp_mod_primitive_double_ccx = 255usize;
+    let secp_mod_primitive_halve_ccx = 255usize;
+    let secp_phase_pair1_halve_ccx = 103_020usize;
+    let secp_phase_pair2_double_ccx = 102_000usize;
+    let secp_phase_pair1_mul1_ccx = 74_739usize;
+    let secp_phase_pair1_mul2_ccx = 74_995usize;
+    let secp_phase_pair2_mul_ccx = 74_995usize;
+    let secp_phase_mul3_between_pair_ccx = 14_089usize;
+    let secp_phase_toplevel_mul_family_ccx = secp_phase_pair1_mul1_ccx
+        + secp_phase_pair1_mul2_ccx
+        + secp_phase_pair2_mul_ccx
+        + secp_phase_mul3_between_pair_ccx;
+    let secp_j0_y_sum_denominator_deleted_pair1_mul_ccx =
+        secp_phase_pair1_mul1_ccx + secp_phase_pair1_mul2_ccx;
+    let secp_j0_y_sum_denominator_min_penalty_ccx =
+        secp_endomorphism_xonly_numerator_roundtrip_lower_ccx
+            - secp_j0_y_sum_denominator_deleted_pair1_mul_ccx;
+    let secp_b2_samples = 200usize;
+    let secp_b2_rx_ok = 200usize;
+    let secp_b2_ry_ok = 200usize;
+    let secp_b2_lam_cleanup_candidates = 10usize;
+    let secp_b2_lam_cleanup_full_matches = 0usize;
+    let secp_coset_repeated_add256_direct_ccx = 262_144usize;
+    let secp_coset_repeated_add256_coset_ccx = 146_688usize;
+    let secp_coset_repeated_add256_saving_ccx =
+        secp_coset_repeated_add256_direct_ccx - secp_coset_repeated_add256_coset_ccx;
+    let secp_coset_repeated_add256_qb_delta_peak_q = 521isize;
+    let secp_coset_repeated_add256_qq_delta_peak_q = 777isize;
+    let kim_scale_loop_saved_ccx = 206_805usize;
+    let kim_scale_loop_zero_overhead_projection = 4_080_802usize - kim_scale_loop_saved_ccx;
+    let kim_scale_loop_gap_to_5pct =
+        kim_scale_loop_zero_overhead_projection as isize - target_five_percent as isize;
+    let kim_scale_loop_import_overhead_budget = -kim_scale_loop_gap_to_5pct;
+    let kim_full_primitive_ccx = 2_530_240usize;
+    let kim_full_primitive_peak_qubits = 4_102usize;
+    let kim_scale_import_sign_toy_n12_pos = 0usize;
+    let kim_scale_import_sign_toy_n12_neg = 4_092usize;
+    let kim_scale_import_sign_secp_samples = 128usize;
+    let kim_scale_import_sign_secp_pos = 0usize;
+    let kim_scale_import_sign_secp_neg = 128usize;
     let scaled_by_pattern_fixed_id_bits = 481usize;
     let scaled_by_pattern_fixed_id_distinct_rows = 307_603usize;
     let scaled_by_pattern_fixed_id_max_window_rows = 9_339usize;
@@ -387,8 +793,7 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let scaled_by_raw_pattern_postdelta_sample_rank_p99 = 9usize;
     let scaled_by_raw_pattern_postdelta_sample_rank_max = 13usize;
     let scaled_by_raw_pattern_postdelta_sample_rank_scratch =
-        scaled_by_raw_pattern_single_a_scratch
-            + scaled_by_raw_pattern_postdelta_sample_rank_p99;
+        scaled_by_raw_pattern_single_a_scratch + scaled_by_raw_pattern_postdelta_sample_rank_p99;
     let scaled_by_raw_pattern_postdelta_toy_n14_ambiguous_keys = 267usize;
     let scaled_by_raw_pattern_postdelta_toy_n14_rank_p99 = 12usize;
     let scaled_by_raw_pattern_neighbor_sample_next_ambiguous_keys = 684usize;
@@ -429,9 +834,9 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let by_centered_exactparity_clean_per_div_budget =
         (GOOGLE_LOW_QUBIT_TOFFOLI - 642_716usize) / 2;
     let by_centered_exactparity_two_clean_div_projection = 5_878_716usize;
-    let by_centered_exactparity_two_clean_div_gap =
-        by_centered_exactparity_two_clean_div_projection as isize
-            - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+    let by_centered_exactparity_two_clean_div_gap = by_centered_exactparity_two_clean_div_projection
+        as isize
+        - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
     let centered_raw_scratch = 592usize;
     let centered_boundary_scratch_p99 = 710usize;
     let centered_parser_over_strict = centered_boundary_scratch_p99 - STRICT_SCRATCH;
@@ -469,13 +874,12 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let direct_signnorm_logsign_once_rawsign_recovered_first64 = 2_556_361.688f64;
     let direct_signnorm_logsign_once_rawsign_recovered_p99 = 2_727_262usize;
     let direct_signnorm_logsign_no_rem_cneg_projection_p99 = 2_697_280usize;
-    let direct_signnorm_logsign_no_rem_cneg_gap =
-        direct_signnorm_logsign_no_rem_cneg_projection_p99 as isize
-            - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+    let direct_signnorm_logsign_no_rem_cneg_gap = direct_signnorm_logsign_no_rem_cneg_projection_p99
+        as isize
+        - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
     let direct_signnorm_prefinal_signed_remainder_p99 = 3_136_080usize;
     let direct_signnorm_prefinal_signed_remainder_gap =
-        direct_signnorm_prefinal_signed_remainder_p99 as isize
-            - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+        direct_signnorm_prefinal_signed_remainder_p99 as isize - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
     let direct_signnorm_prefinal_signed_remainder_count_p99 = 180usize;
     let direct_signnorm_prefinal_signed_remainder_digit_payload_p99 = 498usize;
     let direct_signnorm_prefinal_signed_remainder_width_extra_max = 1usize;
@@ -516,8 +920,7 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
         direct_signnorm_logsign_exact_once_recovered_p99 as isize
             - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
     let direct_signnorm_logsign_exact_once_rawsign_recovered_mean_gap =
-        direct_signnorm_logsign_exact_once_rawsign_recovered_mean
-            - GOOGLE_LOW_QUBIT_TOFFOLI as f64;
+        direct_signnorm_logsign_exact_once_rawsign_recovered_mean - GOOGLE_LOW_QUBIT_TOFFOLI as f64;
     let direct_signnorm_logsign_exact_once_rawsign_recovered_first64_gap =
         direct_signnorm_logsign_exact_once_rawsign_recovered_first64
             - GOOGLE_LOW_QUBIT_TOFFOLI as f64;
@@ -618,7 +1021,8 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let direct_signnorm_signed_domain_floor_toy_final_negative_cases = 1_984usize;
     let direct_restoring_final_coeff_width_p99 = 47_654usize;
     let direct_restoring_final_digit_payload_p99 = 362usize;
-    let direct_restoring_final_raw_digit_scratch_p99 = 256usize + direct_restoring_final_digit_payload_p99;
+    let direct_restoring_final_raw_digit_scratch_p99 =
+        256usize + direct_restoring_final_digit_payload_p99;
     let direct_restoring_final_raw_digit_over_strict =
         direct_restoring_final_raw_digit_scratch_p99 as isize - STRICT_SCRATCH as isize;
     let direct_restoring_final_raw_digit_gap_google =
@@ -696,18 +1100,15 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let direct_restoring_final_low_branch_adjacent_max_alignment_n14 = 13usize;
     let direct_restoring_final_low_branch_neighbor_high_both_collisions_n14 = 4_865usize;
     let direct_restoring_final_low_branch_neighbor_high_both_collisions_n16 = 14_160usize;
-    let direct_restoring_final_low_branch_neighbor_full_high_both_collisions_n14 =
-        4_828usize;
-    let direct_restoring_final_low_branch_neighbor_full_high_both_collisions_n16 =
-        14_191usize;
-    let direct_restoring_final_low_branch_radius_full_high_r3_collisions_n14 =
-        4_111usize;
-    let direct_restoring_final_low_branch_radius_full_high_r3_collisions_n16 =
-        21_946usize;
-    let direct_restoring_final_low_branch_radius_full_high_r3_states_n16 =
-        214_960usize;
+    let direct_restoring_final_low_branch_neighbor_full_high_both_collisions_n14 = 4_828usize;
+    let direct_restoring_final_low_branch_neighbor_full_high_both_collisions_n16 = 14_191usize;
+    let direct_restoring_final_low_branch_radius_full_high_r3_collisions_n14 = 4_111usize;
+    let direct_restoring_final_low_branch_radius_full_high_r3_collisions_n16 = 21_946usize;
+    let direct_restoring_final_low_branch_radius_full_high_r3_states_n16 = 214_960usize;
     let direct_restoring_final_low_branch_branch_sidecar_sample_entropy_p99 = 109usize;
     let direct_restoring_final_low_branch_branch_sidecar_sample_raw_p99 = 117usize;
+    let direct_restoring_final_low_branch_branch_sidecar_holdout_raw_escape_p99 = 162usize;
+    let direct_restoring_final_low_branch_branch_sidecar_holdout_missing_contexts = 7_635usize;
     let direct_restoring_final_low_branch_branch_sidecar_toy_n16_entropy_p99 = 8usize;
     let direct_restoring_final_low_branch_branch_sidecar_toy_n16_prefix_p99 = 11usize;
     let direct_restoring_final_low_branch_branch_sidecar_toy_mixed_contexts = 1_861usize;
@@ -798,10 +1199,8 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let direct_restoring_final_branch_final_low_path_width_lookup_target_mean = 13_843.949f64;
     let direct_restoring_final_branch_final_low_path_width_minus1_lookup_target_mean =
         13_895.749f64;
-    let direct_restoring_final_branch_final_selected_width_lookup_multiplier_budget =
-        1.828_338f64;
-    let direct_restoring_final_branch_final_low_path_width_lookup_multiplier_budget =
-        2.037_145f64;
+    let direct_restoring_final_branch_final_selected_width_lookup_multiplier_budget = 1.828_338f64;
+    let direct_restoring_final_branch_final_low_path_width_lookup_multiplier_budget = 2.037_145f64;
     let direct_restoring_final_branch_final_low_path_width_minus1_lookup_multiplier_budget =
         2.044_768f64;
     let direct_restoring_final_branch_final_selected_width_mixed4to8_gap = -45_033.471f64;
@@ -811,8 +1210,7 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let direct_restoring_final_branch_final_low_path_width_scan_mixed4to8_gap = 40_095.623f64;
     let direct_restoring_final_branch_final_low_path_width_minus1_scan_mixed4to8_gap =
         39_681.222f64;
-    let direct_restoring_final_low_branch_align_only_low_path_width_saving_mean =
-        16_267.701f64;
+    let direct_restoring_final_low_branch_align_only_low_path_width_saving_mean = 16_267.701f64;
     let direct_restoring_final_low_branch_align_only_model_precision_bits = 13usize;
     let direct_restoring_final_low_branch_align_only_raw_scratch_p99 = 471usize;
     let direct_restoring_final_low_branch_align_only_raw_scratch_max = 478usize;
@@ -845,11 +1243,9 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let direct_restoring_final_low_branch_align_only_mixed4to8_scan_gap = 33_880.682f64;
     let direct_restoring_final_low_branch_align_only_mixed4to8_prefix_tree_gap = -104_122.283f64;
     let direct_restoring_final_low_branch_align_only_best_lookup_target_mean = 14_703.797f64;
-    let direct_restoring_final_low_branch_align_only_best_lookup_multiplier_budget =
-        2.653_174f64;
+    let direct_restoring_final_low_branch_align_only_best_lookup_multiplier_budget = 2.653_174f64;
     let direct_restoring_final_low_branch_align_only_scan_over_binary_multiplier = 3.372_071f64;
-    let direct_restoring_final_low_branch_align_only_huffman_over_binary_multiplier =
-        0.602_129f64;
+    let direct_restoring_final_low_branch_align_only_huffman_over_binary_multiplier = 0.602_129f64;
     let direct_restoring_final_low_branch_align_only_prefix_tree_over_binary_multiplier =
         0.259_390f64;
     let direct_restoring_final_low_branch_align_only_support_noncontig_steps = 61usize;
@@ -923,8 +1319,7 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let direct_restoring_final_prefix_block2_consume_toy_parser_transient_ccx = 76usize;
     let direct_restoring_final_prefix_block2_consume_toy_total_ccx = 80usize;
     let direct_restoring_final_prefix_block2_consume_toy_peak_q = 56usize;
-    let direct_restoring_final_prefix_block2_consume_toy_parser_over_node_roundtrip =
-        4.750_000f64;
+    let direct_restoring_final_prefix_block2_consume_toy_parser_over_node_roundtrip = 4.750_000f64;
     let direct_restoring_final_prefix_block2_consume_toy_roundtrip_ratio_budget = 10.228_508f64;
     let direct_restoring_final_prefix_block2_consume_toy_parser_scaled_gap = -63_004.200f64;
     let direct_restoring_final_prefix_block2_consume_toy_dirty_restore_cases = 0usize;
@@ -939,8 +1334,7 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
         3.500_000f64;
     let direct_restoring_final_prefix_block2_leaf_touch_toy_total_over_node_roundtrip =
         6.000_000f64;
-    let direct_restoring_final_prefix_block2_leaf_touch_toy_roundtrip_ratio_budget =
-        10.228_508f64;
+    let direct_restoring_final_prefix_block2_leaf_touch_toy_roundtrip_ratio_budget = 10.228_508f64;
     let direct_restoring_final_prefix_block2_leaf_touch_toy_parser_scaled_gap = -77_379.510f64;
     let direct_restoring_final_prefix_block2_leaf_touch_toy_total_scaled_gap = -48_628.890f64;
     let direct_restoring_final_prefix_block2_leaf_touch_toy_dirty_restore_cases = 0usize;
@@ -961,10 +1355,8 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
         8.000_000f64;
     let direct_restoring_final_prefix_block2_selected_addsub_toy_roundtrip_ratio_budget =
         10.228_508f64;
-    let direct_restoring_final_prefix_block2_selected_addsub_toy_parser_scaled_gap =
-        -77_379.510f64;
-    let direct_restoring_final_prefix_block2_selected_addsub_toy_total_scaled_gap =
-        -25_628.394f64;
+    let direct_restoring_final_prefix_block2_selected_addsub_toy_parser_scaled_gap = -77_379.510f64;
+    let direct_restoring_final_prefix_block2_selected_addsub_toy_total_scaled_gap = -25_628.394f64;
     let direct_restoring_final_prefix_block2_selected_addsub_toy_dirty_restore_cases = 0usize;
     let direct_restoring_final_prefix_block2_selected_addsub_toy_dirty_history_cases = 0usize;
     let direct_restoring_final_prefix_block2_selected_addsub_toy_dirty_phase_cases = 0usize;
@@ -975,8 +1367,7 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let direct_restoring_final_prefix_block2_balanced_selected_addsub_toy_select_shift_ccx =
         60usize;
     let direct_restoring_final_prefix_block2_balanced_selected_addsub_toy_addsub_ccx = 12usize;
-    let direct_restoring_final_prefix_block2_balanced_selected_addsub_toy_arithmetic_ccx =
-        72usize;
+    let direct_restoring_final_prefix_block2_balanced_selected_addsub_toy_arithmetic_ccx = 72usize;
     let direct_restoring_final_prefix_block2_balanced_selected_addsub_toy_parser_transient_ccx =
         36usize;
     let direct_restoring_final_prefix_block2_balanced_selected_addsub_toy_total_ccx = 108usize;
@@ -1053,30 +1444,24 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
         10.375_000f64;
     let direct_restoring_final_prefix_block2_span24_roundtrip_toy_roundtrip_ratio_budget =
         10.228_508f64;
-    let direct_restoring_final_prefix_block2_span24_roundtrip_toy_total_scaled_gap =
-        1_684.695f64;
-    let direct_restoring_final_prefix_block2_span24_taper_materialized_full_add_per_digit =
-        55usize;
+    let direct_restoring_final_prefix_block2_span24_roundtrip_toy_total_scaled_gap = 1_684.695f64;
+    let direct_restoring_final_prefix_block2_span24_taper_materialized_full_add_per_digit = 55usize;
     let direct_restoring_final_prefix_block2_span24_taper_add_per_digit_floor = 63usize;
     let direct_restoring_final_prefix_block2_span24_taper_arithmetic_floor = 252usize;
     let direct_restoring_final_prefix_block2_span24_taper_total_floor = 364usize;
-    let direct_restoring_final_prefix_block2_span24_taper_total_over_node_roundtrip =
-        11.375_000f64;
+    let direct_restoring_final_prefix_block2_span24_taper_total_over_node_roundtrip = 11.375_000f64;
     let direct_restoring_final_prefix_block2_span24_taper_scaled_gap = 13_184.943f64;
     let direct_restoring_final_prefix_block2_span24_roundtrip_toy_dirty_restore_cases = 0usize;
     let direct_restoring_final_prefix_block2_span24_roundtrip_toy_dirty_history_cases = 0usize;
     let direct_restoring_final_prefix_block2_span24_roundtrip_toy_dirty_phase_cases = 0usize;
-    let direct_restoring_final_low_branch_prefix_support_weighted_prefix_node_mean =
-        1_437.531f64;
+    let direct_restoring_final_low_branch_prefix_support_weighted_prefix_node_mean = 1_437.531f64;
     let direct_restoring_final_low_branch_prefix_support_weighted_prefix_node_p99 = 1_568usize;
     let direct_restoring_final_low_branch_prefix_support_weighted_materialized_digit_mean =
         10_990.740f64;
     let direct_restoring_final_low_branch_prefix_support_weighted_materialized_digit_p99 =
         12_023usize;
-    let direct_restoring_final_low_branch_prefix_support_weighted_tree_decode_mean =
-        2_665.870f64;
-    let direct_restoring_final_low_branch_prefix_support_weighted_dynamic_even_mean =
-        7_330.417f64;
+    let direct_restoring_final_low_branch_prefix_support_weighted_tree_decode_mean = 2_665.870f64;
+    let direct_restoring_final_low_branch_prefix_support_weighted_dynamic_even_mean = 7_330.417f64;
     let direct_restoring_final_low_branch_prefix_support_weighted_variable_decode_mean =
         9_996.286f64;
     let direct_restoring_final_low_branch_prefix_support_weighted_variable_offset1_decode_mean =
@@ -1110,8 +1495,7 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
         2_650_413.648f64;
     let direct_restoring_final_low_branch_prefix_support_weighted_selective_projected_toffoli =
         2_657_019.037f64;
-    let direct_restoring_final_low_branch_prefix_support_weighted_shannon_prefix_bit_p99 =
-        322usize;
+    let direct_restoring_final_low_branch_prefix_support_weighted_shannon_prefix_bit_p99 = 322usize;
     let direct_restoring_final_low_branch_prefix_support_weighted_balanced_prefix_bit_p99 =
         415usize;
     let direct_restoring_final_low_branch_prefix_support_weighted_selective_prefix_bit_p99 =
@@ -1209,12 +1593,19 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
         170usize;
     let direct_restoring_final_low_branch_prefix_support_weighted_maxconstrained_holdout_raw_escape_over_budget_rows =
         13usize;
+    let direct_restoring_final_low_branch_prefix_support_weighted_maxconstrained_holdout_over_scratch_bits =
+        direct_restoring_final_low_branch_prefix_support_weighted_maxconstrained_holdout_raw_escape_bit_max
+            - direct_restoring_final_low_branch_prefix_support_weighted_maxconstrained_prefix_bit_max;
+    let direct_restoring_final_low_branch_prefix_support_weighted_maxconstrained_holdout_live_scratch_max =
+        GOOGLE_LOW_QUBIT_SCRATCH
+            + direct_restoring_final_low_branch_prefix_support_weighted_maxconstrained_holdout_over_scratch_bits;
+    let direct_restoring_final_low_branch_prefix_support_weighted_maxconstrained_holdout_margin_after_one_extra_bit =
+        direct_restoring_final_low_branch_prefix_support_weighted_maxconstrained_gap + 1.0;
     let direct_restoring_final_peakfit_toy_cases_with_sample_gap = 4usize;
     let direct_restoring_final_peakfit_toy_largest_missing_symbols = 598usize;
     let direct_restoring_final_peakfit_toy_largest_sample_over_budget_traces = 3_050usize;
     let direct_restoring_final_peakfit_toy_largest_exact_over_budget_traces = 3_132usize;
-    let direct_restoring_final_peakfit_toy_largest_raw_escape_over_budget_traces =
-        3_092usize;
+    let direct_restoring_final_peakfit_toy_largest_raw_escape_over_budget_traces = 3_092usize;
     let direct_restoring_final_peakfit_toy_largest_raw_escape_max_bits = 38usize;
     let direct_restoring_final_low_branch_support_toy_cases_with_missing = 4usize;
     let direct_restoring_final_low_branch_support_toy_largest_missing_symbols = 26usize;
@@ -1222,32 +1613,26 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let direct_restoring_final_low_branch_support_toy_largest_span_gap = 4usize;
     let direct_restoring_final_low_branch_support_toy_largest_exact_span = 16usize;
     let direct_restoring_final_low_branch_interval_toy_guard4_cover_cases = 0usize;
-    let direct_restoring_final_low_branch_interval_toy_guard4_largest_missing_symbols =
-        25usize;
+    let direct_restoring_final_low_branch_interval_toy_guard4_largest_missing_symbols = 25usize;
     let direct_restoring_final_low_branch_interval_toy_guard4_largest_over_budget_traces =
         4_090usize;
     let direct_restoring_final_low_branch_interval_toy_guard4_largest_max_bits = 37usize;
     let direct_restoring_final_low_branch_interval_toy_full_cover_cases = 4usize;
     let direct_restoring_final_low_branch_interval_toy_full_fit_cases = 0usize;
-    let direct_restoring_final_low_branch_interval_toy_full_largest_over_budget_traces =
-        4_268usize;
+    let direct_restoring_final_low_branch_interval_toy_full_largest_over_budget_traces = 4_268usize;
     let direct_restoring_final_low_branch_interval_toy_full_largest_max_bits = 37usize;
     let direct_restoring_final_low_branch_width_context_free_fit_cases = 0usize;
     let direct_restoring_final_low_branch_width_context_charged_fit_cases = 0usize;
-    let direct_restoring_final_low_branch_width_context_largest_free_over_budget =
-        29_224usize;
-    let direct_restoring_final_low_branch_width_context_largest_charged_over_budget =
-        65_326usize;
+    let direct_restoring_final_low_branch_width_context_largest_free_over_budget = 29_224usize;
+    let direct_restoring_final_low_branch_width_context_largest_charged_over_budget = 65_326usize;
     let direct_restoring_final_low_branch_width_context_largest_context_count = 15usize;
     let direct_restoring_final_low_branch_width_context_largest_cond_support = 16usize;
     let direct_restoring_final_low_branch_width_context_largest_width_bits = 5usize;
     let direct_restoring_final_low_branch_prev_context_fit_cases = 0usize;
     let direct_restoring_final_low_branch_prev_width_context_free_fit_cases = 0usize;
     let direct_restoring_final_low_branch_prev_width_context_charged_fit_cases = 0usize;
-    let direct_restoring_final_low_branch_prev_context_largest_over_budget =
-        46_273usize;
-    let direct_restoring_final_low_branch_prev_width_context_largest_free_over_budget =
-        26_626usize;
+    let direct_restoring_final_low_branch_prev_context_largest_over_budget = 46_273usize;
+    let direct_restoring_final_low_branch_prev_width_context_largest_free_over_budget = 26_626usize;
     let direct_restoring_final_low_branch_prev_width_context_largest_charged_over_budget =
         65_310usize;
     let direct_restoring_final_low_branch_prev_context_largest_support = 16usize;
@@ -1257,42 +1642,31 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let direct_restoring_final_low_branch_prev_context_n16_prev_max = 39usize;
     let direct_restoring_final_low_branch_prev_context_n16_prev_width_free_p99 = 33usize;
     let direct_restoring_final_low_branch_prev_context_n16_prev_width_free_max = 37usize;
-    let direct_restoring_final_low_branch_prev_context_n16_prev_width_charged_p99 =
-        84usize;
-    let direct_restoring_final_low_branch_prev_context_n16_prev_width_charged_max =
-        97usize;
+    let direct_restoring_final_low_branch_prev_context_n16_prev_width_charged_p99 = 84usize;
+    let direct_restoring_final_low_branch_prev_context_n16_prev_width_charged_max = 97usize;
     let direct_restoring_final_low_branch_two_sided_next_context_fit_cases = 0usize;
     let direct_restoring_final_low_branch_two_sided_prev_next_free_fit_cases = 0usize;
-    let direct_restoring_final_low_branch_two_sided_prev_next_width_free_fit_cases =
-        1usize;
-    let direct_restoring_final_low_branch_two_sided_prev_next_width_charged_fit_cases =
-        0usize;
-    let direct_restoring_final_low_branch_two_sided_next_context_largest_over_budget =
-        46_273usize;
+    let direct_restoring_final_low_branch_two_sided_prev_next_width_free_fit_cases = 1usize;
+    let direct_restoring_final_low_branch_two_sided_prev_next_width_charged_fit_cases = 0usize;
+    let direct_restoring_final_low_branch_two_sided_next_context_largest_over_budget = 46_273usize;
     let direct_restoring_final_low_branch_two_sided_prev_next_free_largest_over_budget =
         43_805usize;
     let direct_restoring_final_low_branch_two_sided_prev_next_width_free_largest_over_budget =
         7_249usize;
     let direct_restoring_final_low_branch_two_sided_prev_next_width_charged_largest_over_budget =
         65_397usize;
-    let direct_restoring_final_low_branch_two_sided_next_context_largest_support =
-        15usize;
+    let direct_restoring_final_low_branch_two_sided_next_context_largest_support = 15usize;
     let direct_restoring_final_low_branch_two_sided_prev_next_largest_support = 14usize;
-    let direct_restoring_final_low_branch_two_sided_prev_next_width_largest_support =
-        14usize;
+    let direct_restoring_final_low_branch_two_sided_prev_next_width_largest_support = 14usize;
     let direct_restoring_final_low_branch_two_sided_n16_budget_bits = 24usize;
     let direct_restoring_final_low_branch_two_sided_n16_next_p99 = 36usize;
     let direct_restoring_final_low_branch_two_sided_n16_next_max = 38usize;
     let direct_restoring_final_low_branch_two_sided_n16_prev_next_free_p99 = 34usize;
     let direct_restoring_final_low_branch_two_sided_n16_prev_next_free_max = 36usize;
-    let direct_restoring_final_low_branch_two_sided_n16_prev_next_width_free_p99 =
-        29usize;
-    let direct_restoring_final_low_branch_two_sided_n16_prev_next_width_free_max =
-        32usize;
-    let direct_restoring_final_low_branch_two_sided_n16_prev_next_width_charged_p99 =
-        129usize;
-    let direct_restoring_final_low_branch_two_sided_n16_prev_next_width_charged_max =
-        152usize;
+    let direct_restoring_final_low_branch_two_sided_n16_prev_next_width_free_p99 = 29usize;
+    let direct_restoring_final_low_branch_two_sided_n16_prev_next_width_free_max = 32usize;
+    let direct_restoring_final_low_branch_two_sided_n16_prev_next_width_charged_p99 = 129usize;
+    let direct_restoring_final_low_branch_two_sided_n16_prev_next_width_charged_max = 152usize;
     let direct_restoring_final_peakfit_holdout_missing_symbols = 182usize;
     let direct_restoring_final_peakfit_holdout_missing_traces = 170usize;
     let direct_restoring_final_peakfit_holdout_over_budget_rows = 7usize;
@@ -1305,8 +1679,7 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let direct_restoring_final_peakfit_scaled_probe_over_budget_rows = 0usize;
     let direct_restoring_final_peakfit_scaled_probe_max_seen_bits = 380usize;
     let direct_restoring_final_peakfit_scaled_probe_gap = -631.0f64;
-    let direct_restoring_final_low_branch_prefix_support_weighted_span24_uniform_gap =
-        1_684.686f64;
+    let direct_restoring_final_low_branch_prefix_support_weighted_span24_uniform_gap = 1_684.686f64;
     let direct_restoring_final_low_branch_prefix_support_weighted_span24_symbol_mean = 1.000f64;
     let direct_restoring_final_low_branch_prefix_support_weighted_span24_symbol_p99 = 1usize;
     let direct_restoring_final_low_branch_prefix_support_weighted_support_noncontig_steps = 61usize;
@@ -1356,18 +1729,12 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let direct_restoring_final_align_entropy_holdout_global_scratch_max = 645usize;
     let direct_restoring_final_align_entropy_holdout_step_scratch_p99 = 623usize;
     let direct_restoring_final_align_entropy_holdout_step_scratch_max = 665usize;
-    let direct_restoring_final_align_entropy_holdout_step_missing_align_symbols =
-        163usize;
-    let direct_restoring_final_align_entropy_holdout_step_missing_align_traces =
-        158usize;
-    let direct_restoring_final_align_entropy_holdout_step_missing_branch_symbols =
-        4usize;
-    let direct_restoring_final_align_entropy_holdout_step_missing_branch_traces =
-        2usize;
-    let direct_restoring_final_align_entropy_holdout_global_missing_align_symbols =
-        1usize;
-    let direct_restoring_final_align_entropy_holdout_global_missing_branch_symbols =
-        0usize;
+    let direct_restoring_final_align_entropy_holdout_step_missing_align_symbols = 163usize;
+    let direct_restoring_final_align_entropy_holdout_step_missing_align_traces = 158usize;
+    let direct_restoring_final_align_entropy_holdout_step_missing_branch_symbols = 4usize;
+    let direct_restoring_final_align_entropy_holdout_step_missing_branch_traces = 2usize;
+    let direct_restoring_final_align_entropy_holdout_global_missing_align_symbols = 1usize;
+    let direct_restoring_final_align_entropy_holdout_global_missing_branch_symbols = 0usize;
     let direct_restoring_final_range_parser_model_precision_bits = 13usize;
     let direct_restoring_final_range_parser_state_bits_p99 = 366usize;
     let direct_restoring_final_range_parser_live_scratch_p99 = 648usize;
@@ -1455,8 +1822,7 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let direct_restoring_final_block_parser_cond_branch_binary_lookup_floor_p99 = 7_605usize;
     let direct_restoring_final_block_parser_cond_branch_huffman_lookup_floor_mean = 4_510.756f64;
     let direct_restoring_final_block_parser_cond_branch_huffman_lookup_floor_p99 = 4_888usize;
-    let direct_restoring_final_block_parser_cond_branch_best_with_binary_lookup_mean =
-        9_257.420f64;
+    let direct_restoring_final_block_parser_cond_branch_best_with_binary_lookup_mean = 9_257.420f64;
     let direct_restoring_final_block_parser_cond_branch_best_with_binary_lookup_gap =
         -17_700.320f64;
     let direct_restoring_final_block_parser_cond_branch_best_with_binary_lookup_2x_mean =
@@ -1524,28 +1890,20 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let direct_restoring_final_cond_mixed4to8_live_scratch_p99 = 663usize;
     let direct_restoring_final_cond_mixed4to8_symbol_count_p99 = 235usize;
     let direct_restoring_final_cond_mixed4to8_augmented_gap = -45_686.608f64;
-    let direct_restoring_final_cond_mixed4to8_with_binary_lookup_2x_mean =
-        15_852.367f64;
+    let direct_restoring_final_cond_mixed4to8_with_binary_lookup_2x_mean = 15_852.367f64;
     let direct_restoring_final_cond_mixed4to8_with_binary_lookup_2x_gap = 8_679.468f64;
     let direct_restoring_final_cond_mixed4to8_lookup_multiplier_budget = 1.680_703f64;
-    let direct_restoring_final_cond_mixed4to8_block_joint_binary_lookup_mean =
-        4_881.906f64;
-    let direct_restoring_final_cond_mixed4to8_block_joint_binary_lookup_p99 =
-        5_356usize;
-    let direct_restoring_final_cond_mixed4to8_block_joint_support_row_floor =
-        68_058usize;
+    let direct_restoring_final_cond_mixed4to8_block_joint_binary_lookup_mean = 4_881.906f64;
+    let direct_restoring_final_cond_mixed4to8_block_joint_binary_lookup_p99 = 5_356usize;
+    let direct_restoring_final_cond_mixed4to8_block_joint_support_row_floor = 68_058usize;
     let direct_restoring_final_cond_mixed4to8_block_joint_max_patterns = 4_368usize;
     let direct_restoring_final_cond_mixed4to8_block_joint_block_count_p99 = 38usize;
     let direct_restoring_final_cond_mixed4to8_with_block_joint_binary_lookup_2x_mean =
         12_024.660f64;
-    let direct_restoring_final_cond_mixed4to8_with_block_joint_binary_lookup_2x_gap =
-        -6_631.358f64;
-    let direct_restoring_final_cond_mixed4to8_block_joint_lookup_multiplier_budget =
-        2.339_589f64;
-    let direct_restoring_final_cond_mixed4to8_with_block_joint_scan_lookup_2x_mean =
-        138_376.848f64;
-    let direct_restoring_final_cond_mixed4to8_with_block_joint_scan_lookup_2x_gap =
-        498_777.392f64;
+    let direct_restoring_final_cond_mixed4to8_with_block_joint_binary_lookup_2x_gap = -6_631.358f64;
+    let direct_restoring_final_cond_mixed4to8_block_joint_lookup_multiplier_budget = 2.339_589f64;
+    let direct_restoring_final_cond_mixed4to8_with_block_joint_scan_lookup_2x_mean = 138_376.848f64;
+    let direct_restoring_final_cond_mixed4to8_with_block_joint_scan_lookup_2x_gap = 498_777.392f64;
     let direct_restoring_final_selective_pair_lookup_baseline_mean = 6_795.760f64;
     let direct_restoring_final_selective_pair_lookup_selected_saving_mean = 26.854f64;
     let direct_restoring_final_selective_pair_lookup_required_saving_mean = 1_084.933f64;
@@ -1612,7 +1970,8 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let plusminus_parser_over_strict = plusminus_unary_scratch_p99 - STRICT_SCRATCH;
     let plusminus_scaled_slack_scratch_max = 517usize;
     let plusminus_scaled_solinas_projected_max = 2_230_850usize;
-    let plusminus_scaled_solinas_gap_max = plusminus_scaled_solinas_projected_max as isize - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+    let plusminus_scaled_solinas_gap_max =
+        plusminus_scaled_solinas_projected_max as isize - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
     let plusminus_solinas_scale_chunk_no_threshold_ccx = 3_390usize;
     let plusminus_solinas_scale_chunk_no_threshold_peak = 822usize;
     let plusminus_solinas_scale_chunk_exact_ccx = 7_564usize;
@@ -1626,6 +1985,12 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let plusminus_solinas_scale_chunk_one_lane_reuse_over_google =
         plusminus_solinas_scale_chunk_one_lane_reuse_scratch as isize
             - GOOGLE_LOW_QUBIT_SCRATCH as isize;
+    let plusminus_solinas_best_chunk_cost_k = 7usize;
+    let plusminus_solinas_best_chunk_cost_per_bit_milli = 105_571usize;
+    let plusminus_solinas_min_reuse_scratch_chunk_k = 1usize;
+    let plusminus_solinas_min_one_lane_reuse_scratch = 780usize;
+    let plusminus_solinas_k7_chunk_ccx = 739usize;
+    let plusminus_solinas_k7_one_lane_reuse_scratch = 792usize;
     let plusminus_affine_absorb_samples = 200usize;
     let plusminus_affine_absorb_first_scale_min = 335usize;
     let plusminus_affine_absorb_first_scale_p99 = 381usize;
@@ -1659,7 +2024,8 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let halfgcd_det_recovery_floor_p99_ccx = 52_757usize;
     let halfgcd_replay_with_recovery_floor_pointadd_p99 = 1_410_512usize;
     let halfgcd_replay_with_recovery_floor_gap_to_2700k =
-        halfgcd_replay_with_recovery_floor_pointadd_p99 as isize - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+        halfgcd_replay_with_recovery_floor_pointadd_p99 as isize
+            - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
     let halfgcd_full_prefix_live_p99_bits = 769usize;
     let halfgcd_full_prefix_live_gap_google =
         halfgcd_full_prefix_live_p99_bits as isize - GOOGLE_LOW_QUBIT_SCRATCH as isize;
@@ -1705,7 +2071,8 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let halfgcd_second_col_prefix_augmented_extraction_p99 = 397_001usize;
     let halfgcd_second_col_prefix_augmented_pointadd_p99 = 2_866_082usize;
     let halfgcd_second_col_prefix_augmented_gap_to_2700k =
-        halfgcd_second_col_prefix_augmented_pointadd_p99 as isize - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+        halfgcd_second_col_prefix_augmented_pointadd_p99 as isize
+            - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
     let halfgcd_second_col_prefix_steps_p99 = 91usize;
     let halfgcd_second_col_prefix_digits_p99 = 221usize;
     let halfgcd_second_col_prefix_final_negative_p99 = 37usize;
@@ -1801,17 +2168,13 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let halfgcd_second_col_fixed_depth64_exact_tail_bounded_barrel_gap =
         halfgcd_second_col_fixed_depth64_exact_tail_bounded_barrel_mean as isize
             - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
-    let halfgcd_second_col_fixed_depth64_exact_tail_bounded_plus_one_width_mean =
-        2_689_056usize;
-    let halfgcd_second_col_fixed_depth64_exact_tail_bounded_plus_one_width_p99 =
-        2_759_506usize;
+    let halfgcd_second_col_fixed_depth64_exact_tail_bounded_plus_one_width_mean = 2_689_056usize;
+    let halfgcd_second_col_fixed_depth64_exact_tail_bounded_plus_one_width_p99 = 2_759_506usize;
     let halfgcd_second_col_fixed_depth64_exact_tail_bounded_plus_one_width_gap =
         halfgcd_second_col_fixed_depth64_exact_tail_bounded_plus_one_width_mean as isize
             - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
-    let halfgcd_second_col_fixed_depth64_exact_tail_bounded_plus_two_width_mean =
-        2_714_963usize;
-    let halfgcd_second_col_fixed_depth64_exact_tail_bounded_plus_two_width_p99 =
-        2_791_246usize;
+    let halfgcd_second_col_fixed_depth64_exact_tail_bounded_plus_two_width_mean = 2_714_963usize;
+    let halfgcd_second_col_fixed_depth64_exact_tail_bounded_plus_two_width_p99 = 2_791_246usize;
     let halfgcd_second_col_fixed_depth64_exact_tail_bounded_plus_two_width_gap =
         halfgcd_second_col_fixed_depth64_exact_tail_bounded_plus_two_width_mean as isize
             - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
@@ -1824,10 +2187,8 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
             - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
     let halfgcd_second_col_fixed_depth64_noscan_tail_logbarrel_mean = 2_612_728usize;
     let halfgcd_second_col_fixed_depth64_noscan_tail_logbarrel_p99 = 2_706_032usize;
-    let halfgcd_second_col_fixed_depth64_exact_prefix_bounded_tail_logbarrel_mean =
-        2_500_182usize;
-    let halfgcd_second_col_fixed_depth64_exact_prefix_bounded_tail_logbarrel_p99 =
-        2_585_888usize;
+    let halfgcd_second_col_fixed_depth64_exact_prefix_bounded_tail_logbarrel_mean = 2_500_182usize;
+    let halfgcd_second_col_fixed_depth64_exact_prefix_bounded_tail_logbarrel_p99 = 2_585_888usize;
     let halfgcd_second_col_fixed_depth64_exact_prefix_bounded_tail_logbarrel_gap =
         halfgcd_second_col_fixed_depth64_exact_prefix_bounded_tail_logbarrel_mean as isize
             - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
@@ -1873,24 +2234,30 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let halfgcd_second_col_fixed_depth64_slot_envelope_full_mean = 2_345_809usize;
     let halfgcd_second_col_fixed_depth64_slot_envelope_full_first64 = 2_346_165usize;
     let halfgcd_second_col_fixed_depth64_slot_envelope_full_p99 = 2_408_100usize;
-    let halfgcd_second_col_fixed_depth64_slot_envelope_static_app_mean =
-        2_539_415usize;
-    let halfgcd_second_col_fixed_depth64_slot_envelope_static_app_p99 =
-        2_612_732usize;
+    let halfgcd_second_col_fixed_depth64_slot_envelope_static_app_mean = 2_539_415usize;
+    let halfgcd_second_col_fixed_depth64_slot_envelope_static_app_p99 = 2_612_732usize;
     let halfgcd_second_col_fixed_depth64_slot_envelope_full_gap =
         halfgcd_second_col_fixed_depth64_slot_envelope_full_mean as isize
             - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
     let halfgcd_second_col_fixed_depth64_slot_envelope_static_app_gap =
         halfgcd_second_col_fixed_depth64_slot_envelope_static_app_mean as isize
             - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
-    let halfgcd_second_col_fixed_depth64_slot_envelope_tail8_static_app_mean =
-        2_639_116usize;
-    let halfgcd_second_col_fixed_depth64_slot_envelope_tail8_static_app_p99 =
-        2_711_178usize;
+    let halfgcd_second_col_fixed_depth64_slot_envelope_tail8_static_app_mean = 2_639_116usize;
+    let halfgcd_second_col_fixed_depth64_slot_envelope_tail8_static_app_p99 = 2_711_178usize;
+    let halfgcd_second_col_fixed_depth64_slot_envelope_tail_budget_p99 =
+        GOOGLE_LOW_QUBIT_TOFFOLI - halfgcd_second_col_fixed_depth64_slot_envelope_static_app_p99;
+    let halfgcd_second_col_fixed_depth64_slot_envelope_tail8_extra_p99 =
+        halfgcd_second_col_fixed_depth64_slot_envelope_tail8_static_app_p99
+            - halfgcd_second_col_fixed_depth64_slot_envelope_static_app_p99;
+    let halfgcd_second_col_fixed_depth64_slot_envelope_tail8_over_budget_p99 =
+        halfgcd_second_col_fixed_depth64_slot_envelope_tail8_static_app_p99
+            - GOOGLE_LOW_QUBIT_TOFFOLI;
+    let halfgcd_second_col_fixed_depth64_slot_envelope_tail_equiv_bit_budget = 8
+        * halfgcd_second_col_fixed_depth64_slot_envelope_tail_budget_p99
+        / halfgcd_second_col_fixed_depth64_slot_envelope_tail8_extra_p99;
     let halfgcd_second_col_fixed_depth64_slot_envelope_guard1_tail8_static_app_mean =
         2_715_840usize;
-    let halfgcd_second_col_fixed_depth64_slot_envelope_guard1_tail8_static_app_p99 =
-        2_789_094usize;
+    let halfgcd_second_col_fixed_depth64_slot_envelope_guard1_tail8_static_app_p99 = 2_789_094usize;
     let halfgcd_second_col_fixed_depth64_slot_envelope_toy_cases = 5usize;
     let halfgcd_second_col_fixed_depth64_slot_envelope_toy_covered_cases = 0usize;
     let halfgcd_second_col_fixed_depth64_slot_envelope_toy_largest_prefix_gap = 1usize;
@@ -1902,6 +2269,16 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let halfgcd_second_col_fixed_depth64_slot_envelope_toy_n16_min_cover_radius_exp = 13usize;
     let halfgcd_second_col_fixed_depth64_slot_envelope_toy_n16_min_cover_over_target_x = 29usize;
     let halfgcd_second_col_fixed_depth64_slot_envelope_toy_n16_tail_slots = 15usize;
+    let halfgcd_tail_only_slot_envelope_cases = 5usize;
+    let halfgcd_tail_only_slot_envelope_covered_cases = 0usize;
+    let halfgcd_tail_only_slot_envelope_largest_tail_gap = 3usize;
+    let halfgcd_tail_only_slot_envelope_largest_tail_slots = 15usize;
+    let halfgcd_tail_only_slot_envelope_n16_target_rows = 577usize;
+    let halfgcd_tail_only_slot_envelope_n16_tail_gap = 3usize;
+    let halfgcd_tail_only_slot_envelope_n16_tail_slots = 15usize;
+    let halfgcd_tail_only_slot_envelope_n16_min_cover_rows = 16_897usize;
+    let halfgcd_tail_only_slot_envelope_n16_min_cover_small_exp = 8usize;
+    let halfgcd_tail_only_slot_envelope_n16_min_cover_radius_exp = 13usize;
     let halfgcd_second_col_fixed_depth64_static_app_mean = 2_934_322usize;
     let halfgcd_second_col_fixed_depth64_static_app_p99 = 3_010_096usize;
     let halfgcd_second_col_fixed_depth64_static_app_gap =
@@ -1924,20 +2301,15 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let halfgcd_second_col_fixed_depth64_static_joint4_selector_budget_oneway = 77_497usize;
     let halfgcd_second_col_fixed_depth64_app_static_sep4_floor_mean = 112_054usize;
     let halfgcd_second_col_fixed_depth64_app_static_joint4_floor_mean = 83_995usize;
-    let halfgcd_second_col_fixed_depth64_static_sep4_with_selector_floor_mean =
-        2_824_277usize;
-    let halfgcd_second_col_fixed_depth64_static_sep4_with_selector_floor_p99 =
-        2_896_612usize;
-    let halfgcd_second_col_fixed_depth64_static_joint4_with_selector_floor_mean =
-        2_768_159usize;
-    let halfgcd_second_col_fixed_depth64_static_joint4_with_selector_floor_p99 =
-        2_845_292usize;
+    let halfgcd_second_col_fixed_depth64_static_sep4_with_selector_floor_mean = 2_824_277usize;
+    let halfgcd_second_col_fixed_depth64_static_sep4_with_selector_floor_p99 = 2_896_612usize;
+    let halfgcd_second_col_fixed_depth64_static_joint4_with_selector_floor_mean = 2_768_159usize;
+    let halfgcd_second_col_fixed_depth64_static_joint4_with_selector_floor_p99 = 2_845_292usize;
     let halfgcd_second_col_fixed_depth64_static_joint4_with_selector_floor_gap =
         halfgcd_second_col_fixed_depth64_static_joint4_with_selector_floor_mean as isize
             - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
     let halfgcd_second_col_fixed_depth64_app_static_selector_floor_mean = 111_577usize;
-    let halfgcd_second_col_fixed_depth64_app_static_selector_floor_over_joint4_budget =
-        34_080usize;
+    let halfgcd_second_col_fixed_depth64_app_static_selector_floor_over_joint4_budget = 34_080usize;
     let halfgcd_second_col_fixed_depth64_static_window_scan_best_w = 6usize;
     let halfgcd_second_col_fixed_depth64_static_window_scan_best_mean = 2_749_506usize;
     let halfgcd_second_col_fixed_depth64_static_window_scan_best_p99 = 2_827_898usize;
@@ -1945,45 +2317,33 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
         halfgcd_second_col_fixed_depth64_static_window_scan_best_mean as isize
             - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
     let halfgcd_second_col_fixed_depth64_static_window_scan_best_app_mean = 74_668usize;
-    let halfgcd_second_col_fixed_depth64_static_window_scan_best_selector_mean =
-        111_577usize;
-    let halfgcd_second_col_fixed_depth64_static_window_scan_best_table_row_mean =
-        76_657usize;
+    let halfgcd_second_col_fixed_depth64_static_window_scan_best_selector_mean = 111_577usize;
+    let halfgcd_second_col_fixed_depth64_static_window_scan_best_table_row_mean = 76_657usize;
     let halfgcd_second_col_fixed_depth64_static_window_table_only_best_w = 4usize;
-    let halfgcd_second_col_fixed_depth64_static_window_table_only_best_mean =
-        2_559_198usize;
-    let halfgcd_second_col_fixed_depth64_static_window_table_only_best_p99 =
-        2_657_270usize;
+    let halfgcd_second_col_fixed_depth64_static_window_table_only_best_mean = 2_559_198usize;
+    let halfgcd_second_col_fixed_depth64_static_window_table_only_best_p99 = 2_657_270usize;
     let halfgcd_second_col_fixed_depth64_static_window_table_only_best_gap =
         halfgcd_second_col_fixed_depth64_static_window_table_only_best_mean as isize
             - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
     let halfgcd_second_col_fixed_depth64_static_window_table_source_best_w = 2usize;
-    let halfgcd_second_col_fixed_depth64_static_window_table_source_mean =
-        3_956_644usize;
-    let halfgcd_second_col_fixed_depth64_static_window_table_source_p99 =
-        4_257_224usize;
+    let halfgcd_second_col_fixed_depth64_static_window_table_source_mean = 3_956_644usize;
+    let halfgcd_second_col_fixed_depth64_static_window_table_source_p99 = 4_257_224usize;
     let halfgcd_second_col_fixed_depth64_static_window_table_source_gap =
         halfgcd_second_col_fixed_depth64_static_window_table_source_mean as isize
             - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
     let halfgcd_second_col_fixed_depth64_static_window_table_source_product_floor_mean =
         677_829usize;
-    let halfgcd_second_col_fixed_depth64_static_window_required_selector_mean =
-        86_824usize;
-    let halfgcd_second_col_fixed_depth64_static_window_selector_cut_needed =
-        24_753usize;
+    let halfgcd_second_col_fixed_depth64_static_window_required_selector_mean = 86_824usize;
+    let halfgcd_second_col_fixed_depth64_static_window_selector_cut_needed = 24_753usize;
     let halfgcd_second_col_fixed_depth64_static_window_table_margin = 10_166usize;
     let halfgcd_second_col_fixed_depth64_static_window_source_product_best_w = 6usize;
-    let halfgcd_second_col_fixed_depth64_static_window_source_product_mean =
-        2_756_381usize;
-    let halfgcd_second_col_fixed_depth64_static_window_source_product_p99 =
-        2_834_890usize;
+    let halfgcd_second_col_fixed_depth64_static_window_source_product_mean = 2_756_381usize;
+    let halfgcd_second_col_fixed_depth64_static_window_source_product_p99 = 2_834_890usize;
     let halfgcd_second_col_fixed_depth64_static_window_source_product_gap =
         halfgcd_second_col_fixed_depth64_static_window_source_product_mean as isize
             - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
-    let halfgcd_second_col_fixed_depth64_static_window_source_product_floor_mean =
-        115_014usize;
-    let halfgcd_second_col_fixed_depth64_static_window_source_product_table_row_mean =
-        76_657usize;
+    let halfgcd_second_col_fixed_depth64_static_window_source_product_floor_mean = 115_014usize;
+    let halfgcd_second_col_fixed_depth64_static_window_source_product_table_row_mean = 76_657usize;
     let halfgcd_second_col_fixed_depth64_static_window_wnaf_best_w = 6usize;
     let halfgcd_second_col_fixed_depth64_static_window_wnaf_mean = 2_748_271usize;
     let halfgcd_second_col_fixed_depth64_static_window_wnaf_p99 = 2_826_444usize;
@@ -1991,75 +2351,53 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
         halfgcd_second_col_fixed_depth64_static_window_wnaf_mean as isize
             - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
     let halfgcd_second_col_fixed_depth64_static_window_wnaf_app_mean = 86_052usize;
-    let halfgcd_second_col_fixed_depth64_static_window_wnaf_selector_floor_mean =
-        99_575usize;
-    let halfgcd_second_col_fixed_depth64_static_window_wnaf_source_product_floor_mean =
-        99_575usize;
-    let halfgcd_second_col_fixed_depth64_static_window_wnaf_table_row_floor_mean =
-        32_463usize;
+    let halfgcd_second_col_fixed_depth64_static_window_wnaf_selector_floor_mean = 99_575usize;
+    let halfgcd_second_col_fixed_depth64_static_window_wnaf_source_product_floor_mean = 99_575usize;
+    let halfgcd_second_col_fixed_depth64_static_window_wnaf_table_row_floor_mean = 32_463usize;
     let halfgcd_second_col_fixed_depth64_static_window_wnaf_positions_mean = 29.837f64;
     let halfgcd_second_col_fixed_depth64_static_window_wnaf_compact_best_w = 2usize;
-    let halfgcd_second_col_fixed_depth64_static_window_wnaf_compact_mean =
-        2_691_392usize;
-    let halfgcd_second_col_fixed_depth64_static_window_wnaf_compact_p99 =
-        2_775_864usize;
+    let halfgcd_second_col_fixed_depth64_static_window_wnaf_compact_mean = 2_691_392usize;
+    let halfgcd_second_col_fixed_depth64_static_window_wnaf_compact_p99 = 2_775_864usize;
     let halfgcd_second_col_fixed_depth64_static_window_wnaf_compact_gap =
         halfgcd_second_col_fixed_depth64_static_window_wnaf_compact_mean as isize
             - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
-    let halfgcd_second_col_fixed_depth64_static_window_wnaf_compact_app_mean =
-        119_092usize;
+    let halfgcd_second_col_fixed_depth64_static_window_wnaf_compact_app_mean = 119_092usize;
     let halfgcd_second_col_fixed_depth64_static_window_wnaf_compact_source_product_floor_mean =
         38_097usize;
     let halfgcd_second_col_fixed_depth64_static_window_wnaf_compact_missing_active_floor_mean =
         38_097usize;
     let halfgcd_second_col_fixed_depth64_static_window_wnaf_compact_active_slack_oneway =
         4_304usize;
-    let halfgcd_second_col_fixed_depth64_static_window_wnaf_compact_table_row_floor_mean =
-        497usize;
+    let halfgcd_second_col_fixed_depth64_static_window_wnaf_compact_table_row_floor_mean = 497usize;
     let halfgcd_second_col_fixed_depth64_joint_signed_binary_independent_compact_mean =
         2_691_392usize;
-    let halfgcd_second_col_fixed_depth64_joint_signed_binary_compact_mean =
-        2_679_431usize;
-    let halfgcd_second_col_fixed_depth64_joint_signed_binary_compact_p99 =
-        2_763_632usize;
-    let halfgcd_second_col_fixed_depth64_joint_signed_binary_full_active_mean =
-        2_756_331usize;
-    let halfgcd_second_col_fixed_depth64_joint_signed_binary_full_active_p99 =
-        2_837_296usize;
-    let halfgcd_second_col_fixed_depth64_joint_signed_binary_improvement_mean =
-        11_962usize;
-    let halfgcd_second_col_fixed_depth64_joint_signed_binary_missing_active_mean =
-        38_450usize;
-    let halfgcd_second_col_fixed_depth64_joint_signed_binary_missing_active_p99 =
-        49_152usize;
-    let halfgcd_second_col_fixed_depth64_joint_signed_binary_active_slack_oneway =
-        10_285usize;
+    let halfgcd_second_col_fixed_depth64_joint_signed_binary_compact_mean = 2_679_431usize;
+    let halfgcd_second_col_fixed_depth64_joint_signed_binary_compact_p99 = 2_763_632usize;
+    let halfgcd_second_col_fixed_depth64_joint_signed_binary_full_active_mean = 2_756_331usize;
+    let halfgcd_second_col_fixed_depth64_joint_signed_binary_full_active_p99 = 2_837_296usize;
+    let halfgcd_second_col_fixed_depth64_joint_signed_binary_improvement_mean = 11_962usize;
+    let halfgcd_second_col_fixed_depth64_joint_signed_binary_missing_active_mean = 38_450usize;
+    let halfgcd_second_col_fixed_depth64_joint_signed_binary_missing_active_p99 = 49_152usize;
+    let halfgcd_second_col_fixed_depth64_joint_signed_binary_active_slack_oneway = 10_285usize;
     let halfgcd_second_col_fixed_depth64_joint_signed_binary_app_mean = 112_757usize;
-    let halfgcd_second_col_fixed_depth64_joint_signed_binary_compact_source_mean =
-        38_450usize;
+    let halfgcd_second_col_fixed_depth64_joint_signed_binary_compact_source_mean = 38_450usize;
     let halfgcd_second_col_fixed_depth64_joint_signed_binary_table_row_mean = 447usize;
-    let halfgcd_second_col_fixed_depth64_joint_signed_binary_occupied_mean_milli =
-        55_916usize;
+    let halfgcd_second_col_fixed_depth64_joint_signed_binary_occupied_mean_milli = 55_916usize;
     let halfgcd_second_col_fixed_depth64_joint_signed_binary_occupied_p99 = 71usize;
-    let halfgcd_second_col_fixed_depth64_joint_signed_binary_digits_mean_milli =
-        75_098usize;
+    let halfgcd_second_col_fixed_depth64_joint_signed_binary_digits_mean_milli = 75_098usize;
     let halfgcd_second_col_fixed_depth64_joint_signed_binary_digits_p99 = 96usize;
     let halfgcd_second_col_fixed_depth64_active_charged_joint_window_best_w = 2usize;
-    let halfgcd_second_col_fixed_depth64_active_charged_joint_window_mean =
-        2_756_331usize;
-    let halfgcd_second_col_fixed_depth64_active_charged_joint_window_p99 =
-        2_837_296usize;
+    let halfgcd_second_col_fixed_depth64_active_charged_joint_window_mean = 2_756_331usize;
+    let halfgcd_second_col_fixed_depth64_active_charged_joint_window_p99 = 2_837_296usize;
     let halfgcd_second_col_fixed_depth64_active_charged_joint_window_gap =
         halfgcd_second_col_fixed_depth64_active_charged_joint_window_mean as isize
             - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
-    let halfgcd_second_col_fixed_depth64_active_charged_joint_window_app_mean =
-        113_420usize;
+    let halfgcd_second_col_fixed_depth64_active_charged_joint_window_app_mean = 113_420usize;
     let halfgcd_second_col_fixed_depth64_active_charged_joint_window_compact_source_mean =
         38_119usize;
     let halfgcd_second_col_fixed_depth64_active_charged_joint_window_active_source_mean =
         38_119usize;
-    let halfgcd_second_col_fixed_depth64_active_charged_joint_window_table_row_mean =
-        453usize;
+    let halfgcd_second_col_fixed_depth64_active_charged_joint_window_table_row_mean = 453usize;
     let halfgcd_second_col_fixed_depth64_active_charged_joint_window_occupied_mean_milli =
         56_563usize;
     let halfgcd_second_col_fixed_depth64_active_charged_joint_window_digits_mean_milli =
@@ -2102,71 +2440,47 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let halfgcd_second_col_fixed_depth64_full_block_pattern_source_mean = 24_051usize;
     let halfgcd_second_col_fixed_depth64_full_block_pattern_max_patterns = 4_096usize;
     let halfgcd_second_col_fixed_depth64_full_block_pattern_max_bits = 12usize;
-    let halfgcd_second_col_fixed_depth64_full_block_pattern_toy_cases_with_missing =
-        5usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_toy_cases_with_missing = 5usize;
     let halfgcd_second_col_fixed_depth64_full_block_pattern_toy_largest_missing_patterns =
         2_332usize;
-    let halfgcd_second_col_fixed_depth64_full_block_pattern_toy_largest_exact_patterns =
-        1_885usize;
-    let halfgcd_second_col_fixed_depth64_full_block_pattern_toy_largest_exact_bits =
-        11usize;
-    let halfgcd_second_col_fixed_depth64_full_block_pattern_local_sample_keys =
-        15_903usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_toy_largest_exact_patterns = 1_885usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_toy_largest_exact_bits = 11usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_local_sample_keys = 15_903usize;
     let halfgcd_second_col_fixed_depth64_full_block_pattern_local_sample_total_patterns =
         15_903usize;
-    let halfgcd_second_col_fixed_depth64_full_block_pattern_local_sample_ambiguous =
-        0usize;
-    let halfgcd_second_col_fixed_depth64_full_block_pattern_local_sample_max_mult =
-        1usize;
-    let halfgcd_second_col_fixed_depth64_full_block_pattern_local_toy_n17_keys =
-        3_838usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_local_sample_ambiguous = 0usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_local_sample_max_mult = 1usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_local_toy_n17_keys = 3_838usize;
     let halfgcd_second_col_fixed_depth64_full_block_pattern_local_toy_n17_total_patterns =
         5_794usize;
-    let halfgcd_second_col_fixed_depth64_full_block_pattern_local_toy_n17_ambiguous =
-        1_346usize;
-    let halfgcd_second_col_fixed_depth64_full_block_pattern_local_toy_n17_max_mult =
-        4usize;
-    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_sample_keys =
-        15_850usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_local_toy_n17_ambiguous = 1_346usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_local_toy_n17_max_mult = 4usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_sample_keys = 15_850usize;
     let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_sample_total_patterns =
         15_850usize;
-    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_sample_ambiguous =
-        0usize;
-    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_sample_max_mult =
-        1usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_sample_ambiguous = 0usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_sample_max_mult = 1usize;
     let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_sample_bits_mean_milli =
         15_801usize;
-    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_sample_bits_max =
-        20usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_sample_bits_max = 20usize;
     let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_source_mean_milli =
         8_090_500usize;
-    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_mean =
-        2_667_706usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_mean = 2_667_706usize;
     let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_gap =
         halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_mean as isize
             - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
-    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_toy_n17_keys =
-        5_794usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_toy_n17_keys = 5_794usize;
     let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_toy_n17_total_patterns =
         5_794usize;
-    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_toy_n17_ambiguous =
-        0usize;
-    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_toy_n17_max_mult =
-        1usize;
-    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_toy_n17_bits_p99 =
-        12usize;
-    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_toy_n17_bits_max =
-        16usize;
-    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_toy_collision_cases =
-        0usize;
-    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_toy_largest_ambiguous =
-        0usize;
-    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_toy_largest_max_mult =
-        1usize;
-    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_toy_largest_bits_max =
-        24usize;
-    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_table_margin =
-        32_294usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_toy_n17_ambiguous = 0usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_toy_n17_max_mult = 1usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_toy_n17_bits_p99 = 12usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_toy_n17_bits_max = 16usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_toy_collision_cases = 0usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_toy_largest_ambiguous = 0usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_toy_largest_max_mult = 1usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_toy_largest_bits_max = 24usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_table_margin = 32_294usize;
     let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_table_sample_keys =
         15_850usize;
     let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_table_one_roundtrip_floor =
@@ -2183,8 +2497,7 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
         7_905usize;
     let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_source_mean_milli =
         4_047_500usize;
-    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_mean =
-        2_659_620usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_mean = 2_659_620usize;
     let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_gap =
         halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_mean as isize
             - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
@@ -2208,8 +2521,7 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
         13usize;
     let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_payload_density_n14 =
         8_178usize;
-    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_payload_bits_n14 =
-        8usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_payload_bits_n14 = 8usize;
     let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_payload_max_rank_n14 =
         3usize;
     let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_table_margin =
@@ -2218,6 +2530,86 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
         8_680isize;
     let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_table_two_app_gap =
         23_020isize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_one_ccx_decoder_floor =
+        2 * halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_sample_active_blocks_total;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_one_ccx_decoder_mean =
+        halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_mean
+            + halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_one_ccx_decoder_floor;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_one_ccx_decoder_gap =
+        halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_one_ccx_decoder_mean
+            as isize
+            - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_two_ccx_decoder_mean =
+        halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_mean
+            + 2 * halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_one_ccx_decoder_floor;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_two_ccx_decoder_gap =
+        halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_two_ccx_decoder_mean
+            as isize
+            - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_decoder_slack_per_active_block_milli =
+        (GOOGLE_LOW_QUBIT_TOFFOLI
+            - halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_mean)
+            * 1000
+            / (2 * halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_sample_active_blocks_total);
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_active_floor_oneway =
+        halfgcd_second_col_fixed_depth64_joint_signed_binary_missing_active_mean;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_active_floor_roundtrip =
+        2 * halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_active_floor_oneway;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_with_active_floor_mean =
+        halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_mean
+            + halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_active_floor_roundtrip;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_with_active_floor_gap =
+        halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_with_active_floor_mean
+            as isize
+            - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_with_active_and_one_ccx_mean =
+        halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_with_active_floor_mean
+            + halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_one_ccx_decoder_floor;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_with_active_and_one_ccx_gap =
+        halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_with_active_and_one_ccx_mean as isize
+            - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+    let halfgcd_endpoint_local_dp_transition_floor_sample_active_mean_milli = 3_956usize;
+    let halfgcd_endpoint_local_dp_transition_floor_sample_active_p99 = 5usize;
+    let halfgcd_endpoint_local_dp_transition_floor_sample_mean_milli = 4_581_885usize;
+    let halfgcd_endpoint_local_dp_transition_floor_sample_p99 = 5_742usize;
+    let halfgcd_endpoint_local_dp_transition_floor_sample_max_block = 1_444usize;
+    let halfgcd_endpoint_local_dp_transition_floor_one_roundtrip_gap_milli = -31_216_229isize;
+    let halfgcd_endpoint_local_dp_transition_floor_two_app_gap_milli = -22_052_459isize;
+    let halfgcd_endpoint_local_dp_transition_floor_two_app_transition_budget_micros =
+        2_203_242usize;
+    let halfgcd_endpoint_local_dp_compare_floor_cost_word_bits = 17usize;
+    let halfgcd_endpoint_local_dp_compare_floor_mean_milli = 77_892_049usize;
+    let halfgcd_endpoint_local_dp_compare_floor_two_app_gap_milli = 271_188_197isize;
+    let halfgcd_endpoint_local_dp_compare_floor_transition_budget_micros = 129_602usize;
+    let halfgcd_endpoint_local_dp_transition_floor_two_ccx_two_app_mean =
+        halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_mean
+            + (4 * 2 * halfgcd_endpoint_local_dp_transition_floor_sample_mean_milli) / 1_000;
+    let halfgcd_endpoint_local_dp_transition_floor_two_ccx_gap =
+        halfgcd_endpoint_local_dp_transition_floor_two_ccx_two_app_mean as isize
+            - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+    let halfgcd_endpoint_local_dp_transition_floor_three_ccx_two_app_mean =
+        halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_mean
+            + (4 * 3 * halfgcd_endpoint_local_dp_transition_floor_sample_mean_milli) / 1_000;
+    let halfgcd_endpoint_local_dp_transition_floor_three_ccx_gap =
+        halfgcd_endpoint_local_dp_transition_floor_three_ccx_two_app_mean as isize
+            - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+    let halfgcd_endpoint_minplus_sig_sample_blocks = 16_192usize;
+    let halfgcd_endpoint_minplus_sig_sample_mismatches = 0usize;
+    let halfgcd_endpoint_minplus_sig_sample_signatures = 108usize;
+    let halfgcd_endpoint_minplus_sig_sample_transition_mean_milli = 38_735usize;
+    let halfgcd_endpoint_minplus_sig_sample_update_keys = 25_843usize;
+    let halfgcd_endpoint_minplus_sig_sample_update_collision_keys = 2_777usize;
+    let halfgcd_endpoint_minplus_sig_sample_choice_keys = 89_156usize;
+    let halfgcd_endpoint_minplus_sig_sample_choice_collision_keys = 1_795usize;
+    let halfgcd_endpoint_minplus_sig_toy_blocks_total = 299_013usize;
+    let halfgcd_endpoint_minplus_sig_toy_mismatches_total = 0usize;
+    let halfgcd_endpoint_minplus_sig_toy_signatures_total = 147usize;
+    let halfgcd_endpoint_minplus_sig_toy_update_keys = 4_375usize;
+    let halfgcd_endpoint_minplus_sig_toy_update_collision_keys = 180usize;
+    let halfgcd_endpoint_minplus_sig_toy_choice_keys = 13_224usize;
+    let halfgcd_endpoint_minplus_sig_toy_choice_collision_keys = 81usize;
+    let halfgcd_endpoint_minplus_sig_toy_n17_blocks = 119_249usize;
+    let halfgcd_endpoint_minplus_sig_toy_n17_signatures = 110usize;
     let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_choices =
         7_370_995usize;
     let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_k8_collision_keys =
@@ -2232,6 +2624,28 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
         halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_mean as isize
             + halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_k12_one_roundtrip_floor as isize
             - GOOGLE_LOW_QUBIT_TOFFOLI as isize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_k8_collision_keys =
+        697usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_k10_collision_keys =
+        19usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_k11_collision_keys =
+        1usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_k11_block_keys =
+        6_888_255usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_k11_block_collision_keys =
+        0usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_k12_collision_keys =
+        0usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_toy_k4_collision_keys =
+        48usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_toy_k4_block_collision_keys =
+        50usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_toy_k4_block_fullstate_collision_keys =
+        50usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_toy_k5_collision_keys =
+        0usize;
+    let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_toy_k5_keys =
+        45_911usize;
     let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_k12_lane0_keys =
         824_065usize;
     let halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_k12_lane0_collision_keys =
@@ -2294,10 +2708,8 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let halfgcd_second_col_joint_signed_binary_active_full_slots_n14 = 30usize;
     let halfgcd_second_col_joint_signed_binary_active_max_pair_n14 = 3usize;
     let halfgcd_second_col_joint_signed_binary_active_min_individual_degree_n14 = 13usize;
-    let halfgcd_second_col_joint_signed_binary_active_min_individual_density_n14 =
-        5_332usize;
-    let halfgcd_second_col_joint_signed_binary_active_max_individual_density_n14 =
-        8_744usize;
+    let halfgcd_second_col_joint_signed_binary_active_min_individual_density_n14 = 5_332usize;
+    let halfgcd_second_col_joint_signed_binary_active_max_individual_density_n14 = 8_744usize;
     let halfgcd_second_col_compact_wnaf_active_degree_n14 = 14usize;
     let halfgcd_second_col_compact_wnaf_active_density_n14 = 8_322usize;
     let halfgcd_second_col_compact_wnaf_active_positions_n14 = 15usize;
@@ -2306,10 +2718,8 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     let halfgcd_second_col_compact_wnaf_active_full_slots_n14 = 30usize;
     let halfgcd_second_col_compact_wnaf_active_max_pair_n14 = 3usize;
     let halfgcd_second_col_compact_wnaf_active_min_individual_degree_n14 = 13usize;
-    let halfgcd_second_col_compact_wnaf_active_min_individual_density_n14 =
-        5_698usize;
-    let halfgcd_second_col_compact_wnaf_active_max_individual_density_n14 =
-        8_744usize;
+    let halfgcd_second_col_compact_wnaf_active_min_individual_density_n14 = 5_698usize;
+    let halfgcd_second_col_compact_wnaf_active_max_individual_density_n14 = 8_744usize;
     let halfgcd_second_col_alignment_mbu_degree_n14 = 14usize;
     let halfgcd_second_col_alignment_mbu_density_n14 = 8_142usize;
     let halfgcd_second_col_alignment_mbu_max_alignment_n14 = 13usize;
@@ -2343,14 +2753,36 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     );
 
     println!("METRIC scratch600_frontier_best_scratch_bits={best_state}");
-    println!("METRIC scratch600_frontier_best_charged_scratch_bits={}", best_charged_sota_shaped.1);
-    println!("METRIC scratch600_frontier_best_charged_toffoli={}", best_charged_sota_shaped.2);
+    println!(
+        "METRIC scratch600_frontier_best_charged_scratch_bits={}",
+        best_charged_sota_shaped.1
+    );
+    println!(
+        "METRIC scratch600_frontier_best_charged_toffoli={}",
+        best_charged_sota_shaped.2
+    );
     println!("METRIC scratch600_frontier_best_charged_gap_to_2700k={streamed_gap_to_google}");
     println!("METRIC scratch600_streamed_replay_body_projected_toffoli={streamed_replay_body_projection}");
     println!("METRIC scratch600_streamed_unfunded_selector_budget_ccx={streamed_replay_unfunded_selector_budget}");
     println!("METRIC scratch600_streamed_selector_budget_ccx={streamed_selector_budget}");
     println!("METRIC scratch600_streamed_lowword_selector_ccx={streamed_lowword_selector}");
     println!("METRIC scratch600_streamed_selector_shortfall_ccx={streamed_selector_shortfall}");
+    println!("METRIC scratch600_streamed_fused_modavg_current_projection={streamed_fused_modavg_current_projection}");
+    println!("METRIC scratch600_streamed_fused_modavg_current_gap_to_2700k={streamed_fused_modavg_current_gap}");
+    println!(
+        "METRIC scratch600_streamed_fused_modavg_microsteps={streamed_fused_modavg_microsteps}"
+    );
+    println!("METRIC scratch600_streamed_fused_modavg_required_total_saving={streamed_fused_modavg_required_total_saving}");
+    println!("METRIC scratch600_streamed_fused_modavg_required_per_step={streamed_fused_modavg_required_per_step}");
+    println!("METRIC scratch600_streamed_fused_modavg_saving59_projection={streamed_fused_modavg_saving59_projection}");
+    println!("METRIC scratch600_streamed_fused_modavg_saving59_gap_to_2700k={streamed_fused_modavg_saving59_gap}");
+    println!("METRIC scratch600_streamed_fused_modavg_saving58_projection={streamed_fused_modavg_saving58_projection}");
+    println!("METRIC scratch600_streamed_fused_modavg_saving58_gap_to_2700k={streamed_fused_modavg_saving58_gap}");
+    println!("METRIC scratch600_streamed_fused_modavg_flag_recovery_double_floor_per_step={streamed_fused_modavg_flag_recovery_double_floor_per_step}");
+    println!("METRIC scratch600_streamed_fused_modavg_flag_recovery_double_floor_total={streamed_fused_modavg_flag_recovery_double_floor_total}");
+    println!("METRIC scratch600_streamed_fused_modavg_flag_recovery_double_floor_projection={streamed_fused_modavg_flag_recovery_double_floor_projection}");
+    println!("METRIC scratch600_streamed_fused_modavg_flag_recovery_double_floor_gap_to_2700k={streamed_fused_modavg_flag_recovery_double_floor_gap}");
+    println!("METRIC scratch600_streamed_fused_modavg_flag_recovery_floor_over_budget_per_step={streamed_fused_modavg_flag_recovery_floor_over_budget_per_step}");
     println!("METRIC scratch600_tiny_lowword_w1_selector_projection={tiny_lowword_w1_selector_projection}");
     println!("METRIC scratch600_tiny_lowword_w1_selector_slack={tiny_lowword_w1_selector_slack}");
     println!("METRIC scratch600_tiny_lowword_best_fixed_update_excess={tiny_lowword_best_fixed_update_excess}");
@@ -2364,6 +2796,95 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     println!("METRIC scratch600_partial_prefix90_gap_to_2700k={partial_prefix90_gap}");
     println!("METRIC scratch600_partial_prefix_two_den_projected_toffoli={partial_prefix_two_den_projection}");
     println!("METRIC scratch600_partial_prefix_two_den_gap_to_2700k={partial_prefix_two_den_gap}");
+    println!("METRIC scratch600_compact_denpair_projected_toffoli={compact_denpair_projection}");
+    println!("METRIC scratch600_compact_denpair_gap_to_5pct={compact_denpair_gap_to_5pct}");
+    println!("METRIC scratch600_compact_denpair_sampled_sidecar_bits={compact_denpair_sampled_sidecar_bits}");
+    println!("METRIC scratch600_compact_denpair_holdout_sidecar_bits={compact_denpair_holdout_sidecar_bits}");
+    println!("METRIC scratch600_compact_denpair_holdout_schedule_misses={compact_denpair_holdout_schedule_misses}");
+    println!("METRIC scratch600_compact_denpair_holdout_extra_width_bits={compact_denpair_holdout_extra_width_bits}");
+    println!("METRIC scratch600_compact_denpair_toy_scaled_sidecar_floor_bits={compact_denpair_toy_scaled_sidecar_floor_bits}");
+    println!("METRIC scratch600_compact_denpair_exact_tail_extra_bits={compact_denpair_exact_tail_extra_bits}");
+    println!("METRIC scratch600_strategy_e_partial_prefix_current_without_second_selector={strategy_e_partial_prefix_current_without_second_selector}");
+    println!("METRIC scratch600_strategy_e_partial_prefix_current_with_second_selector={strategy_e_partial_prefix_current_with_second_selector}");
+    println!("METRIC scratch600_strategy_e_partial_prefix_without_second_selector_gap_to_5pct={strategy_e_partial_prefix_without_second_selector_gap_to_5pct}");
+    println!("METRIC scratch600_strategy_e_partial_prefix_with_second_selector_gap_to_5pct={strategy_e_partial_prefix_with_second_selector_gap_to_5pct}");
+    println!("METRIC scratch600_strategy_e_partial_prefix_schoolbook_product_projection={strategy_e_partial_prefix_schoolbook_product_projection}");
+    println!("METRIC scratch600_strategy_e_partial_prefix_schoolbook_product_gap_to_2700k={strategy_e_partial_prefix_schoolbook_product_gap_to_2700k}");
+    println!("METRIC scratch600_strategy_e_partial_prefix_schoolbook_product_gap_to_3m={strategy_e_partial_prefix_schoolbook_product_gap_to_3m}");
+    println!("METRIC scratch600_secp_beta_branch_odd_mi_millibits={secp_beta_branch_odd_mi_millibits:.3}");
+    println!("METRIC scratch600_strategy_c_cleanup_second_inverse_floor={strategy_c_cleanup_second_inverse_floor}");
+    println!("METRIC scratch600_strategy_c_chord_product_extra_mul_floor={strategy_c_chord_product_extra_mul_floor}");
+    println!("METRIC scratch600_strategy_c_chord_product_alt_total_floor={strategy_c_chord_product_alt_total_floor}");
+    println!("METRIC scratch600_strategy_d_dx3_samples={strategy_d_dx3_samples}");
+    println!("METRIC scratch600_strategy_d_dx3_fresh_outputs_ok={strategy_d_dx3_fresh_outputs_ok}");
+    println!("METRIC scratch600_strategy_d_dx3_swapped_old_lanes_nonzero={strategy_d_dx3_swapped_old_lanes_nonzero}");
+    println!("METRIC scratch600_strategy_d_dx3_reverse_den_differs_from_dx={strategy_d_dx3_reverse_den_differs_from_dx}");
+    println!("METRIC scratch600_strategy_d_dx3_optimistic_inside_body_peak_qubits={strategy_d_dx3_optimistic_inside_body_peak_qubits}");
+    println!("METRIC scratch600_strategy_d_dx3_naive_inside_body_peak_qubits={strategy_d_dx3_naive_inside_body_peak_qubits}");
+    println!("METRIC scratch600_strategy_d_dx3_second_inverse_floor={strategy_d_dx3_second_inverse_floor}");
+    println!("METRIC scratch600_secp_lambda_square_sqrt_phase_max_degree={secp_lambda_square_sqrt_phase_max_degree}");
+    println!("METRIC scratch600_secp_lambda_square_sqrt_phase_max_density={secp_lambda_square_sqrt_phase_max_density}");
+    println!("METRIC scratch600_secp_lambda_square_sqrt_phase_max_table={secp_lambda_square_sqrt_phase_max_table}");
+    println!(
+        "METRIC scratch600_secp_xonly_sqrt_square_floor_ccx={secp_xonly_sqrt_square_floor_ccx}"
+    );
+    println!("METRIC scratch600_secp_xonly_sqrt_chain_layer_lower_bound={secp_xonly_sqrt_chain_layer_lower_bound}");
+    println!("METRIC scratch600_secp_xonly_sqrt_chain_floor_ccx={secp_xonly_sqrt_chain_floor_ccx}");
+    println!("METRIC scratch600_secp_order_mod2={secp_order_mod2}");
+    println!("METRIC scratch600_secp_order_mod3={secp_order_mod3}");
+    println!("METRIC scratch600_secp_beta_branch_case_mi_millibits={secp_beta_branch_case_mi_millibits:.3}");
+    println!("METRIC scratch600_secp_endomorphism_slope_phase_degree_n10={secp_endomorphism_slope_phase_degree_n10}");
+    println!("METRIC scratch600_secp_endomorphism_slope_phase_density_n10={secp_endomorphism_slope_phase_density_n10}");
+    println!("METRIC scratch600_secp_endomorphism_slope_support_min_degree_n12={secp_endomorphism_slope_support_min_degree_n12}");
+    println!("METRIC scratch600_secp_endomorphism_y_support_inv_min_degree_n14={secp_endomorphism_y_support_inv_min_degree_n14}");
+    println!("METRIC scratch600_secp_endomorphism_xonly_numerator_square_ccx={secp_endomorphism_xonly_numerator_square_ccx}");
+    println!("METRIC scratch600_secp_endomorphism_xonly_numerator_oneway_lower_ccx={secp_endomorphism_xonly_numerator_oneway_lower_ccx}");
+    println!("METRIC scratch600_secp_endomorphism_xonly_numerator_roundtrip_lower_ccx={secp_endomorphism_xonly_numerator_roundtrip_lower_ccx}");
+    println!("METRIC scratch600_secp_j0_y_sum_denominator_deleted_pair1_mul_ccx={secp_j0_y_sum_denominator_deleted_pair1_mul_ccx}");
+    println!("METRIC scratch600_secp_j0_y_sum_denominator_min_penalty_ccx={secp_j0_y_sum_denominator_min_penalty_ccx}");
+    println!("METRIC scratch600_secp_constmul_beta_ccx={secp_constmul_beta_ccx}");
+    println!("METRIC scratch600_secp_constmul_beta2_ccx={secp_constmul_beta2_ccx}");
+    println!("METRIC scratch600_secp_constmul_gx_ccx={secp_constmul_gx_ccx}");
+    println!("METRIC scratch600_secp_constmul_gy_ccx={secp_constmul_gy_ccx}");
+    println!("METRIC scratch600_secp_constmul_beta_saving_vs_best_generator_ccx={secp_constmul_beta_saving_vs_best_generator_ccx}");
+    println!("METRIC scratch600_secp_mod_primitive_add_ccx={secp_mod_primitive_add_ccx}");
+    println!("METRIC scratch600_secp_mod_primitive_sub_ccx={secp_mod_primitive_sub_ccx}");
+    println!("METRIC scratch600_secp_mod_primitive_double_ccx={secp_mod_primitive_double_ccx}");
+    println!("METRIC scratch600_secp_mod_primitive_halve_ccx={secp_mod_primitive_halve_ccx}");
+    println!("METRIC scratch600_secp_phase_pair1_halve_ccx={secp_phase_pair1_halve_ccx}");
+    println!("METRIC scratch600_secp_phase_pair2_double_ccx={secp_phase_pair2_double_ccx}");
+    println!(
+        "METRIC scratch600_secp_phase_toplevel_mul_family_ccx={secp_phase_toplevel_mul_family_ccx}"
+    );
+    println!("METRIC scratch600_secp_b2_samples={secp_b2_samples}");
+    println!("METRIC scratch600_secp_b2_rx_ok={secp_b2_rx_ok}");
+    println!("METRIC scratch600_secp_b2_ry_ok={secp_b2_ry_ok}");
+    println!("METRIC scratch600_secp_b2_lam_cleanup_candidates={secp_b2_lam_cleanup_candidates}");
+    println!(
+        "METRIC scratch600_secp_b2_lam_cleanup_full_matches={secp_b2_lam_cleanup_full_matches}"
+    );
+    println!("METRIC scratch600_secp_coset_repeated_add256_direct_ccx={secp_coset_repeated_add256_direct_ccx}");
+    println!("METRIC scratch600_secp_coset_repeated_add256_coset_ccx={secp_coset_repeated_add256_coset_ccx}");
+    println!("METRIC scratch600_secp_coset_repeated_add256_saving_ccx={secp_coset_repeated_add256_saving_ccx}");
+    println!("METRIC scratch600_secp_coset_repeated_add256_qb_delta_peak_q={secp_coset_repeated_add256_qb_delta_peak_q}");
+    println!("METRIC scratch600_secp_coset_repeated_add256_qq_delta_peak_q={secp_coset_repeated_add256_qq_delta_peak_q}");
+    println!("METRIC scratch600_kim_scale_loop_saved_ccx={kim_scale_loop_saved_ccx}");
+    println!("METRIC scratch600_kim_scale_loop_zero_overhead_projection={kim_scale_loop_zero_overhead_projection}");
+    println!("METRIC scratch600_kim_scale_loop_gap_to_5pct={kim_scale_loop_gap_to_5pct}");
+    println!("METRIC scratch600_kim_scale_loop_import_overhead_budget={kim_scale_loop_import_overhead_budget}");
+    println!("METRIC scratch600_kim_full_primitive_ccx={kim_full_primitive_ccx}");
+    println!("METRIC scratch600_kim_full_primitive_peak_qubits={kim_full_primitive_peak_qubits}");
+    println!(
+        "METRIC scratch600_kim_scale_import_sign_toy_n12_pos={kim_scale_import_sign_toy_n12_pos}"
+    );
+    println!(
+        "METRIC scratch600_kim_scale_import_sign_toy_n12_neg={kim_scale_import_sign_toy_n12_neg}"
+    );
+    println!(
+        "METRIC scratch600_kim_scale_import_sign_secp_samples={kim_scale_import_sign_secp_samples}"
+    );
+    println!("METRIC scratch600_kim_scale_import_sign_secp_pos={kim_scale_import_sign_secp_pos}");
+    println!("METRIC scratch600_kim_scale_import_sign_secp_neg={kim_scale_import_sign_secp_neg}");
     println!("METRIC scratch600_scaled_by_pattern_fixed_id_bits={scaled_by_pattern_fixed_id_bits}");
     println!("METRIC scratch600_scaled_by_pattern_fixed_id_distinct_rows={scaled_by_pattern_fixed_id_distinct_rows}");
     println!("METRIC scratch600_scaled_by_pattern_fixed_id_max_window_rows={scaled_by_pattern_fixed_id_max_window_rows}");
@@ -2373,7 +2894,9 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     println!("METRIC scratch600_scaled_by_pattern_fixed_id_row_floor_gap={scaled_by_pattern_fixed_id_row_floor_gap}");
     println!("METRIC scratch600_scaled_by_pattern_fixed_id_bit_floor_gap={scaled_by_pattern_fixed_id_bit_floor_gap}");
     println!("METRIC scratch600_scaled_by_raw_pattern_bits={scaled_by_raw_pattern_bits}");
-    println!("METRIC scratch600_scaled_by_raw_pattern_delta_bits={scaled_by_raw_pattern_delta_bits}");
+    println!(
+        "METRIC scratch600_scaled_by_raw_pattern_delta_bits={scaled_by_raw_pattern_delta_bits}"
+    );
     println!("METRIC scratch600_scaled_by_raw_pattern_single_a_scratch={scaled_by_raw_pattern_single_a_scratch}");
     println!("METRIC scratch600_scaled_by_raw_pattern_one_checkpoint_scratch={scaled_by_raw_pattern_one_checkpoint_scratch}");
     println!("METRIC scratch600_scaled_by_raw_pattern_window_a_scratch={scaled_by_raw_pattern_window_a_scratch}");
@@ -2423,8 +2946,12 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     println!("METRIC scratch600_by_tiny_consumed_high_update_compute_ccx={by_tiny_consumed_high_update_compute_ccx}");
     println!("METRIC scratch600_by_tiny_consumed_high_update_compute_uncompute_ccx={by_tiny_consumed_high_update_compute_uncompute_ccx}");
     println!("METRIC scratch600_by_tiny_consumed_high_optimistic_pointadd={by_tiny_consumed_high_optimistic_pointadd}");
-    println!("METRIC scratch600_by_tiny_consumed_high_gap_to_2700k={by_tiny_consumed_high_gap_to_2700k}");
-    println!("METRIC scratch600_by_tiny_consumed_high_max_peak_q={by_tiny_consumed_high_max_peak_q}");
+    println!(
+        "METRIC scratch600_by_tiny_consumed_high_gap_to_2700k={by_tiny_consumed_high_gap_to_2700k}"
+    );
+    println!(
+        "METRIC scratch600_by_tiny_consumed_high_max_peak_q={by_tiny_consumed_high_max_peak_q}"
+    );
     println!("METRIC scratch600_by_centered_exactparity_clean_replay_ccx={by_centered_exactparity_clean_replay_ccx}");
     println!("METRIC scratch600_by_centered_exactparity_clean_peak_q={by_centered_exactparity_clean_peak_q}");
     println!("METRIC scratch600_by_centered_exactparity_clean_scratch_bits={by_centered_exactparity_clean_scratch_bits}");
@@ -2437,7 +2964,9 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     println!("METRIC scratch600_direct_signnorm_raw_digit_scratch_p99={direct_signnorm_raw_digit_scratch_p99}");
     println!("METRIC scratch600_direct_signnorm_det_coeffsign_scratch_p99={direct_signnorm_det_coeffsign_scratch_p99}");
     println!("METRIC scratch600_direct_signnorm_det_coeffsign_scratch_gap_google={direct_signnorm_det_coeffsign_scratch_gap_google}");
-    println!("METRIC scratch600_direct_signnorm_rank_scratch_p99={direct_signnorm_rank_scratch_p99}");
+    println!(
+        "METRIC scratch600_direct_signnorm_rank_scratch_p99={direct_signnorm_rank_scratch_p99}"
+    );
     println!("METRIC scratch600_direct_signnorm_rank_over_google_bits={direct_signnorm_rank_over_google}");
     println!("METRIC scratch600_direct_signnorm_ambiguous_rank_scratch_p99={direct_signnorm_ambiguous_rank_scratch_p99}");
     println!("METRIC scratch600_direct_signnorm_ambiguous_rank_over_google_bits={direct_signnorm_ambiguous_rank_over_google}");
@@ -2461,8 +2990,12 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     println!("METRIC scratch600_direct_signnorm_logsign_once_rawsign_recovered_mean={direct_signnorm_logsign_once_rawsign_recovered_mean:.3}");
     println!("METRIC scratch600_direct_signnorm_logsign_once_rawsign_recovered_first64={direct_signnorm_logsign_once_rawsign_recovered_first64:.3}");
     println!("METRIC scratch600_direct_signnorm_logsign_once_rawsign_recovered_p99={direct_signnorm_logsign_once_rawsign_recovered_p99}");
-    println!("METRIC scratch600_direct_signnorm_logsign_once_p99={direct_signnorm_logsign_once_p99}");
-    println!("METRIC scratch600_direct_signnorm_logsign_split_p99={direct_signnorm_logsign_split_p99}");
+    println!(
+        "METRIC scratch600_direct_signnorm_logsign_once_p99={direct_signnorm_logsign_once_p99}"
+    );
+    println!(
+        "METRIC scratch600_direct_signnorm_logsign_split_p99={direct_signnorm_logsign_split_p99}"
+    );
     println!("METRIC scratch600_direct_signnorm_logsign_direct_rem_toy_ccx={direct_signnorm_logsign_direct_rem_toy_ccx}");
     println!("METRIC scratch600_direct_signnorm_logsign_direct_rem_toy_peak_q={direct_signnorm_logsign_direct_rem_toy_peak_q}");
     println!("METRIC scratch600_direct_signnorm_logsign_direct_rem_toy_phase_dirty_cases={direct_signnorm_logsign_direct_rem_toy_phase_dirty_cases}");
@@ -2533,9 +3066,13 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     println!("METRIC scratch600_direct_signnorm_prefinal_signed_remainder_width_extra_max={direct_signnorm_prefinal_signed_remainder_width_extra_max}");
     println!("METRIC scratch600_direct_signnorm_mbu_degree_n14={direct_signnorm_mbu_degree_n14}");
     println!("METRIC scratch600_direct_signnorm_mbu_density_n14={direct_signnorm_mbu_density_n14}");
-    println!("METRIC scratch600_direct_signnorm_mbu_max_count_n14={direct_signnorm_mbu_max_count_n14}");
+    println!(
+        "METRIC scratch600_direct_signnorm_mbu_max_count_n14={direct_signnorm_mbu_max_count_n14}"
+    );
     println!("METRIC scratch600_direct_signnorm_reverse_collisions_n14={direct_signnorm_reverse_collisions_n14}");
-    println!("METRIC scratch600_direct_signnorm_reverse_states_n14={direct_signnorm_reverse_states_n14}");
+    println!(
+        "METRIC scratch600_direct_signnorm_reverse_states_n14={direct_signnorm_reverse_states_n14}"
+    );
     println!("METRIC scratch600_direct_signnorm_reverse_total_steps_n14={direct_signnorm_reverse_total_steps_n14}");
     println!("METRIC scratch600_direct_signnorm_coeff_reverse_collisions_n14={direct_signnorm_coeff_reverse_collisions_n14}");
     println!("METRIC scratch600_direct_signnorm_coeff_reverse_states_n14={direct_signnorm_coeff_reverse_states_n14}");
@@ -2597,7 +3134,9 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     println!("METRIC scratch600_direct_restoring_final_raw_digit_over_strict_bits={direct_restoring_final_raw_digit_over_strict}");
     println!("METRIC scratch600_direct_restoring_final_raw_digit_gap_google_bits={direct_restoring_final_raw_digit_gap_google}");
     println!("METRIC scratch600_direct_restoring_final_no_unit_digits_p99={direct_restoring_final_no_unit_digits_p99}");
-    println!("METRIC scratch600_direct_restoring_final_count_p99={direct_restoring_final_count_p99}");
+    println!(
+        "METRIC scratch600_direct_restoring_final_count_p99={direct_restoring_final_count_p99}"
+    );
     println!("METRIC scratch600_direct_restoring_final_select1x_p99={direct_restoring_final_select1x_p99}");
     println!("METRIC scratch600_direct_restoring_final_select2x_p99={direct_restoring_final_select2x_p99}");
     println!("METRIC scratch600_direct_restoring_final_select3x_p99={direct_restoring_final_select3x_p99}");
@@ -2605,7 +3144,9 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     println!("METRIC scratch600_direct_restoring_final_select2x_gap_to_2700k={direct_restoring_final_select2x_gap}");
     println!("METRIC scratch600_direct_restoring_final_select3x_gap_to_2700k={direct_restoring_final_select3x_gap}");
     println!("METRIC scratch600_direct_restoring_final_toy_ccx={direct_restoring_final_toy_ccx}");
-    println!("METRIC scratch600_direct_restoring_final_toy_peak_q={direct_restoring_final_toy_peak_q}");
+    println!(
+        "METRIC scratch600_direct_restoring_final_toy_peak_q={direct_restoring_final_toy_peak_q}"
+    );
     println!("METRIC scratch600_direct_restoring_final_toy_neg2_cases={direct_restoring_final_toy_neg2_cases}");
     println!("METRIC scratch600_direct_restoring_final_toy_zero_final_cases={direct_restoring_final_toy_zero_final_cases}");
     println!("METRIC scratch600_direct_restoring_final_bennett_fast_inverse_toy_ccx={direct_restoring_final_bennett_fast_inverse_toy_ccx}");
@@ -2672,6 +3213,8 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     println!("METRIC scratch600_direct_restoring_final_low_branch_radius_full_high_r3_states_n16={direct_restoring_final_low_branch_radius_full_high_r3_states_n16}");
     println!("METRIC scratch600_direct_restoring_final_low_branch_branch_sidecar_sample_entropy_p99={direct_restoring_final_low_branch_branch_sidecar_sample_entropy_p99}");
     println!("METRIC scratch600_direct_restoring_final_low_branch_branch_sidecar_sample_raw_p99={direct_restoring_final_low_branch_branch_sidecar_sample_raw_p99}");
+    println!("METRIC scratch600_direct_restoring_final_low_branch_branch_sidecar_holdout_raw_escape_p99={direct_restoring_final_low_branch_branch_sidecar_holdout_raw_escape_p99}");
+    println!("METRIC scratch600_direct_restoring_final_low_branch_branch_sidecar_holdout_missing_contexts={direct_restoring_final_low_branch_branch_sidecar_holdout_missing_contexts}");
     println!("METRIC scratch600_direct_restoring_final_low_branch_branch_sidecar_toy_n16_entropy_p99={direct_restoring_final_low_branch_branch_sidecar_toy_n16_entropy_p99}");
     println!("METRIC scratch600_direct_restoring_final_low_branch_branch_sidecar_toy_n16_prefix_p99={direct_restoring_final_low_branch_branch_sidecar_toy_n16_prefix_p99}");
     println!("METRIC scratch600_direct_restoring_final_low_branch_branch_sidecar_toy_mixed_contexts={direct_restoring_final_low_branch_branch_sidecar_toy_mixed_contexts}");
@@ -3041,6 +3584,9 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     println!("METRIC scratch600_direct_restoring_final_low_branch_prefix_support_weighted_maxconstrained_holdout_raw_escape_missing_symbols={direct_restoring_final_low_branch_prefix_support_weighted_maxconstrained_holdout_raw_escape_missing_symbols}");
     println!("METRIC scratch600_direct_restoring_final_low_branch_prefix_support_weighted_maxconstrained_holdout_raw_escape_missing_traces={direct_restoring_final_low_branch_prefix_support_weighted_maxconstrained_holdout_raw_escape_missing_traces}");
     println!("METRIC scratch600_direct_restoring_final_low_branch_prefix_support_weighted_maxconstrained_holdout_raw_escape_over_budget_rows={direct_restoring_final_low_branch_prefix_support_weighted_maxconstrained_holdout_raw_escape_over_budget_rows}");
+    println!("METRIC scratch600_direct_restoring_final_low_branch_prefix_support_weighted_maxconstrained_holdout_over_scratch_bits={direct_restoring_final_low_branch_prefix_support_weighted_maxconstrained_holdout_over_scratch_bits}");
+    println!("METRIC scratch600_direct_restoring_final_low_branch_prefix_support_weighted_maxconstrained_holdout_live_scratch_max={direct_restoring_final_low_branch_prefix_support_weighted_maxconstrained_holdout_live_scratch_max}");
+    println!("METRIC scratch600_direct_restoring_final_low_branch_prefix_support_weighted_maxconstrained_holdout_margin_after_one_extra_bit={direct_restoring_final_low_branch_prefix_support_weighted_maxconstrained_holdout_margin_after_one_extra_bit:.3}");
     println!("METRIC scratch600_direct_restoring_final_peakfit_toy_cases_with_sample_gap={direct_restoring_final_peakfit_toy_cases_with_sample_gap}");
     println!("METRIC scratch600_direct_restoring_final_peakfit_toy_largest_missing_symbols={direct_restoring_final_peakfit_toy_largest_missing_symbols}");
     println!("METRIC scratch600_direct_restoring_final_peakfit_toy_largest_sample_over_budget_traces={direct_restoring_final_peakfit_toy_largest_sample_over_budget_traces}");
@@ -3396,7 +3942,9 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     println!("METRIC scratch600_plusminus_unary_controlled_pointadd_p99={plusminus_unary_controlled_pointadd_p99}");
     println!("METRIC scratch600_plusminus_unary_controlled_gap_p99_to_2700k={plusminus_unary_controlled_gap_p99}");
     println!("METRIC scratch600_plusminus_parser_over_strict_bits={plusminus_parser_over_strict}");
-    println!("METRIC scratch600_plusminus_scaled_slack_scratch_max={plusminus_scaled_slack_scratch_max}");
+    println!(
+        "METRIC scratch600_plusminus_scaled_slack_scratch_max={plusminus_scaled_slack_scratch_max}"
+    );
     println!("METRIC scratch600_plusminus_scaled_solinas_projected_max={plusminus_scaled_solinas_projected_max}");
     println!("METRIC scratch600_plusminus_scaled_solinas_gap_max_to_2700k={plusminus_scaled_solinas_gap_max}");
     println!("METRIC scratch600_plusminus_solinas_scale_chunk_no_threshold_ccx={plusminus_solinas_scale_chunk_no_threshold_ccx}");
@@ -3408,6 +3956,12 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     println!("METRIC scratch600_plusminus_solinas_scale_chunk_naive_over_google_bits={plusminus_solinas_scale_chunk_naive_over_google}");
     println!("METRIC scratch600_plusminus_solinas_scale_chunk_one_lane_reuse_scratch={plusminus_solinas_scale_chunk_one_lane_reuse_scratch}");
     println!("METRIC scratch600_plusminus_solinas_scale_chunk_one_lane_reuse_over_google_bits={plusminus_solinas_scale_chunk_one_lane_reuse_over_google}");
+    println!("METRIC scratch600_plusminus_solinas_best_chunk_cost_k={plusminus_solinas_best_chunk_cost_k}");
+    println!("METRIC scratch600_plusminus_solinas_best_chunk_cost_per_bit_milli={plusminus_solinas_best_chunk_cost_per_bit_milli}");
+    println!("METRIC scratch600_plusminus_solinas_min_reuse_scratch_chunk_k={plusminus_solinas_min_reuse_scratch_chunk_k}");
+    println!("METRIC scratch600_plusminus_solinas_min_one_lane_reuse_scratch={plusminus_solinas_min_one_lane_reuse_scratch}");
+    println!("METRIC scratch600_plusminus_solinas_k7_chunk_ccx={plusminus_solinas_k7_chunk_ccx}");
+    println!("METRIC scratch600_plusminus_solinas_k7_one_lane_reuse_scratch={plusminus_solinas_k7_one_lane_reuse_scratch}");
     println!("METRIC scratch600_plusminus_affine_absorb_samples={plusminus_affine_absorb_samples}");
     println!("METRIC scratch600_plusminus_affine_absorb_first_scale_min={plusminus_affine_absorb_first_scale_min}");
     println!("METRIC scratch600_plusminus_affine_absorb_first_scale_p99={plusminus_affine_absorb_first_scale_p99}");
@@ -3426,20 +3980,34 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     println!("METRIC scratch600_halfgcd_tail_over_google_bits={halfgcd_tail_over_google}");
     println!("METRIC scratch600_halfgcd_det_compressed_tail_bits={halfgcd_det_compressed_tail}");
     println!("METRIC scratch600_halfgcd_det_compressed_tail_gap_google={halfgcd_det_compressed_tail_gap}");
-    println!("METRIC scratch600_halfgcd_det_recovery_num_bits_p99={halfgcd_det_recovery_num_bits_p99}");
-    println!("METRIC scratch600_halfgcd_det_recovery_den_bits_p99={halfgcd_det_recovery_den_bits_p99}");
-    println!("METRIC scratch600_halfgcd_tail_raw_rank_max_mult_n14={halfgcd_tail_raw_rank_max_mult_n14}");
-    println!("METRIC scratch600_halfgcd_tail_raw_rank_degree_n14={halfgcd_tail_raw_rank_degree_n14}");
-    println!("METRIC scratch600_halfgcd_tail_raw_rank_density_n14={halfgcd_tail_raw_rank_density_n14}");
+    println!(
+        "METRIC scratch600_halfgcd_det_recovery_num_bits_p99={halfgcd_det_recovery_num_bits_p99}"
+    );
+    println!(
+        "METRIC scratch600_halfgcd_det_recovery_den_bits_p99={halfgcd_det_recovery_den_bits_p99}"
+    );
+    println!(
+        "METRIC scratch600_halfgcd_tail_raw_rank_max_mult_n14={halfgcd_tail_raw_rank_max_mult_n14}"
+    );
+    println!(
+        "METRIC scratch600_halfgcd_tail_raw_rank_degree_n14={halfgcd_tail_raw_rank_degree_n14}"
+    );
+    println!(
+        "METRIC scratch600_halfgcd_tail_raw_rank_density_n14={halfgcd_tail_raw_rank_density_n14}"
+    );
     println!("METRIC scratch600_halfgcd_tail_raw_compressed_rank_max_mult_n14={halfgcd_tail_raw_compressed_rank_max_mult_n14}");
     println!("METRIC scratch600_halfgcd_tail_raw_compressed_rank_degree_n14={halfgcd_tail_raw_compressed_rank_degree_n14}");
     println!("METRIC scratch600_halfgcd_tail_raw_compressed_rank_density_n14={halfgcd_tail_raw_compressed_rank_density_n14}");
     println!("METRIC scratch600_halfgcd_matrix_apply_p99_ccx={halfgcd_matrix_apply_p99_ccx}");
     println!("METRIC scratch600_halfgcd_tail_replay_p99_ccx={halfgcd_tail_replay_p99_ccx}");
-    println!("METRIC scratch600_halfgcd_det_recovery_floor_p99_ccx={halfgcd_det_recovery_floor_p99_ccx}");
+    println!(
+        "METRIC scratch600_halfgcd_det_recovery_floor_p99_ccx={halfgcd_det_recovery_floor_p99_ccx}"
+    );
     println!("METRIC scratch600_halfgcd_replay_with_recovery_floor_pointadd_p99={halfgcd_replay_with_recovery_floor_pointadd_p99}");
     println!("METRIC scratch600_halfgcd_replay_with_recovery_floor_gap_to_2700k={halfgcd_replay_with_recovery_floor_gap_to_2700k}");
-    println!("METRIC scratch600_halfgcd_full_prefix_live_p99_bits={halfgcd_full_prefix_live_p99_bits}");
+    println!(
+        "METRIC scratch600_halfgcd_full_prefix_live_p99_bits={halfgcd_full_prefix_live_p99_bits}"
+    );
     println!("METRIC scratch600_halfgcd_full_prefix_live_gap_google={halfgcd_full_prefix_live_gap_google}");
     println!("METRIC scratch600_halfgcd_compressed_residual_live_p99_bits={halfgcd_compressed_residual_live_p99_bits}");
     println!("METRIC scratch600_halfgcd_compressed_tail_stream_peak_p99_bits={halfgcd_compressed_tail_stream_peak_p99_bits}");
@@ -3618,6 +4186,10 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_slot_envelope_static_app_p99={halfgcd_second_col_fixed_depth64_slot_envelope_static_app_p99}");
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_slot_envelope_tail8_static_app_mean={halfgcd_second_col_fixed_depth64_slot_envelope_tail8_static_app_mean}");
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_slot_envelope_tail8_static_app_p99={halfgcd_second_col_fixed_depth64_slot_envelope_tail8_static_app_p99}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_slot_envelope_tail_budget_p99={halfgcd_second_col_fixed_depth64_slot_envelope_tail_budget_p99}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_slot_envelope_tail8_extra_p99={halfgcd_second_col_fixed_depth64_slot_envelope_tail8_extra_p99}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_slot_envelope_tail8_over_budget_p99={halfgcd_second_col_fixed_depth64_slot_envelope_tail8_over_budget_p99}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_slot_envelope_tail_equiv_bit_budget={halfgcd_second_col_fixed_depth64_slot_envelope_tail_equiv_bit_budget}");
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_slot_envelope_guard1_tail8_static_app_mean={halfgcd_second_col_fixed_depth64_slot_envelope_guard1_tail8_static_app_mean}");
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_slot_envelope_guard1_tail8_static_app_p99={halfgcd_second_col_fixed_depth64_slot_envelope_guard1_tail8_static_app_p99}");
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_slot_envelope_full_gap_to_2700k={halfgcd_second_col_fixed_depth64_slot_envelope_full_gap}");
@@ -3633,6 +4205,16 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_slot_envelope_toy_n16_min_cover_radius_exp={halfgcd_second_col_fixed_depth64_slot_envelope_toy_n16_min_cover_radius_exp}");
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_slot_envelope_toy_n16_min_cover_over_target_x={halfgcd_second_col_fixed_depth64_slot_envelope_toy_n16_min_cover_over_target_x}");
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_slot_envelope_toy_n16_tail_slots={halfgcd_second_col_fixed_depth64_slot_envelope_toy_n16_tail_slots}");
+    println!("METRIC scratch600_halfgcd_tail_only_slot_envelope_cases={halfgcd_tail_only_slot_envelope_cases}");
+    println!("METRIC scratch600_halfgcd_tail_only_slot_envelope_covered_cases={halfgcd_tail_only_slot_envelope_covered_cases}");
+    println!("METRIC scratch600_halfgcd_tail_only_slot_envelope_largest_tail_gap={halfgcd_tail_only_slot_envelope_largest_tail_gap}");
+    println!("METRIC scratch600_halfgcd_tail_only_slot_envelope_largest_tail_slots={halfgcd_tail_only_slot_envelope_largest_tail_slots}");
+    println!("METRIC scratch600_halfgcd_tail_only_slot_envelope_n16_target_rows={halfgcd_tail_only_slot_envelope_n16_target_rows}");
+    println!("METRIC scratch600_halfgcd_tail_only_slot_envelope_n16_tail_gap={halfgcd_tail_only_slot_envelope_n16_tail_gap}");
+    println!("METRIC scratch600_halfgcd_tail_only_slot_envelope_n16_tail_slots={halfgcd_tail_only_slot_envelope_n16_tail_slots}");
+    println!("METRIC scratch600_halfgcd_tail_only_slot_envelope_n16_min_cover_rows={halfgcd_tail_only_slot_envelope_n16_min_cover_rows}");
+    println!("METRIC scratch600_halfgcd_tail_only_slot_envelope_n16_min_cover_small_exp={halfgcd_tail_only_slot_envelope_n16_min_cover_small_exp}");
+    println!("METRIC scratch600_halfgcd_tail_only_slot_envelope_n16_min_cover_radius_exp={halfgcd_tail_only_slot_envelope_n16_min_cover_radius_exp}");
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_static_app_mean={halfgcd_second_col_fixed_depth64_static_app_mean}");
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_static_app_p99={halfgcd_second_col_fixed_depth64_static_app_p99}");
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_static_app_gap_to_2700k={halfgcd_second_col_fixed_depth64_static_app_gap}");
@@ -3808,12 +4390,68 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_table_margin={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_table_margin}");
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_table_one_roundtrip_slack={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_table_one_roundtrip_slack}");
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_table_two_app_gap={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_table_two_app_gap}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_one_ccx_decoder_floor={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_one_ccx_decoder_floor}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_one_ccx_decoder_mean={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_one_ccx_decoder_mean}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_one_ccx_decoder_gap_to_2700k={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_one_ccx_decoder_gap}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_two_ccx_decoder_mean={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_two_ccx_decoder_mean}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_two_ccx_decoder_gap_to_2700k={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_two_ccx_decoder_gap}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_decoder_slack_per_active_block_milli={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_decoder_slack_per_active_block_milli}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_active_floor_oneway={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_active_floor_oneway}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_active_floor_roundtrip={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_active_floor_roundtrip}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_with_active_floor_mean={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_with_active_floor_mean}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_with_active_floor_gap_to_2700k={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_with_active_floor_gap}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_with_active_and_one_ccx_mean={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_with_active_and_one_ccx_mean}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_with_active_and_one_ccx_gap_to_2700k={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_with_active_and_one_ccx_gap}");
+    println!("METRIC scratch600_halfgcd_endpoint_local_dp_transition_floor_sample_active_mean_milli={halfgcd_endpoint_local_dp_transition_floor_sample_active_mean_milli}");
+    println!("METRIC scratch600_halfgcd_endpoint_local_dp_transition_floor_sample_active_p99={halfgcd_endpoint_local_dp_transition_floor_sample_active_p99}");
+    println!("METRIC scratch600_halfgcd_endpoint_local_dp_transition_floor_sample_mean_milli={halfgcd_endpoint_local_dp_transition_floor_sample_mean_milli}");
+    println!("METRIC scratch600_halfgcd_endpoint_local_dp_transition_floor_sample_p99={halfgcd_endpoint_local_dp_transition_floor_sample_p99}");
+    println!("METRIC scratch600_halfgcd_endpoint_local_dp_transition_floor_sample_max_block={halfgcd_endpoint_local_dp_transition_floor_sample_max_block}");
+    println!("METRIC scratch600_halfgcd_endpoint_local_dp_transition_floor_one_roundtrip_gap_milli={halfgcd_endpoint_local_dp_transition_floor_one_roundtrip_gap_milli}");
+    println!("METRIC scratch600_halfgcd_endpoint_local_dp_transition_floor_two_app_gap_milli={halfgcd_endpoint_local_dp_transition_floor_two_app_gap_milli}");
+    println!("METRIC scratch600_halfgcd_endpoint_local_dp_transition_floor_two_app_transition_budget_micros={halfgcd_endpoint_local_dp_transition_floor_two_app_transition_budget_micros}");
+    println!("METRIC scratch600_halfgcd_endpoint_local_dp_compare_floor_cost_word_bits={halfgcd_endpoint_local_dp_compare_floor_cost_word_bits}");
+    println!("METRIC scratch600_halfgcd_endpoint_local_dp_compare_floor_mean_milli={halfgcd_endpoint_local_dp_compare_floor_mean_milli}");
+    println!("METRIC scratch600_halfgcd_endpoint_local_dp_compare_floor_two_app_gap_milli={halfgcd_endpoint_local_dp_compare_floor_two_app_gap_milli}");
+    println!("METRIC scratch600_halfgcd_endpoint_local_dp_compare_floor_transition_budget_micros={halfgcd_endpoint_local_dp_compare_floor_transition_budget_micros}");
+    println!("METRIC scratch600_halfgcd_endpoint_local_dp_transition_floor_two_ccx_two_app_mean={halfgcd_endpoint_local_dp_transition_floor_two_ccx_two_app_mean}");
+    println!("METRIC scratch600_halfgcd_endpoint_local_dp_transition_floor_two_ccx_gap_to_2700k={halfgcd_endpoint_local_dp_transition_floor_two_ccx_gap}");
+    println!("METRIC scratch600_halfgcd_endpoint_local_dp_transition_floor_three_ccx_two_app_mean={halfgcd_endpoint_local_dp_transition_floor_three_ccx_two_app_mean}");
+    println!("METRIC scratch600_halfgcd_endpoint_local_dp_transition_floor_three_ccx_gap_to_2700k={halfgcd_endpoint_local_dp_transition_floor_three_ccx_gap}");
+    println!("METRIC scratch600_halfgcd_endpoint_minplus_sig_sample_blocks={halfgcd_endpoint_minplus_sig_sample_blocks}");
+    println!("METRIC scratch600_halfgcd_endpoint_minplus_sig_sample_mismatches={halfgcd_endpoint_minplus_sig_sample_mismatches}");
+    println!("METRIC scratch600_halfgcd_endpoint_minplus_sig_sample_signatures={halfgcd_endpoint_minplus_sig_sample_signatures}");
+    println!("METRIC scratch600_halfgcd_endpoint_minplus_sig_sample_transition_mean_milli={halfgcd_endpoint_minplus_sig_sample_transition_mean_milli}");
+    println!("METRIC scratch600_halfgcd_endpoint_minplus_sig_sample_update_keys={halfgcd_endpoint_minplus_sig_sample_update_keys}");
+    println!("METRIC scratch600_halfgcd_endpoint_minplus_sig_sample_update_collision_keys={halfgcd_endpoint_minplus_sig_sample_update_collision_keys}");
+    println!("METRIC scratch600_halfgcd_endpoint_minplus_sig_sample_choice_keys={halfgcd_endpoint_minplus_sig_sample_choice_keys}");
+    println!("METRIC scratch600_halfgcd_endpoint_minplus_sig_sample_choice_collision_keys={halfgcd_endpoint_minplus_sig_sample_choice_collision_keys}");
+    println!("METRIC scratch600_halfgcd_endpoint_minplus_sig_toy_blocks_total={halfgcd_endpoint_minplus_sig_toy_blocks_total}");
+    println!("METRIC scratch600_halfgcd_endpoint_minplus_sig_toy_mismatches_total={halfgcd_endpoint_minplus_sig_toy_mismatches_total}");
+    println!("METRIC scratch600_halfgcd_endpoint_minplus_sig_toy_signatures_total={halfgcd_endpoint_minplus_sig_toy_signatures_total}");
+    println!("METRIC scratch600_halfgcd_endpoint_minplus_sig_toy_update_keys={halfgcd_endpoint_minplus_sig_toy_update_keys}");
+    println!("METRIC scratch600_halfgcd_endpoint_minplus_sig_toy_update_collision_keys={halfgcd_endpoint_minplus_sig_toy_update_collision_keys}");
+    println!("METRIC scratch600_halfgcd_endpoint_minplus_sig_toy_choice_keys={halfgcd_endpoint_minplus_sig_toy_choice_keys}");
+    println!("METRIC scratch600_halfgcd_endpoint_minplus_sig_toy_choice_collision_keys={halfgcd_endpoint_minplus_sig_toy_choice_collision_keys}");
+    println!("METRIC scratch600_halfgcd_endpoint_minplus_sig_toy_n17_blocks={halfgcd_endpoint_minplus_sig_toy_n17_blocks}");
+    println!("METRIC scratch600_halfgcd_endpoint_minplus_sig_toy_n17_signatures={halfgcd_endpoint_minplus_sig_toy_n17_signatures}");
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_choices={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_choices}");
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_k8_collision_keys={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_k8_collision_keys}");
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_k12_keys={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_k12_keys}");
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_k12_collision_keys={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_k12_collision_keys}");
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_k12_one_roundtrip_floor={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_k12_one_roundtrip_floor}");
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_k12_one_roundtrip_gap={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_k12_one_roundtrip_gap}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_k8_collision_keys={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_k8_collision_keys}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_k10_collision_keys={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_k10_collision_keys}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_k11_collision_keys={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_k11_collision_keys}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_k11_block_keys={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_k11_block_keys}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_k11_block_collision_keys={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_k11_block_collision_keys}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_k12_collision_keys={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_k12_collision_keys}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_toy_k4_collision_keys={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_toy_k4_collision_keys}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_toy_k4_block_collision_keys={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_toy_k4_block_collision_keys}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_toy_k4_block_fullstate_collision_keys={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_toy_k4_block_fullstate_collision_keys}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_toy_k5_collision_keys={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_toy_k5_collision_keys}");
+    println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_toy_k5_keys={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_toy_k5_keys}");
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_k12_lane0_keys={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_k12_lane0_keys}");
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_k12_lane0_collision_keys={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_k12_lane0_collision_keys}");
     println!("METRIC scratch600_halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_k12_lane1_keys={halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_k12_lane1_keys}");
@@ -3881,12 +4519,144 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     println!("METRIC scratch600_halfgcd_second_col_static_window_full_bits_n14={halfgcd_second_col_static_window_full_bits_n14}");
     println!("METRIC scratch600_halfgcd_second_col_static_window_bit_support_ppm_n14={halfgcd_second_col_static_window_bit_support_ppm_n14}");
 
-    assert!(best_state <= STRICT_SCRATCH, "at least some state shapes fit");
-    assert!(streamed_gap_to_google > 0, "no fully charged <=600-scratch row should be counted as solved yet");
-    assert!(streamed_selector_shortfall > 0, "streamed-mask route still needs a selector breakthrough");
+    assert!(
+        best_state <= STRICT_SCRATCH,
+        "at least some state shapes fit"
+    );
+    assert!(
+        streamed_gap_to_google > 0,
+        "no fully charged <=600-scratch row should be counted as solved yet"
+    );
+    assert!(
+        streamed_selector_shortfall > 0,
+        "streamed-mask route still needs a selector breakthrough"
+    );
+    assert!(
+        streamed_fused_modavg_current_gap == 65_676
+            && streamed_fused_modavg_microsteps == 1_120
+            && streamed_fused_modavg_required_total_saving == 65_677
+            && streamed_fused_modavg_required_per_step == 59
+            && streamed_fused_modavg_saving58_gap > 0
+            && streamed_fused_modavg_saving59_gap < 0,
+        "fused modular-average BY replay break-even changed; revisit modavg primitive target"
+    );
+    assert!(
+        streamed_fused_modavg_flag_recovery_double_floor_per_step == 255
+            && streamed_fused_modavg_flag_recovery_double_floor_total == 285_600
+            && streamed_fused_modavg_flag_recovery_double_floor_projection == 3_051_276
+            && streamed_fused_modavg_flag_recovery_double_floor_gap > 0
+            && streamed_fused_modavg_flag_recovery_floor_over_budget_per_step == 196,
+        "canonical fused-modavg flag recovery became cheap enough; revisit BY replay primitive"
+    );
     assert!(
         tiny_lowword_w1_selector_slack > 0 && tiny_lowword_best_fixed_update_excess > 250_000,
         "tiny lowword selector/update tradeoff changed; revisit streamed BY route"
+    );
+    assert!(
+        compact_denpair_gap_to_5pct < 0
+            && compact_denpair_holdout_sidecar_bits > compact_denpair_sampled_sidecar_bits
+            && compact_denpair_holdout_schedule_misses > 0
+            && compact_denpair_holdout_extra_width_bits > 0
+            && compact_denpair_exact_tail_extra_bits > 0
+            && compact_denpair_toy_scaled_sidecar_floor_bits > compact_denpair_sampled_sidecar_bits,
+        "compact denominator-pair row now has exact-tail support; revisit for possible >5% promotion"
+    );
+    assert!(
+        strategy_e_partial_prefix_without_second_selector_gap_to_5pct < 0
+            && strategy_e_partial_prefix_with_second_selector_gap_to_5pct > 0
+            && strategy_e_partial_prefix_second_selector == 278_208
+            && strategy_e_partial_prefix_schoolbook_product_gap_to_2700k > 0
+            && strategy_e_partial_prefix_schoolbook_product_gap_to_3m < 0,
+        "Strategy E partial-prefix/product-clean threshold changed; revisit for possible >5% promotion"
+    );
+    assert!(
+        secp_beta_branch_odd_mi_millibits < 10.0
+            && secp_beta_branch_case_mi_millibits < 10.0
+            && secp_endomorphism_slope_phase_degree_n10 >= 18
+            && secp_endomorphism_slope_phase_density_n10 * 4 > secp_endomorphism_slope_phase_table_n10
+            && secp_endomorphism_slope_support_min_degree_n12 >= 4
+            && secp_endomorphism_y_support_inv_min_degree_n14 >= 6
+            && secp_endomorphism_xonly_numerator_square_ccx > 100_000
+            && secp_endomorphism_xonly_numerator_oneway_lower_ccx > 500_000
+            && secp_endomorphism_xonly_numerator_roundtrip_lower_ccx > 1_000_000
+            && secp_constmul_beta_ccx > 350_000
+            && secp_constmul_beta_saving_vs_best_generator_ccx < 10_000,
+        "secp beta branch controls or x-only numerator cost changed; revisit endomorphism denominator reuse"
+    );
+    assert!(
+        secp_j0_y_sum_denominator_deleted_pair1_mul_ccx < target_five_percent_gap
+            && secp_j0_y_sum_denominator_min_penalty_ccx > 900_000,
+        "secp j=0 y-sum denominator route became cheap enough to revisit slope-denominator swap"
+    );
+    assert!(
+        strategy_c_cleanup_second_inverse_floor == 1_600_000
+            && strategy_c_chord_product_extra_mul_floor > 100_000
+            && strategy_c_chord_product_alt_total_floor > strategy_c_cleanup_second_inverse_floor,
+        "Strategy C chord-product cleanup stopped moving the second inverse; revisit one-inversion secp point-add"
+    );
+    assert!(
+        strategy_d_dx3_fresh_outputs_ok == strategy_d_dx3_samples
+            && strategy_d_dx3_swapped_old_lanes_nonzero == strategy_d_dx3_samples
+            && strategy_d_dx3_reverse_den_differs_from_dx == strategy_d_dx3_samples
+            && strategy_d_dx3_optimistic_inside_body_peak_qubits < 2_800
+            && strategy_d_dx3_naive_inside_body_peak_qubits > 2_800
+            && strategy_d_dx3_second_inverse_floor == strategy_c_cleanup_second_inverse_floor,
+        "Strategy D dx3 one-Kaliski cleanup changed; revisit fresh-output schedule"
+    );
+    assert!(
+        secp_lambda_square_sqrt_phase_max_degree >= 11
+            && secp_lambda_square_sqrt_phase_max_density * 3
+                > secp_lambda_square_sqrt_phase_max_table,
+        "lambda-square sqrt cleanup became sparse enough to revisit secp a=0 one-inversion cleanup"
+    );
+    assert!(
+        secp_xonly_sqrt_square_floor_ccx == 148_342
+            && secp_xonly_sqrt_chain_layer_lower_bound >= 254
+            && secp_xonly_sqrt_chain_floor_ccx > 30_000_000,
+        "secp x-only sqrt recovery became cheap enough to revisit second-denominator deletion"
+    );
+    assert!(
+        secp_order_mod2 == 1 && secp_order_mod3 == 1,
+        "secp256k1 gained the rational torsion needed for an efficient model transform"
+    );
+    assert!(
+        secp_mod_primitive_add_ccx == 1_024
+            && secp_mod_primitive_sub_ccx == 1_277
+            && secp_mod_primitive_double_ccx == 255
+            && secp_mod_primitive_halve_ccx == 255
+            && secp_phase_pair1_halve_ccx + secp_phase_pair2_double_ccx < 206_000
+            && secp_phase_toplevel_mul_family_ccx < 240_000,
+        "secp pseudo-Mersenne primitive budget changed; revisit modular primitive rewrite for >5% promotion"
+    );
+    assert!(
+        secp_phase_pair1_mul2_ccx < target_five_percent_gap
+            && secp_b2_rx_ok == secp_b2_samples
+            && secp_b2_ry_ok == secp_b2_samples
+            && secp_b2_lam_cleanup_candidates == 10
+            && secp_b2_lam_cleanup_full_matches == 0,
+        "secp B2 ty-zeroing cleanup changed; revisit pair1_mul2 deletion"
+    );
+    assert!(
+        secp_coset_repeated_add256_saving_ccx == 115_456
+            && secp_coset_repeated_add256_saving_ccx < 204_040
+            && secp_coset_repeated_add256_qb_delta_peak_q > 500
+            && secp_coset_repeated_add256_qq_delta_peak_q > 750,
+        "secp coset repeated-add canonicalization now has enough saving/width margin for point-add promotion"
+    );
+    assert!(
+        kim_scale_loop_saved_ccx == 206_805
+            && kim_scale_loop_gap_to_5pct < 0
+            && kim_scale_loop_import_overhead_budget < 3_000
+            && kim_full_primitive_peak_qubits > 2_800,
+        "Kim scale-loop import threshold changed; revisit for possible >5% harness replacement"
+    );
+    assert!(
+        kim_scale_import_sign_toy_n12_pos == 0
+            && kim_scale_import_sign_toy_n12_neg == 4_092
+            && kim_scale_import_sign_secp_samples == 128
+            && kim_scale_import_sign_secp_pos == 0
+            && kim_scale_import_sign_secp_neg == kim_scale_import_sign_secp_samples,
+        "Kim wide-r sign stopped being a fixed negative; revisit scale import blocker"
     );
     assert!(
         scaled_by_pattern_fixed_id_bits < 560
@@ -3930,7 +4700,8 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
         "h-only BY next-ratio payload became cheap; revisit compressed history update"
     );
     assert!(
-        by_consumed_high_gap_to_2700k > 1_000_000 && by_consumed_high_max_peak_q > GOOGLE_LOW_QUBIT_SCRATCH,
+        by_consumed_high_gap_to_2700k > 1_000_000
+            && by_consumed_high_max_peak_q > GOOGLE_LOW_QUBIT_SCRATCH,
         "consumed high-state BY selector should stay demoted until a fused low-peak update exists"
     );
     assert!(
@@ -3947,7 +4718,10 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
             && by_centered_exactparity_two_clean_div_gap > 3_000_000,
         "centered exact-parity clean BY replay changed; revisit whether exact parity cleanup can be promoted"
     );
-    assert!(centered_parser_over_strict > 0 && plusminus_parser_over_strict > 0, "raw streams must not be counted before parser cost");
+    assert!(
+        centered_parser_over_strict > 0 && plusminus_parser_over_strict > 0,
+        "raw streams must not be counted before parser cost"
+    );
     assert!(
         plusminus_unary_controlled_scratch_max <= GOOGLE_LOW_QUBIT_SCRATCH
             && plusminus_unary_controlled_primitive_ccx == 1_280
@@ -3963,7 +4737,11 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
             && plusminus_solinas_scale_chunk_no_threshold_ccx == 3_390
             && plusminus_solinas_scale_chunk_no_threshold_peak > GOOGLE_LOW_QUBIT_SCRATCH
             && plusminus_solinas_scale_chunk_one_lane_reuse_over_google > 0
-            && plusminus_solinas_scale_chunk_naive_over_google > 400,
+            && plusminus_solinas_scale_chunk_naive_over_google > 400
+            && plusminus_solinas_best_chunk_cost_k == 7
+            && plusminus_solinas_min_reuse_scratch_chunk_k == 1
+            && plusminus_solinas_min_one_lane_reuse_scratch > GOOGLE_LOW_QUBIT_SCRATCH
+            && plusminus_solinas_k7_one_lane_reuse_scratch > GOOGLE_LOW_QUBIT_SCRATCH,
         "plus-minus Solinas scale chunk now fits packed scratch; revisit scale-history route"
     );
     assert!(
@@ -4178,7 +4956,8 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     assert!(
         direct_restoring_final_bennett_fast_inverse_toy_ccx > 2 * direct_restoring_final_toy_ccx
             && direct_restoring_final_bennett_fast_inverse_toy_ccx < 700
-            && direct_restoring_final_bennett_fast_inverse_toy_peak_q > direct_restoring_final_toy_peak_q,
+            && direct_restoring_final_bennett_fast_inverse_toy_peak_q
+                > direct_restoring_final_toy_peak_q,
         "restoring-final fast-inverse cleanup changed; revisit production packing budget"
     );
     assert!(
@@ -4237,8 +5016,7 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     );
     assert!(
         direct_restoring_final_reverse_coeff_high_branch_degree_n14 + 1 >= 14
-            && direct_restoring_final_reverse_coeff_high_branch_density_n14
-                > (1usize << 14) / 4
+            && direct_restoring_final_reverse_coeff_high_branch_density_n14 > (1usize << 14) / 4
             && direct_restoring_final_reverse_coeff_high_branch_max_count_n14 > 0
             && direct_restoring_final_reverse_coeff_high_branch_total_n14
                 == direct_restoring_final_reverse_coeff_candidates_high_n14,
@@ -4306,6 +5084,9 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     assert!(
         direct_restoring_final_low_branch_branch_sidecar_sample_entropy_p99 > 100
             && direct_restoring_final_low_branch_branch_sidecar_sample_raw_p99 > 100
+            && direct_restoring_final_low_branch_branch_sidecar_holdout_raw_escape_p99
+                > direct_restoring_final_low_branch_branch_sidecar_sample_entropy_p99
+            && direct_restoring_final_low_branch_branch_sidecar_holdout_missing_contexts > 0
             && direct_restoring_final_low_branch_branch_sidecar_toy_n16_entropy_p99 > 0
             && direct_restoring_final_low_branch_branch_sidecar_toy_n16_prefix_p99 > 0
             && direct_restoring_final_low_branch_branch_sidecar_toy_mixed_contexts > 0
@@ -4343,8 +5124,7 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
                 < GOOGLE_LOW_QUBIT_TOFFOLI
             && direct_restoring_final_stored_align_fixed_scratch_p99 > GOOGLE_LOW_QUBIT_SCRATCH
             && direct_restoring_final_stored_align_variable_scratch_p99 <= STRICT_SCRATCH + 2
-            && direct_restoring_final_stored_align_delimited_scratch_p99
-                > GOOGLE_LOW_QUBIT_SCRATCH
+            && direct_restoring_final_stored_align_delimited_scratch_p99 > GOOGLE_LOW_QUBIT_SCRATCH
             && direct_restoring_final_stored_align_gamma_scratch_p99 > GOOGLE_LOW_QUBIT_SCRATCH
             && direct_restoring_final_stored_align_length_rank_scratch_p99
                 > GOOGLE_LOW_QUBIT_SCRATCH
@@ -4398,7 +5178,8 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
             && direct_restoring_final_low_branch_align_only_scan_over_binary_multiplier
                 > direct_restoring_final_low_branch_align_only_best_lookup_multiplier_budget
             && direct_restoring_final_low_branch_align_only_huffman_over_binary_multiplier < 1.0
-            && direct_restoring_final_low_branch_align_only_prefix_tree_over_binary_multiplier < 0.3
+            && direct_restoring_final_low_branch_align_only_prefix_tree_over_binary_multiplier
+                < 0.3
             && direct_restoring_final_low_branch_align_only_support_noncontig_steps > 50,
         "low-branch alignment-only parser budget changed; revisit prefix/lookup decoder target"
     );
@@ -4406,12 +5187,9 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
         direct_restoring_final_low_branch_delta_holdout_samples == 8_192
             && direct_restoring_final_low_branch_delta_prev_alignment_bits == 8
             && direct_restoring_final_low_branch_delta_raw_escape_bits == 10
-            && direct_restoring_final_low_branch_delta_abs_variable_p99
-                <= GOOGLE_LOW_QUBIT_SCRATCH
-            && direct_restoring_final_low_branch_delta_variable_p99
-                <= GOOGLE_LOW_QUBIT_SCRATCH
-            && direct_restoring_final_low_branch_delta_state_prefix_p99
-                > GOOGLE_LOW_QUBIT_SCRATCH
+            && direct_restoring_final_low_branch_delta_abs_variable_p99 <= GOOGLE_LOW_QUBIT_SCRATCH
+            && direct_restoring_final_low_branch_delta_variable_p99 <= GOOGLE_LOW_QUBIT_SCRATCH
+            && direct_restoring_final_low_branch_delta_state_prefix_p99 > GOOGLE_LOW_QUBIT_SCRATCH
             && direct_restoring_final_low_branch_delta_state_prefix_p99
                 > direct_restoring_final_low_branch_delta_abs_prefix_p99
             && direct_restoring_final_low_branch_delta_state_prefix_max
@@ -4707,6 +5485,12 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
                 == direct_restoring_final_peakfit_holdout_missing_traces
             && direct_restoring_final_low_branch_prefix_support_weighted_maxconstrained_holdout_raw_escape_over_budget_rows
                 > direct_restoring_final_peakfit_holdout_over_budget_rows
+            && direct_restoring_final_low_branch_prefix_support_weighted_maxconstrained_holdout_over_scratch_bits
+                == 51
+            && direct_restoring_final_low_branch_prefix_support_weighted_maxconstrained_holdout_live_scratch_max
+                == 714
+            && direct_restoring_final_low_branch_prefix_support_weighted_maxconstrained_holdout_margin_after_one_extra_bit
+                < -38_000.0
             && direct_restoring_final_peakfit_toy_cases_with_sample_gap == 4
             && direct_restoring_final_peakfit_toy_largest_missing_symbols > 500
             && direct_restoring_final_peakfit_toy_largest_sample_over_budget_traces > 3_000
@@ -4848,18 +5632,12 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
         direct_restoring_final_align_entropy_variable_scratch_p99 <= GOOGLE_LOW_QUBIT_SCRATCH
             && direct_restoring_final_align_entropy_variable_scratch_max
                 <= GOOGLE_LOW_QUBIT_SCRATCH
-            && direct_restoring_final_align_entropy_global_scratch_p99
-                <= GOOGLE_LOW_QUBIT_SCRATCH
-            && direct_restoring_final_align_entropy_global_scratch_max
-                <= GOOGLE_LOW_QUBIT_SCRATCH
-            && direct_restoring_final_align_entropy_step_scratch_p99
-                <= GOOGLE_LOW_QUBIT_SCRATCH
-            && direct_restoring_final_align_entropy_step_scratch_max
-                <= GOOGLE_LOW_QUBIT_SCRATCH
-            && direct_restoring_final_align_prefix_global_scratch_p99
-                > GOOGLE_LOW_QUBIT_SCRATCH
-            && direct_restoring_final_align_prefix_step_scratch_p99
-                > GOOGLE_LOW_QUBIT_SCRATCH
+            && direct_restoring_final_align_entropy_global_scratch_p99 <= GOOGLE_LOW_QUBIT_SCRATCH
+            && direct_restoring_final_align_entropy_global_scratch_max <= GOOGLE_LOW_QUBIT_SCRATCH
+            && direct_restoring_final_align_entropy_step_scratch_p99 <= GOOGLE_LOW_QUBIT_SCRATCH
+            && direct_restoring_final_align_entropy_step_scratch_max <= GOOGLE_LOW_QUBIT_SCRATCH
+            && direct_restoring_final_align_prefix_global_scratch_p99 > GOOGLE_LOW_QUBIT_SCRATCH
+            && direct_restoring_final_align_prefix_step_scratch_p99 > GOOGLE_LOW_QUBIT_SCRATCH
             && direct_restoring_final_align_entropy_branch_count_p99
                 == direct_restoring_final_stored_align_branch_count_p99
             && direct_restoring_final_align_entropy_holdout_samples == 8_192
@@ -4871,16 +5649,11 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
                 <= GOOGLE_LOW_QUBIT_SCRATCH
             && direct_restoring_final_align_entropy_holdout_step_scratch_max
                 > GOOGLE_LOW_QUBIT_SCRATCH
-            && direct_restoring_final_align_entropy_holdout_step_missing_align_symbols
-                > 100
-            && direct_restoring_final_align_entropy_holdout_step_missing_align_traces
-                > 100
-            && direct_restoring_final_align_entropy_holdout_step_missing_branch_symbols
-                > 0
-            && direct_restoring_final_align_entropy_holdout_global_missing_align_symbols
-                > 0
-            && direct_restoring_final_align_entropy_holdout_global_missing_branch_symbols
-                == 0,
+            && direct_restoring_final_align_entropy_holdout_step_missing_align_symbols > 100
+            && direct_restoring_final_align_entropy_holdout_step_missing_align_traces > 100
+            && direct_restoring_final_align_entropy_holdout_step_missing_branch_symbols > 0
+            && direct_restoring_final_align_entropy_holdout_global_missing_align_symbols > 0
+            && direct_restoring_final_align_entropy_holdout_global_missing_branch_symbols == 0,
         "restoring-final metadata coding frontier changed; revisit parser route"
     );
     assert!(
@@ -4899,8 +5672,7 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
             && direct_restoring_final_block_parser_best_touch_floor_mean
                 < direct_restoring_final_block_parser_oneway_budget
             && direct_restoring_final_block_parser_best_augmented_gap < 0.0
-            && direct_restoring_final_block32_live_scratch_p99
-                <= GOOGLE_LOW_QUBIT_SCRATCH
+            && direct_restoring_final_block32_live_scratch_p99 <= GOOGLE_LOW_QUBIT_SCRATCH
             && direct_restoring_final_block32_touch_floor_mean
                 < direct_restoring_final_block_parser_oneway_budget,
         "restoring-final block range-parser lower bound changed; revisit toy parser work"
@@ -5071,7 +5843,10 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
             && direct_restoring_final_block_parser_best_qrom_gap > 0.0,
         "restoring-final block-QROM row floor now fits; table decoder may revive parser route"
     );
-    assert!(halfgcd_tail_over_google > 0, "half-GCD checkpoint must be fused before it fits");
+    assert!(
+        halfgcd_tail_over_google > 0,
+        "half-GCD checkpoint must be fused before it fits"
+    );
     assert!(
         halfgcd_det_compressed_tail_gap < 0 && halfgcd_det_recovery_num_bits_p99 > 256,
         "half-GCD determinant compression state changed; update recovery blocker"
@@ -5093,7 +5868,8 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
         "half-GCD arithmetic replay floor changed; update matrix-extraction blocker"
     );
     assert!(
-        halfgcd_full_prefix_live_gap_google > 0 && halfgcd_compressed_tail_stream_peak_gap_google <= 0,
+        halfgcd_full_prefix_live_gap_google > 0
+            && halfgcd_compressed_tail_stream_peak_gap_google <= 0,
         "half-GCD checkpoint extraction schedule changed; update prefix-compression blocker"
     );
     assert!(
@@ -5121,7 +5897,8 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
         "half-GCD second-column residual-only reverse q is no longer ambiguous"
     );
     assert!(
-        halfgcd_second_col_prefix_exact_extraction_p99 < halfgcd_second_col_prefix_oneway_budget_ccx
+        halfgcd_second_col_prefix_exact_extraction_p99
+            < halfgcd_second_col_prefix_oneway_budget_ccx
             && halfgcd_second_col_prefix_exact_gap_to_2700k < 0,
         "half-GCD second-column optimistic prefix ledger no longer has low-qubit margin"
     );
@@ -5264,8 +6041,7 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
                 < halfgcd_second_col_fixed_depth64_static_joint4_with_selector_floor_mean
             && halfgcd_second_col_fixed_depth64_static_window_scan_best_selector_mean
                 == halfgcd_second_col_fixed_depth64_app_static_selector_floor_mean
-            && halfgcd_second_col_fixed_depth64_static_window_scan_best_table_row_mean
-                > 70_000,
+            && halfgcd_second_col_fixed_depth64_static_window_scan_best_table_row_mean > 70_000,
         "half-GCD static-window scan now fits or changed selector/table tradeoff; revisit route"
     );
     assert!(
@@ -5451,6 +6227,58 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
             && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_table_one_roundtrip_slack
                 > halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_table_one_roundtrip_slack
             && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_table_two_app_gap > 0
+            && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_one_ccx_decoder_floor
+                == 32_380
+            && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_one_ccx_decoder_mean
+                == 2_692_000
+            && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_one_ccx_decoder_gap
+                < 0
+            && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_two_ccx_decoder_gap
+                > 0
+            && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_decoder_slack_per_active_block_milli
+                == 1_247
+            && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_active_floor_oneway
+                == 38_450
+            && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_active_floor_roundtrip
+                == 76_900
+            && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_with_active_floor_mean
+                == 2_736_520
+            && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_with_active_floor_gap
+                > 0
+            && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_with_active_and_one_ccx_mean
+                == 2_768_900
+            && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_with_active_and_one_ccx_gap
+                > halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_rank_with_active_floor_gap
+            && halfgcd_endpoint_local_dp_transition_floor_sample_active_mean_milli == 3_956
+            && halfgcd_endpoint_local_dp_transition_floor_sample_active_p99 == 5
+            && halfgcd_endpoint_local_dp_transition_floor_sample_mean_milli == 4_581_885
+            && halfgcd_endpoint_local_dp_transition_floor_sample_p99 == 5_742
+            && halfgcd_endpoint_local_dp_transition_floor_sample_max_block == 1_444
+            && halfgcd_endpoint_local_dp_transition_floor_one_roundtrip_gap_milli < 0
+            && halfgcd_endpoint_local_dp_transition_floor_two_app_gap_milli < 0
+            && halfgcd_endpoint_local_dp_transition_floor_two_app_transition_budget_micros > 2_000_000
+            && halfgcd_endpoint_local_dp_compare_floor_cost_word_bits == 17
+            && halfgcd_endpoint_local_dp_compare_floor_two_app_gap_milli > 0
+            && halfgcd_endpoint_local_dp_compare_floor_transition_budget_micros < 200_000
+            && halfgcd_endpoint_local_dp_transition_floor_two_ccx_gap < 0
+            && halfgcd_endpoint_local_dp_transition_floor_three_ccx_gap > 0
+            && halfgcd_endpoint_minplus_sig_sample_blocks == 16_192
+            && halfgcd_endpoint_minplus_sig_sample_mismatches == 0
+            && halfgcd_endpoint_minplus_sig_sample_signatures < 256
+            && halfgcd_endpoint_minplus_sig_sample_transition_mean_milli == 38_735
+            && halfgcd_endpoint_minplus_sig_sample_update_keys == 25_843
+            && halfgcd_endpoint_minplus_sig_sample_update_collision_keys == 2_777
+            && halfgcd_endpoint_minplus_sig_sample_choice_keys == 89_156
+            && halfgcd_endpoint_minplus_sig_sample_choice_collision_keys == 1_795
+            && halfgcd_endpoint_minplus_sig_toy_blocks_total == 299_013
+            && halfgcd_endpoint_minplus_sig_toy_mismatches_total == 0
+            && halfgcd_endpoint_minplus_sig_toy_signatures_total < 256
+            && halfgcd_endpoint_minplus_sig_toy_update_keys == 4_375
+            && halfgcd_endpoint_minplus_sig_toy_update_collision_keys == 180
+            && halfgcd_endpoint_minplus_sig_toy_choice_keys == 13_224
+            && halfgcd_endpoint_minplus_sig_toy_choice_collision_keys == 81
+            && halfgcd_endpoint_minplus_sig_toy_n17_blocks == 119_249
+            && halfgcd_endpoint_minplus_sig_toy_n17_signatures == 110
             && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_choices
                 == 7_370_995
             && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_k8_collision_keys
@@ -5461,6 +6289,28 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
                 == 0
             && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_k12_one_roundtrip_gap
                 > 10_000_000
+            && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_k8_collision_keys
+                == 697
+            && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_k10_collision_keys
+                == 19
+            && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_k11_collision_keys
+                == 1
+            && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_k11_block_keys
+                == 6_888_255
+            && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_k11_block_collision_keys
+                == 0
+            && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_sample_k12_collision_keys
+                == 0
+            && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_toy_k4_collision_keys
+                == 48
+            && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_toy_k4_block_collision_keys
+                == 50
+            && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_toy_k4_block_fullstate_collision_keys
+                == 50
+            && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_toy_k5_collision_keys
+                == 0
+            && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_toy_k5_keys
+                == 45_911
             && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_k12_lane0_keys
                 == 824_065
             && halfgcd_second_col_fixed_depth64_full_block_pattern_endpoint_dp_lookahead_k12_lane0_collision_keys
@@ -5520,8 +6370,7 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
     assert!(
         halfgcd_second_col_joint_signed_binary_active_degree_n14 + 1 >= 14
             && halfgcd_second_col_joint_signed_binary_active_density_n14 > 8_000
-            && halfgcd_second_col_joint_signed_binary_active_min_individual_degree_n14 + 1
-                >= 14
+            && halfgcd_second_col_joint_signed_binary_active_min_individual_degree_n14 + 1 >= 14
             && halfgcd_second_col_joint_signed_binary_active_min_individual_density_n14
                 > (1usize << 14) / 4
             && halfgcd_second_col_joint_signed_binary_active_pair_positions_n14
@@ -5567,10 +6416,8 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
             && halfgcd_second_col_fixed_depth64_slot_envelope_max_prefix_bits == 8
             && halfgcd_second_col_fixed_depth64_slot_envelope_max_decoder_bits == 8
             && halfgcd_second_col_fixed_depth64_slot_envelope_max_tail_bits == 8
-            && halfgcd_second_col_fixed_depth64_slot_envelope_full_mean
-                < GOOGLE_LOW_QUBIT_TOFFOLI
-            && halfgcd_second_col_fixed_depth64_slot_envelope_full_p99
-                < GOOGLE_LOW_QUBIT_TOFFOLI
+            && halfgcd_second_col_fixed_depth64_slot_envelope_full_mean < GOOGLE_LOW_QUBIT_TOFFOLI
+            && halfgcd_second_col_fixed_depth64_slot_envelope_full_p99 < GOOGLE_LOW_QUBIT_TOFFOLI
             && halfgcd_second_col_fixed_depth64_slot_envelope_static_app_mean
                 < GOOGLE_LOW_QUBIT_TOFFOLI
             && halfgcd_second_col_fixed_depth64_slot_envelope_static_app_p99
@@ -5579,6 +6426,10 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
                 < GOOGLE_LOW_QUBIT_TOFFOLI
             && halfgcd_second_col_fixed_depth64_slot_envelope_tail8_static_app_p99
                 > GOOGLE_LOW_QUBIT_TOFFOLI
+            && halfgcd_second_col_fixed_depth64_slot_envelope_tail_budget_p99 == 87_268
+            && halfgcd_second_col_fixed_depth64_slot_envelope_tail8_extra_p99 == 98_446
+            && halfgcd_second_col_fixed_depth64_slot_envelope_tail8_over_budget_p99 == 11_178
+            && halfgcd_second_col_fixed_depth64_slot_envelope_tail_equiv_bit_budget == 7
             && halfgcd_second_col_fixed_depth64_slot_envelope_guard1_tail8_static_app_mean
                 > GOOGLE_LOW_QUBIT_TOFFOLI
             && halfgcd_second_col_fixed_depth64_slot_envelope_guard1_tail8_static_app_p99
@@ -5591,7 +6442,17 @@ fn scratch600_frontier_requires_selector_or_parser_breakthrough() {
             && halfgcd_second_col_fixed_depth64_slot_envelope_toy_n16_min_cover_rows > 16_000
             && halfgcd_second_col_fixed_depth64_slot_envelope_toy_n16_min_cover_small_exp >= 8
             && halfgcd_second_col_fixed_depth64_slot_envelope_toy_n16_min_cover_radius_exp >= 13
-            && halfgcd_second_col_fixed_depth64_slot_envelope_toy_n16_min_cover_over_target_x > 25,
+            && halfgcd_second_col_fixed_depth64_slot_envelope_toy_n16_min_cover_over_target_x > 25
+            && halfgcd_tail_only_slot_envelope_cases == 5
+            && halfgcd_tail_only_slot_envelope_covered_cases == 0
+            && halfgcd_tail_only_slot_envelope_largest_tail_gap == 3
+            && halfgcd_tail_only_slot_envelope_largest_tail_slots == 15
+            && halfgcd_tail_only_slot_envelope_n16_target_rows == 577
+            && halfgcd_tail_only_slot_envelope_n16_tail_gap == 3
+            && halfgcd_tail_only_slot_envelope_n16_tail_slots == 15
+            && halfgcd_tail_only_slot_envelope_n16_min_cover_rows == 16_897
+            && halfgcd_tail_only_slot_envelope_n16_min_cover_small_exp == 8
+            && halfgcd_tail_only_slot_envelope_n16_min_cover_radius_exp == 13,
         "half-GCD public slot envelope no longer gives a SOTA-shaped extractor/application ledger"
     );
     assert!(

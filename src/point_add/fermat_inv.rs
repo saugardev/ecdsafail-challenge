@@ -16,9 +16,9 @@
 use alloy_primitives::U256;
 
 use super::{
-    bit, mod_add_qq_fast, mod_add_qq_fast_from_zero, mod_add_qb,
-    mod_double_inplace_fast, mod_halve_inplace_fast, mod_neg_inplace_fast,
-    mod_sub_qb, mod_sub_qq_fast, B, QubitId, SECP256K1_P,
+    bit, mod_add_qb, mod_add_qq_fast, mod_add_qq_fast_from_zero, mod_double_inplace_fast,
+    mod_halve_inplace_fast, mod_neg_inplace_fast, mod_sub_qb, mod_sub_qq_fast, QubitId, B,
+    SECP256K1_P,
 };
 
 /// Horner-style modular multiply: acc += x * y mod p.
@@ -30,13 +30,7 @@ use super::{
 /// y is preserved. acc is modified (adds x*y into it).
 /// Workspace: 1 working copy of y (n qubits) + n fanout (transient per bit).
 /// Toffoli: ~2n² (n bits × n fanout CCX + n add CCX).
-pub fn horner_mul_add(
-    b: &mut B,
-    acc: &[QubitId],
-    x: &[QubitId],
-    y: &[QubitId],
-    p: U256,
-) {
+pub fn horner_mul_add(b: &mut B, acc: &[QubitId], x: &[QubitId], y: &[QubitId], p: U256) {
     let n = x.len();
     debug_assert_eq!(n, y.len());
     debug_assert_eq!(n, acc.len());
@@ -81,13 +75,7 @@ pub fn horner_mul_add(
 }
 
 /// Horner-style modular multiply-subtract: acc -= x * y mod p.
-pub fn horner_mul_sub(
-    b: &mut B,
-    acc: &[QubitId],
-    x: &[QubitId],
-    y: &[QubitId],
-    p: U256,
-) {
+pub fn horner_mul_sub(b: &mut B, acc: &[QubitId], x: &[QubitId], y: &[QubitId], p: U256) {
     let n = x.len();
     let yw = b.alloc_qubits(n);
     for i in 0..n {
@@ -193,12 +181,7 @@ pub fn mod_mul_inplace(b: &mut B, a: &[QubitId], b_reg: &[QubitId], p: U256) {
 ///
 /// result register must be zero on entry (we load 1 into it).
 /// x is preserved.
-pub fn fermat_inv(
-    b: &mut B,
-    x: &[QubitId],
-    result: &[QubitId],
-    p: U256,
-) {
+pub fn fermat_inv(b: &mut B, x: &[QubitId], result: &[QubitId], p: U256) {
     let n = x.len();
     let exp = p - U256::from(2u64); // p - 2
 
@@ -301,9 +284,12 @@ mod tests {
         let acc = b.alloc_qubits(n);
 
         // Load x = 7 = 0111
-        b.x(x[0]); b.x(x[1]); b.x(x[2]);
+        b.x(x[0]);
+        b.x(x[1]);
+        b.x(x[2]);
         // Load y = 5 = 0101
-        b.x(y[0]); b.x(y[2]);
+        b.x(y[0]);
+        b.x(y[2]);
 
         horner_mul_add(&mut b, &acc, &x, &y, p);
 
@@ -327,7 +313,11 @@ mod tests {
         sim.apply(&b.ops);
 
         let acc_val = (0..n).fold(0u64, |v, i| {
-            v | if (*sim.qubit_mut(acc[i]) & 1) != 0 { 1 << i } else { 0 }
+            v | if (*sim.qubit_mut(acc[i]) & 1) != 0 {
+                1 << i
+            } else {
+                0
+            }
         });
 
         assert_eq!(acc_val, 9, "7 * 5 mod 13 should be 9, got {}", acc_val);
