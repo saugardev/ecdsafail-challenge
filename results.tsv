@@ -1334,3 +1334,5 @@ timestamp	commit	toffoli	clifford	qubits	ops	correct	notes
 1778798589	6dbffb0	4079850.000	24223849.067	2713	30479940	OK	autoresearch-checks
 1778800423	dc66d10	4064576.000	24101576.769	2713	30335494	OK	bulk backward step4 truncation plus HMR t uncompute 
 1778800452	dc66d10	4064576.000	24101576.769	2713	30335494	OK	autoresearch-checks
+1778800728	cface7a	4050056.000	24072530.308	2713	30291934	OK	truncate bulk backward step4 transform width 
+1778800757	cface7a	4050056.000	24072530.308	2713	30291934	OK	autoresearch-checks

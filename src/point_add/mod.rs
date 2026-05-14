@@ -7034,7 +7034,12 @@ fn kaliski_iteration_bulk_prefix3_backward(
         } else {
             sub_nbit_qq_fast(b, &tmp_sub_slice, &s_slice);
         }
-        let transform_width = n;
+        // Late-iter denominator bits above 2n-iter_idx are known zero.  The
+        // high tmp bits loaded from r only participate in the s-subtraction;
+        // they do not need to be transformed into add_f&u or added back into
+        // v_w.  This mirrors `kaliski_iteration_backward` and saves one CCX
+        // plus two CX per skipped high bit in the bulk reverse tail.
+        let transform_width = if iter_idx < n { n } else { 2 * n - iter_idx };
         for i in 0..transform_width {
             b.cx(r[i], u[i]);
         }
@@ -7058,7 +7063,11 @@ fn kaliski_iteration_bulk_prefix3_backward(
         for i in 0..n {
             let m = b.alloc_bit();
             b.hmr(tmp[i], m);
-            b.cz_if(add_f, u[i], m);
+            if i < transform_width {
+                b.cz_if(add_f, u[i], m);
+            } else if i < load_width {
+                b.cz_if(add_f, r[i], m);
+            }
         }
         b.free_vec(&tmp);
     }
