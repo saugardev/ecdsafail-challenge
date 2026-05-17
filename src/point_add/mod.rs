@@ -4506,6 +4506,23 @@ fn r_small_threshold() -> usize {
 /// entries are guaranteed bulk / nonterminal.
 const BULK_PREFIX_SAFE_ITERS: usize = 377;
 
+fn env_usize(name: &str) -> Option<usize> {
+    std::env::var(name).ok().and_then(|s| s.parse::<usize>().ok())
+}
+
+#[derive(Clone, Copy)]
+enum KalPair {
+    Default,
+    Pair1,
+    Pair2,
+}
+
+#[derive(Clone, Copy)]
+struct BulkPrefixCaps {
+    forward: usize,
+    backward: usize,
+}
+
 fn bulk_prefix_safe_iters() -> usize {
     let centered_roundtrip_hook = std::env::var("BY_CENTERED_CLEAN_ROUNDTRIP_BENCH")
         .ok()
@@ -4545,10 +4562,63 @@ fn bulk_prefix_safe_iters() -> usize {
     } else {
         BULK_PREFIX_SAFE_ITERS
     };
-    std::env::var("KAL_BULK3_ITERS")
-        .ok()
-        .and_then(|s| s.parse::<usize>().ok())
-        .unwrap_or(default)
+    env_usize("KAL_BULK3_ITERS").unwrap_or(default)
+}
+
+fn bulk_prefix_caps(pair: KalPair) -> BulkPrefixCaps {
+    let mut forward = bulk_prefix_safe_iters();
+    let mut backward = forward;
+
+    let (pair_all, pair_fwd, pair_bk) = match pair {
+        KalPair::Default => (None, None, None),
+        KalPair::Pair1 => (
+            Some("KAL_PAIR1_BULK3_ITERS"),
+            Some("KAL_PAIR1_BULK3_FWD_ITERS"),
+            Some("KAL_PAIR1_BULK3_BK_ITERS"),
+        ),
+        KalPair::Pair2 => (
+            Some("KAL_PAIR2_BULK3_ITERS"),
+            Some("KAL_PAIR2_BULK3_FWD_ITERS"),
+            Some("KAL_PAIR2_BULK3_BK_ITERS"),
+        ),
+    };
+
+    if let Some(name) = pair_all {
+        if let Some(v) = env_usize(name) {
+            forward = v;
+            backward = v;
+        }
+    }
+    if let Some(v) = env_usize("KAL_BULK3_FWD_ITERS") {
+        forward = v;
+    }
+    if let Some(v) = env_usize("KAL_BULK3_BK_ITERS") {
+        backward = v;
+    }
+    if let Some(name) = pair_fwd {
+        if let Some(v) = env_usize(name) {
+            forward = v;
+        }
+    }
+    if let Some(name) = pair_bk {
+        if let Some(v) = env_usize(name) {
+            backward = v;
+        }
+    }
+
+    if matches!(pair, KalPair::Pair1)
+        && env_usize("KAL_BULK3_ITERS").is_none()
+        && env_usize("KAL_BULK3_FWD_ITERS").is_none()
+        && env_usize("KAL_BULK3_BK_ITERS").is_none()
+        && env_usize("KAL_PAIR1_BULK3_ITERS").is_none()
+        && env_usize("KAL_PAIR1_BULK3_FWD_ITERS").is_none()
+        && env_usize("KAL_PAIR1_BULK3_BK_ITERS").is_none()
+    {
+        forward = 378;
+        backward = 378;
+    }
+
+    BulkPrefixCaps { forward, backward }
 }
 
 fn bulk_prefix_enabled() -> bool {
@@ -6934,6 +7004,26 @@ fn kaliski_forward_with_coeff(
     iters: usize,
     coeff: Option<(&[QubitId], &[QubitId])>,
 ) {
+    kaliski_forward_with_coeff_caps(
+        b,
+        v_in,
+        st,
+        p,
+        iters,
+        coeff,
+        bulk_prefix_caps(KalPair::Default),
+    );
+}
+
+fn kaliski_forward_with_coeff_caps(
+    b: &mut B,
+    v_in: &[QubitId],
+    st: &KaliskiState,
+    p: U256,
+    iters: usize,
+    coeff: Option<(&[QubitId], &[QubitId])>,
+    bulk_caps: BulkPrefixCaps,
+) {
     let n = v_in.len();
     debug_assert!(iters <= st.m_hist.len());
     if let Some((cr, cs)) = coeff {
@@ -6959,9 +7049,8 @@ fn kaliski_forward_with_coeff(
 
     // ─── Iterations ───
     let use_bulk_prefix3 = bulk_prefix_enabled();
-    let bulk_prefix_iters = bulk_prefix_safe_iters();
     for i in 0..iters {
-        if use_bulk_prefix3 && i < bulk_prefix_iters {
+        if use_bulk_prefix3 && i < bulk_caps.forward {
             kaliski_iteration_bulk_prefix3(
                 b,
                 p,
@@ -7454,14 +7543,24 @@ fn kaliski_iteration_backward(
 /// Explicit backward pass for kaliski_forward. Uses measurement-based
 /// uncomputation to save ~511 CCX per iteration vs emit_inverse.
 fn kaliski_backward(b: &mut B, v_in: &[QubitId], st: &KaliskiState, p: U256, iters: usize) {
+    kaliski_backward_caps(b, v_in, st, p, iters, bulk_prefix_caps(KalPair::Default));
+}
+
+fn kaliski_backward_caps(
+    b: &mut B,
+    v_in: &[QubitId],
+    st: &KaliskiState,
+    p: U256,
+    iters: usize,
+    bulk_caps: BulkPrefixCaps,
+) {
     let n = v_in.len();
     debug_assert!(iters <= st.m_hist.len());
 
     let use_bulk_prefix3 = bulk_prefix_enabled();
-    let bulk_prefix_iters = bulk_prefix_safe_iters();
     // ─── Reverse iterations (in reverse order) ───
     for i in (0..iters).rev() {
-        if use_bulk_prefix3 && i < bulk_prefix_iters {
+        if use_bulk_prefix3 && i < bulk_caps.backward {
             kaliski_iteration_bulk_prefix3_backward(
                 b,
                 p,
@@ -8502,7 +8601,18 @@ fn with_kal_inv_raw<F: FnOnce(&mut B, &[QubitId])>(
     iters: usize,
     body: F,
 ) {
-    with_kal_inv_raw_coeff(b, v_in, p, iters, None, body);
+    with_kal_inv_raw_coeff_caps(b, v_in, p, iters, None, bulk_prefix_caps(KalPair::Default), body);
+}
+
+fn with_kal_inv_raw_pair<F: FnOnce(&mut B, &[QubitId])>(
+    b: &mut B,
+    v_in: &[QubitId],
+    p: U256,
+    iters: usize,
+    pair: KalPair,
+    body: F,
+) {
+    with_kal_inv_raw_coeff_caps(b, v_in, p, iters, None, bulk_prefix_caps(pair), body);
 }
 
 fn kaliski_forward_prescaled_mixed(
@@ -8761,6 +8871,27 @@ fn with_kal_inv_raw_coeff<F: FnOnce(&mut B, &[QubitId])>(
     coeff: Option<(&[QubitId], &[QubitId])>,
     body: F,
 ) {
+    with_kal_inv_raw_coeff_caps(
+        b,
+        v_in,
+        p,
+        iters,
+        coeff,
+        bulk_prefix_caps(KalPair::Default),
+        body,
+    );
+}
+
+
+fn with_kal_inv_raw_coeff_caps<F: FnOnce(&mut B, &[QubitId])>(
+    b: &mut B,
+    v_in: &[QubitId],
+    p: U256,
+    iters: usize,
+    coeff: Option<(&[QubitId], &[QubitId])>,
+    bulk_caps: BulkPrefixCaps,
+    body: F,
+) {
     let n = v_in.len();
     let mut st = alloc_kaliski_state(b, n, iters);
     let keep_full_state = std::env::var("KAL_KEEP_FULL_STATE").ok().as_deref() == Some("1");
@@ -8777,7 +8908,7 @@ fn with_kal_inv_raw_coeff<F: FnOnce(&mut B, &[QubitId])>(
     // If coeff is supplied, the same branch controls also transform that
     // external coefficient pair, but the ordinary qrisp sentinel state remains
     // available for clean branch-flag uncomputation.
-    kaliski_forward_with_coeff(b, v_in, &st, p, iters, coeff);
+    kaliski_forward_with_coeff_caps(b, v_in, &st, p, iters, coeff, bulk_caps);
 
     if !keep_v {
         b.free_vec(&st.v_w);
@@ -8828,11 +8959,15 @@ fn with_kal_inv_raw_coeff<F: FnOnce(&mut B, &[QubitId])>(
     // but it keeps the specialized prefix and its matching global reverse in a
     // single contract. The hope is to eliminate the residual phase mismatch.
     if std::env::var("KAL_BULK3_GENERALIZED_REVERSE").is_ok() {
-        emit_inverse_hmr_safe(b, |b| kaliski_forward(b, v_in, &st, p, iters));
+        emit_inverse_hmr_safe(b, |b| {
+            kaliski_forward_with_coeff_caps(b, v_in, &st, p, iters, None, bulk_caps)
+        });
     } else {
         // Explicit backward pass (uses measurement-based uncompute, saves
-        // ~511 CCX per iteration vs the emit_inverse version).
-        kaliski_backward(b, v_in, &st, p, iters);
+        // ~511 CCX per iteration vs the emit_inverse version).  Use the same
+        // promoted/pair-specific cap family selected for the forward pass so
+        // a 378th bulk step can be enabled only where it is phase-clean.
+        kaliski_backward_caps(b, v_in, &st, p, iters, bulk_caps);
     }
 
     free_kaliski_state(b, st);
@@ -9414,7 +9549,7 @@ fn build_standard_point_add(
         }
     } else {
         b.set_phase("pair1_kaliski_forward");
-        with_kal_inv_raw(b, &tx, p, pair1_iters, |b, inv_raw| {
+        with_kal_inv_raw_pair(b, &tx, p, pair1_iters, KalPair::Pair1, |b, inv_raw| {
             let lam_inner = b.alloc_qubits(N);
             b.set_phase("pair1_mul1");
             pair1_mul1_write_into_zero_acc(b, &lam_inner, &ty, inv_raw, p);
@@ -9531,7 +9666,7 @@ fn build_standard_point_add(
                     b.free_vec(&scaled_tx);
                 }
             } else {
-                with_kal_inv_raw(b, &tx, p, pair2_iters, |b, inv_raw| {
+                with_kal_inv_raw_pair(b, &tx, p, pair2_iters, KalPair::Pair2, |b, inv_raw| {
                     b.set_phase("pair2_double");
                     for _ in 0..pair2_iters {
                         mod_double_inplace_fast(b, &lam, p);
