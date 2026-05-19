@@ -952,6 +952,15 @@ fn mod_add_double_qb(b: &mut B, acc: &[QubitId], bits: &[BitId], p: U256) {
     unload_bits(b, &a, bits);
 }
 
+fn mod_sub_double_qb(b: &mut B, acc: &[QubitId], bits: &[BitId], p: U256) {
+    // acc := acc - 2*bits mod p. Mirror of mod_add_double_qb.
+    let a = load_bits(b, bits);
+    mod_double_inplace_fast(b, &a, p);
+    mod_sub_qq_fast(b, acc, &a, p);
+    mod_halve_inplace_fast(b, &a, p);
+    unload_bits(b, &a, bits);
+}
+
 fn mod_sub_qb(b: &mut B, acc: &[QubitId], bits: &[BitId], p: U256) {
     // acc -= bits mod p. Uses fast mod_sub_qq via neg+add+neg.
     let a = load_bits(b, bits);
@@ -3796,6 +3805,108 @@ fn mod_mul_sub_into_acc_karatsuba(
     mod_neg_inplace_fast(b, x, p);
     mod_mul_add_into_acc_karatsuba(b, acc, x, y, p);
     mod_neg_inplace_fast(b, x, p);
+}
+
+fn mod_add_solinas_ext_product(b: &mut B, acc: &[QubitId], tmp_ext: &[QubitId], p: U256) {
+    let n = acc.len();
+    debug_assert_eq!(n, 256);
+    debug_assert_eq!(tmp_ext.len(), 2 * n);
+    let lo: Vec<QubitId> = tmp_ext[0..n].to_vec();
+    let hi: Vec<QubitId> = tmp_ext[n..2 * n].to_vec();
+    mod_add_qq_fast(b, acc, &lo, p);
+    mod_add_qq_fast(b, acc, &hi, p);
+    for _ in 0..4 {
+        mod_double_inplace_fast(b, &hi, p);
+    }
+    mod_add_qq_fast(b, acc, &hi, p);
+    for _ in 0..2 {
+        mod_double_inplace_fast(b, &hi, p);
+    }
+    mod_sub_qq_fast(b, acc, &hi, p);
+    for _ in 0..4 {
+        mod_double_inplace_fast(b, &hi, p);
+    }
+    mod_add_qq_fast(b, acc, &hi, p);
+    let (spill, flag_inv, ovf) = mod_shift_left_by_k(b, &hi, p, 22);
+    mod_add_qq(b, acc, &hi, p);
+    mod_shift_right_by_k(b, &hi, p, 22, spill, flag_inv, ovf);
+    for _ in 0..10 {
+        mod_halve_inplace_fast(b, &hi, p);
+    }
+}
+
+fn mod_sub_solinas_ext_product(b: &mut B, acc: &[QubitId], tmp_ext: &[QubitId], p: U256) {
+    let n = acc.len();
+    debug_assert_eq!(n, 256);
+    debug_assert_eq!(tmp_ext.len(), 2 * n);
+    let lo: Vec<QubitId> = tmp_ext[0..n].to_vec();
+    let hi: Vec<QubitId> = tmp_ext[n..2 * n].to_vec();
+    mod_sub_qq_fast(b, acc, &lo, p);
+    mod_sub_qq_fast(b, acc, &hi, p);
+    for _ in 0..4 {
+        mod_double_inplace_fast(b, &hi, p);
+    }
+    mod_sub_qq_fast(b, acc, &hi, p);
+    for _ in 0..2 {
+        mod_double_inplace_fast(b, &hi, p);
+    }
+    mod_add_qq_fast(b, acc, &hi, p);
+    for _ in 0..4 {
+        mod_double_inplace_fast(b, &hi, p);
+    }
+    mod_sub_qq_fast(b, acc, &hi, p);
+    let (spill, flag_inv, ovf) = mod_shift_left_by_k(b, &hi, p, 22);
+    mod_sub_qq(b, acc, &hi, p);
+    mod_shift_right_by_k(b, &hi, p, 22, spill, flag_inv, ovf);
+    for _ in 0..10 {
+        mod_halve_inplace_fast(b, &hi, p);
+    }
+}
+
+fn square_tx_and_combined_ty_l2minus3qx(
+    b: &mut B,
+    tx: &[QubitId],
+    ty: &[QubitId],
+    lam: &[QubitId],
+    ox: &[BitId],
+    p: U256,
+) {
+    let n = tx.len();
+    debug_assert_eq!(n, 256);
+    debug_assert_eq!(ty.len(), n);
+    debug_assert_eq!(lam.len(), n);
+
+    b.set_phase("affine_combined_square");
+    let tmp_ext = b.alloc_qubits(2 * n);
+    schoolbook_square_symmetric(b, lam, &tmp_ext);
+
+    b.set_phase("affine_combined_breg_red");
+    let breg = b.alloc_qubits(n);
+    mod_add_solinas_ext_product(b, &breg, &tmp_ext, p);
+    mod_sub_double_qb(b, &breg, ox, p);
+    mod_sub_qb(b, &breg, ox, p);
+
+    b.set_phase("affine_combined_y_mul");
+    if env_flag_enabled("POINT_ADD_AFFINE_COMBINED_Y_KARATSUBA_LOWQ", false) {
+        mod_mul_add_into_acc_karatsuba_lowq(b, ty, lam, &breg, p);
+    } else {
+        mod_mul_add_into_acc_schoolbook(b, ty, lam, &breg, p);
+    }
+
+    b.set_phase("affine_combined_breg_unred");
+    mod_add_qb(b, &breg, ox, p);
+    mod_add_double_qb(b, &breg, ox, p);
+    mod_sub_solinas_ext_product(b, &breg, &tmp_ext, p);
+    b.free_vec(&breg);
+
+    b.set_phase("affine_combined_tx_update");
+    mod_sub_solinas_ext_product(b, tx, &tmp_ext, p);
+    mod_add_double_qb(b, tx, ox, p);
+    mod_add_qb(b, tx, ox, p);
+    mod_neg_inplace_fast(b, tx, p);
+
+    schoolbook_square_symmetric_inverse(b, lam, &tmp_ext);
+    b.free_vec(&tmp_ext);
 }
 
 /// Schoolbook squarer with Bennett uncompute. For squaring `tmp_ext = x*x`
@@ -9352,6 +9463,22 @@ fn build_standard_point_add(
         .ok()
         .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or(pair2_default);
+    let affine_combined_y = env_flag_enabled("POINT_ADD_AFFINE_COMBINED_Y", true)
+        && !by_pair1_centered
+        && !by_pair2_centered
+        && !by_pair2_scaled_product
+        && !tagged_div_validate
+        && !pair2_branch_inv
+        && !prescale_pair1
+        && !prescale_pair1_mixed
+        && !prescale_pair1_chunked
+        && !prescale_pair1_folded
+        && !prescale_pair1_folded_chunked
+        && !prescale_pair2
+        && !prescale_pair2_mixed
+        && !prescale_pair2_chunked
+        && !prescale_pair2_folded
+        && !prescale_pair2_folded_chunked;
     if tagged_div_validate && !by_pair1_centered {
         // Structural validation path for the 600-scratch DIV idea: seed the
         // numerator as dy+dx, so the Kaliski coefficient output is tagged by
@@ -9557,8 +9684,12 @@ fn build_standard_point_add(
             for _ in 0..pair1_iters {
                 mod_halve_inplace_fast(b, &lam_inner, p);
             }
-            b.set_phase("pair1_mul2");
-            pair1_mul2_add_into_acc(b, &ty, &lam_inner, &tx, p);
+            if affine_combined_y {
+                b.set_phase("pair1_mul2_deferred_combined_y");
+            } else {
+                b.set_phase("pair1_mul2");
+                pair1_mul2_add_into_acc(b, &ty, &lam_inner, &tx, p);
+            }
             if tagged_div_validate {
                 // lam_inner = -(lambda+1) after consuming tagged ty=(dy+dx).
                 // Add 1 to recover the normal lam_inner=-lambda expected by the
@@ -9572,18 +9703,24 @@ fn build_standard_point_add(
     }
     let lam: Vec<QubitId> = lam_cell.into_inner().expect("lam set");
 
-    mod_mul_sub_qq(b, &tx, &lam, &lam, p);
-    mod_add_double_qb(b, &tx, &ox, p);
-    mod_add_qb(b, &tx, &ox, p);
-    mod_neg_inplace_fast(b, &tx, p);
+    if affine_combined_y {
+        square_tx_and_combined_ty_l2minus3qx(b, &tx, &ty, &lam, &ox, p);
+    } else {
+        mod_mul_sub_qq(b, &tx, &lam, &lam, p);
+        mod_add_double_qb(b, &tx, &ox, p);
+        mod_add_qb(b, &tx, &ox, p);
+        mod_neg_inplace_fast(b, &tx, p);
+    }
     if by_pair2_scaled_product {
         b.set_phase("pair2_by_scaled_product");
         write_pair2_product_and_clean_lam_with_scaled_by_bench(b, &lam, &tx, &ty, p);
         b.set_phase("pair2_by_scaled_product_cleanup");
         mod_sub_qb(b, &ty, &oy, p);
     } else {
-        b.set_phase("mul3_between_pair");
-        mod_mul_write_into_zero_acc_karatsuba2(b, &ty, &lam, &tx, p);
+        if !affine_combined_y {
+            b.set_phase("mul3_between_pair");
+            mod_mul_write_into_zero_acc_karatsuba2(b, &ty, &lam, &tx, p);
+        }
         if by_pair2_centered {
             b.set_phase("pair2_by_centered_compute_correction");
             add_neg_quotient_into_acc_with_centered_by_bench(b, &lam, &tx, &ty, p);
