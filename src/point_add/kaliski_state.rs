@@ -63,12 +63,58 @@ pub(crate) fn kal_cswap_uv_merge_enabled() -> bool {
     std::env::var("KAL_CSWAP_UV_MERGE").ok().as_deref() != Some("0")
 }
 
-pub(crate) fn kal_cswap_uv_merge_safe_iters() -> usize {
+pub(crate) fn kal_cswap_uv_merge_safe_caps(pair: KalPair) -> (usize, usize) {
     // The cheap l_gt correction `gt ^= frame` is valid only while u != v_w is
     // guaranteed. With gcd=1, equality implies (u,v_w)=(1,1), which can appear
-    // near the terminal precursor. 254 is the highest clean 9024-shot prefix
-    // on the modular shift22/sol-ext island; keep tunable for future sweeps.
-    env_usize("KAL_CSWAP_UV_MERGE_SAFE_ITERS").unwrap_or(254)
+    // near the terminal precursor. 254 is globally clean; Pair2 has a clean
+    // 255-shot island on the current stack.
+    let pair_default = match pair {
+        // Pair2 is clean at 255 on the current stack; Pair1 and generic paths
+        // stay at the globally validated 254 prefix.
+        KalPair::Pair2 => 255,
+        KalPair::Default | KalPair::Pair1 => 254,
+    };
+    let mut forward = env_usize("KAL_CSWAP_UV_MERGE_SAFE_ITERS").unwrap_or(pair_default);
+    let mut backward = forward;
+
+    let (pair_all, pair_fwd, pair_bk) = match pair {
+        KalPair::Default => (None, None, None),
+        KalPair::Pair1 => (
+            Some("KAL_PAIR1_CSWAP_UV_MERGE_SAFE_ITERS"),
+            Some("KAL_PAIR1_CSWAP_UV_MERGE_FWD_SAFE_ITERS"),
+            Some("KAL_PAIR1_CSWAP_UV_MERGE_BK_SAFE_ITERS"),
+        ),
+        KalPair::Pair2 => (
+            Some("KAL_PAIR2_CSWAP_UV_MERGE_SAFE_ITERS"),
+            Some("KAL_PAIR2_CSWAP_UV_MERGE_FWD_SAFE_ITERS"),
+            Some("KAL_PAIR2_CSWAP_UV_MERGE_BK_SAFE_ITERS"),
+        ),
+    };
+
+    if let Some(v) = env_usize("KAL_CSWAP_UV_MERGE_FWD_SAFE_ITERS") {
+        forward = v;
+    }
+    if let Some(v) = env_usize("KAL_CSWAP_UV_MERGE_BK_SAFE_ITERS") {
+        backward = v;
+    }
+    if let Some(name) = pair_all {
+        if let Some(v) = env_usize(name) {
+            forward = v;
+            backward = v;
+        }
+    }
+    if let Some(name) = pair_fwd {
+        if let Some(v) = env_usize(name) {
+            forward = v;
+        }
+    }
+    if let Some(name) = pair_bk {
+        if let Some(v) = env_usize(name) {
+            backward = v;
+        }
+    }
+
+    (forward, backward)
 }
 
 /// For nonzero secp256k1 inputs, the first 256 Kaliski iterations are always
@@ -99,6 +145,8 @@ pub(crate) enum KalPair {
 pub(crate) struct BulkPrefixCaps {
     pub(crate) forward: usize,
     pub(crate) backward: usize,
+    pub(crate) uv_forward: usize,
+    pub(crate) uv_backward: usize,
 }
 
 pub(crate) fn bulk_prefix_safe_iters() -> usize {
@@ -187,7 +235,14 @@ pub(crate) fn bulk_prefix_caps(pair: KalPair) -> BulkPrefixCaps {
     // Pair1 uses the same bulk prefix as the global default (no override needed).
     // Previously pinned to 394; now inherits BULK_PREFIX_SAFE_ITERS = 401.
 
-    BulkPrefixCaps { forward, backward }
+    let (uv_forward, uv_backward) = kal_cswap_uv_merge_safe_caps(pair);
+
+    BulkPrefixCaps {
+        forward,
+        backward,
+        uv_forward,
+        uv_backward,
+    }
 }
 
 pub(crate) fn bulk_prefix_enabled() -> bool {
@@ -304,8 +359,11 @@ pub(crate) fn cleanup_bulk_prefix_caps(pair: KalPair) -> BulkPrefixCaps {
     // cleanup Kaliski runs only the generic (non-bulk-prefix3) iteration on
     // both forward and backward.  Explicit env override wins.
     let override_val = env_usize("KAL_PAIR1_INVKEEP_CLEANUP_BULK_ITERS").unwrap_or(0);
+    let (uv_forward, uv_backward) = kal_cswap_uv_merge_safe_caps(pair);
     BulkPrefixCaps {
         forward: override_val,
         backward: override_val,
+        uv_forward,
+        uv_backward,
     }
 }

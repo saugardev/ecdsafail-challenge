@@ -226,6 +226,7 @@ pub(crate) fn kaliski_forward_with_coeff_caps(
                 st.m_hist[i],
                 &st.m_hist[i + 1..iters],
                 i,
+                bulk_caps.uv_forward,
                 coeff,
                 &mut frame,
                 is_last,
@@ -287,6 +288,7 @@ pub(crate) fn kaliski_backward_caps(
                 st.m_hist[i],
                 &st.m_hist[i + 1..iters],
                 i,
+                bulk_caps.uv_backward,
                 &mut frame,
                 is_last,
             );
@@ -412,6 +414,7 @@ pub(crate) fn kaliski_forward_alias_v_w_caps(
                 st.m_hist[i],
                 &st.m_hist[i + 1..iters],
                 i,
+                bulk_caps.uv_forward,
                 None,
                 &mut frame,
                 is_last,
@@ -461,6 +464,7 @@ pub(crate) fn kaliski_backward_alias_v_w_caps(
                 st.m_hist[i],
                 &st.m_hist[i + 1..iters],
                 i,
+                bulk_caps.uv_backward,
                 &mut frame,
                 is_last,
             );
@@ -606,11 +610,11 @@ pub(crate) fn kaliski_forward_prescaled_kind(
     b.x(st.f_flag);
 
     let use_bulk_prefix3 = bulk_prefix_enabled();
-    let bulk_prefix_iters = bulk_prefix_safe_iters();
+    let bulk_caps = bulk_prefix_caps(KalPair::Default);
     let mut frame: Option<QubitId> = None;
     for i in 0..iters {
         let is_last = i + 1 == iters;
-        if use_bulk_prefix3 && i < bulk_prefix_iters {
+        if use_bulk_prefix3 && i < bulk_caps.forward {
             kaliski_iteration_bulk_prefix3(
                 b,
                 p,
@@ -621,6 +625,7 @@ pub(crate) fn kaliski_forward_prescaled_kind(
                 st.m_hist[i],
                 &st.m_hist[i + 1..iters],
                 i,
+                bulk_caps.uv_forward,
                 None,
                 &mut frame,
                 is_last,
@@ -681,11 +686,11 @@ pub(crate) fn kaliski_backward_prescaled_kind(
     debug_assert!(iters <= st.m_hist.len());
 
     let use_bulk_prefix3 = bulk_prefix_enabled();
-    let bulk_prefix_iters = bulk_prefix_safe_iters();
+    let bulk_caps = bulk_prefix_caps(KalPair::Default);
     let mut frame: Option<QubitId> = None;
     for i in (0..iters).rev() {
         let is_last = i + 1 == iters;
-        if use_bulk_prefix3 && i < bulk_prefix_iters {
+        if use_bulk_prefix3 && i < bulk_caps.backward {
             kaliski_iteration_bulk_prefix3_backward(
                 b,
                 p,
@@ -696,6 +701,7 @@ pub(crate) fn kaliski_backward_prescaled_kind(
                 st.m_hist[i],
                 &st.m_hist[i + 1..iters],
                 i,
+                bulk_caps.uv_backward,
                 &mut frame,
                 is_last,
             );

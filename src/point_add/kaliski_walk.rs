@@ -21,6 +21,7 @@ pub(crate) fn kaliski_iteration_bulk_prefix3(
     m_i: QubitId,
     m_future: &[QubitId],
     iter_idx: usize,
+    uv_safe_iters: usize,
     coeff: Option<(&[QubitId], &[QubitId])>,
     frame: &mut Option<QubitId>,
     is_last: bool,
@@ -28,7 +29,6 @@ pub(crate) fn kaliski_iteration_bulk_prefix3(
     // (r,s) cswap boundary-merge is only valid on the default coeff=None channel.
     let merge_rs = coeff.is_none() && kal_cswap_rs_merge_enabled();
     let merge_uv = merge_rs && kal_cswap_uv_merge_enabled();
-    let uv_safe_iters = kal_cswap_uv_merge_safe_iters();
     let uv_merge_in = merge_uv && iter_idx < uv_safe_iters;
     let uv_merge_out = merge_uv && !is_last && iter_idx + 1 < uv_safe_iters;
     let uv_frame_in = if uv_merge_in { *frame } else { None };
@@ -674,6 +674,7 @@ pub(crate) fn kaliski_iteration_bulk_prefix3_backward(
     m_i: QubitId,
     m_future: &[QubitId],
     iter_idx: usize,
+    uv_safe_iters: usize,
     frame: &mut Option<QubitId>,
     is_last: bool,
 ) {
@@ -681,7 +682,6 @@ pub(crate) fn kaliski_iteration_bulk_prefix3_backward(
     // (r,s) cswap boundary-merge — bulk backward is always coeff=None.
     let merge_rs = kal_cswap_rs_merge_enabled();
     let merge_uv = merge_rs && kal_cswap_uv_merge_enabled();
-    let uv_safe_iters = kal_cswap_uv_merge_safe_iters();
     let uv_merge_in = merge_uv && iter_idx < uv_safe_iters;
     let uv_merge_out = merge_uv && !is_last && iter_idx + 1 < uv_safe_iters;
     let gz = gz_step4_slow();
