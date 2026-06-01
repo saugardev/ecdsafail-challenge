@@ -690,15 +690,27 @@ pub(crate) fn csub_nbit_const_direct_fast(b: &mut B, acc: &[QubitId], c: U256, c
 
     // Forward borrow sweep. borrow_{i+1} = majority(!acc_i, k_i, borrow_i),
     // where k_i = ctrl when c_i=1 and 0 otherwise.
+    let majfold = majfold_sub_enabled();
     for i in 0..cut {
         let target = borrows[i];
         let borrow_in = if i == 0 { None } else { Some(borrows[i - 1]) };
         if bit(c, i) {
             b.x(acc[i]);
             if let Some(bi) = borrow_in {
-                b.ccx(acc[i], bi, target);
-                b.ccx(ctrl, acc[i], target);
-                b.ccx(ctrl, bi, target);
+                // MAJ(!acc[i], ctrl, bi) -> fold to 1 CCX + free CX (bi pivot):
+                // maj(a,b,d)=d^(a^d)&(b^d). Value identical -> backward Hmr unchanged.
+                if majfold {
+                    b.cx(bi, acc[i]);
+                    b.cx(bi, ctrl);
+                    b.ccx(acc[i], ctrl, target);
+                    b.cx(bi, target);
+                    b.cx(bi, ctrl);
+                    b.cx(bi, acc[i]);
+                } else {
+                    b.ccx(acc[i], bi, target);
+                    b.ccx(ctrl, acc[i], target);
+                    b.ccx(ctrl, bi, target);
+                }
             } else {
                 b.ccx(acc[i], ctrl, target);
             }

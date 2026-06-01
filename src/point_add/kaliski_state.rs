@@ -71,24 +71,19 @@ pub(crate) fn kal_wtrunc_enabled() -> bool {
 }
 
 pub(crate) fn kal_wtrunc_k0() -> usize {
-    // Full-width prefix length for the W-TRUNC envelope. Lowered 27 -> 25: a
-    // full 9024-shot isolated eval confirms K0=25 is a clean validity island
-    // (0 mismatch / 0 phase) and shaves the W-TRUNC envelope by 2 more early
-    // iterations, saving 5,862 avg-executed Toffoli (2,842,943 -> 2,837,081)
-    // at peak-neutral 2309. K0=23 fails (2 mismatch), so 25 is the floor.
-    env_usize("KAL_WTRUNC_K0").unwrap_or(25)
+    env_usize("KAL_WTRUNC_K0").unwrap_or(26)
 }
 
 pub(crate) fn kal_wtrunc_margin() -> usize {
-    // Banked: margin=2 (re-tightened from 3 AFTER lowering K0 27->25). Margin
-    // and K0 jointly set the W-TRUNC envelope and the op count re-rolls the
-    // Fiat-Shamir inputs, so the validity cliff moves with K0. On the OLD K0=27
-    // island margin=2 FAILED (2 mismatch / 1 phase); on the CURRENT K0=25 island
-    // a full 9024-shot screen finds margin=2 CLEAN (0/0/0) and margin=1/0 FAIL
-    // (2 mismatch / 1 phase). So margin=2 is the validating floor at K0=25 —
-    // -4,416 avg-exec Toffoli vs margin=3 (2,837,081 -> 2,832,665), peak-neutral
-    // 2309, score 6,540,623,485. KAL_WTRUNC_MARGIN env override remains available.
-    env_usize("KAL_WTRUNC_MARGIN").unwrap_or(2)
+    // Banked: margin=3 — re-tightened from 4 on the CARRY-TAIL SUB W=96 island.
+    // The carry-tail op-count change re-rolled the Fiat-Shamir inputs; a full
+    // 9024-shot screen on this island maps the validity cliff at margin: 3=clean
+    // (0/0/0), 2=FAIL (2 mismatch / 1 phase), 1=FAIL (2 mismatch). So margin=3 is
+    // the validating floor for the combined (carry-tail + GCD W-TRUNC) circuit —
+    // -4,380 avg-exec Toffoli vs margin=4, peak-neutral 2309. Validated clean;
+    // score 6,616,811,249. (Carry-tail base had margin=4; pre-carry-tail it was
+    // 0.) KAL_WTRUNC_MARGIN env override remains available.
+    env_usize("KAL_WTRUNC_MARGIN").unwrap_or(3)
 }
 
 /// Empirical-bound truncation width for a CCX-bearing Kaliski width loop at
@@ -159,6 +154,15 @@ pub(crate) fn kal_carrytail_sub_enabled() -> bool {
     matches!(kal_carrytail_mode(), "both" | "sub")
 }
 
+/// MAJ-FOLD (SUB path, default-ON): fold the 3-CCX direct const-SUB borrow MAJ
+/// (maj(!acc, ctrl, bi)) into 1 CCX + free CX using the borrow-in `bi` as the
+/// pivot (maj(a,b,d)=d^(a^d)&(b^d)). The computed borrow value is identical, so
+/// the backward Hmr cz_if measurement-uncompute is byte-unchanged. Validated
+/// 9024-clean (also clean with truncations off). KAL_MAJFOLD_SUB=0 disables.
+pub(crate) fn majfold_sub_enabled() -> bool {
+    std::env::var("KAL_MAJFOLD_SUB").ok().as_deref() != Some("0")
+}
+
 pub(crate) fn kal_carrytail_w() -> usize {
     // Banked clean island: SUB W=59 (paired with WTRUNC margin=3). The carry-tail
     // SUB borrow chain runs to bit 33+59=92, far above the 3M-MC max realizable
@@ -167,12 +171,12 @@ pub(crate) fn kal_carrytail_w() -> usize {
     // Fiat-Shamir ISLAND LOTTERY: each W value re-rolls the test inputs, and only
     // some W land a 9024-clean island at margin=3. Full isolated-eval W-sweep at
     // m=3 (each = trusted eval_circuit over 9024 shots) found the clean islands
-    // W∈{82,75,69,59}; W=59 is the deepest/best (2,842,943 avg-exec T × 2309 peak
-    // = 6,564,355,387, 0/0). Neighbours of 59 (61,57,55,..) all REJECT on island
-    // stragglers (not truncation errors). margin=3 is the floor on the W=59 island
-    // (W=59 m=2 and m=4 untested-here; the W-sweep used m=3 throughout). Down to
-    // W=44 no further clean island appeared. KAL_CARRYTAIL_W env override remains.
-    env_usize("KAL_CARRYTAIL_W").unwrap_or(59)
+    // W∈{82,75,69,59,49}; W=49 is the deepest clean island found (2,836,803 avg-exec
+    // T × 2309 peak = 6,550,178,127, 0/0 over 9024). Borrow chain to bit 33+49=82,
+    // far above the 3M-MC max realizable sub-borrow run (19, bit 51) → exact; the
+    // validity constraint is the Fiat-Shamir island lottery. margin=3 floor (m=2 FAILs).
+    // KAL_CARRYTAIL_W env override remains.
+    env_usize("KAL_CARRYTAIL_W").unwrap_or(49)
 }
 
 pub(crate) fn kal_carrytail_k0() -> usize {
