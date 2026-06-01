@@ -75,12 +75,15 @@ pub(crate) fn kal_wtrunc_k0() -> usize {
 }
 
 pub(crate) fn kal_wtrunc_margin() -> usize {
-    // Banked: margin=4 pairs with the CARRY-TAIL SUB W=96 truncation to land a
-    // 9024-clean island (the carrytail op-count change re-rolls the Fiat-Shamir
-    // inputs, and margin=4 gives the GCD W-TRUNC enough slack to absorb the new
-    // stragglers). Validated clean; score 6,626,924,669. (Without carrytail the
-    // banked margin was 0.) KAL_WTRUNC_MARGIN env override remains available.
-    env_usize("KAL_WTRUNC_MARGIN").unwrap_or(4)
+    // Banked: margin=3 — re-tightened from 4 on the CARRY-TAIL SUB W=96 island.
+    // The carry-tail op-count change re-rolled the Fiat-Shamir inputs; a full
+    // 9024-shot screen on this island maps the validity cliff at margin: 3=clean
+    // (0/0/0), 2=FAIL (2 mismatch / 1 phase), 1=FAIL (2 mismatch). So margin=3 is
+    // the validating floor for the combined (carry-tail + GCD W-TRUNC) circuit —
+    // -4,380 avg-exec Toffoli vs margin=4, peak-neutral 2309. Validated clean;
+    // score 6,616,811,249. (Carry-tail base had margin=4; pre-carry-tail it was
+    // 0.) KAL_WTRUNC_MARGIN env override remains available.
+    env_usize("KAL_WTRUNC_MARGIN").unwrap_or(3)
 }
 
 /// Empirical-bound truncation width for a CCX-bearing Kaliski width loop at
