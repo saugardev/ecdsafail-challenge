@@ -23112,6 +23112,20 @@ fn dialog_gcd_raw_apply_reverse_materialized_special_sub_enabled() -> bool {
         == Some("1")
 }
 
+fn dialog_gcd_apply_chunked_f_blocks() -> Option<usize> {
+    std::env::var("DIALOG_GCD_APPLY_CHUNKED_F_BLOCKS")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .filter(|&blocks| blocks >= 2)
+}
+
+fn dialog_gcd_apply_chunked_f_cut() -> Option<usize> {
+    std::env::var("DIALOG_GCD_APPLY_CHUNKED_F_CUT")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .filter(|&cut| (1..N).contains(&cut))
+}
+
 fn dialog_gcd_raw_tobitvector_fit_bench_enabled() -> bool {
     std::env::var(DIALOG_GCD_RAW_TOBITVECTOR_FIT_BENCH_ENV)
         .ok()
@@ -24067,6 +24081,12 @@ fn dialog_gcd_cmod_add_materialized_pseudomersenne(
 ) {
     assert_eq!(acc.len(), N);
     assert_eq!(a.len(), N);
+    if let Some(blocks) = dialog_gcd_apply_chunked_f_blocks()
+        .filter(|_| dialog_gcd_raw_apply_truncated_clean_enabled())
+    {
+        dialog_gcd_cmod_add_materialized_pseudomersenne_chunked(b, acc, a, ctrl, p, blocks);
+        return;
+    }
     let c = U256::MAX.wrapping_sub(p).wrapping_add(U256::from(1u64));
 
     let f = b.alloc_qubits(N);
@@ -24129,6 +24149,235 @@ fn dialog_gcd_apply_window_blocks() -> Option<usize> {
         .filter(|&w| w >= 2)
 }
 
+fn dialog_gcd_clean_truncated_underflow(
+    b: &mut B,
+    acc: &[QubitId],
+    a: &[QubitId],
+    ctrl: QubitId,
+    acc_ovf: QubitId,
+) {
+    let compare_start = N - dialog_gcd_apply_clean_compare_bits();
+    for &q in &a[compare_start..] {
+        b.x(q);
+    }
+    b.cx(ctrl, acc_ovf);
+    ccx_cmp_lt_into_fast(b, &acc[compare_start..], &a[compare_start..], ctrl, acc_ovf);
+    for &q in &a[compare_start..] {
+        b.x(q);
+    }
+}
+
+fn dialog_gcd_load_controlled_slice(
+    b: &mut B,
+    ctrl: QubitId,
+    source: &[QubitId],
+    lo: usize,
+    hi: usize,
+) -> Vec<QubitId> {
+    assert!(lo <= hi);
+    assert!(hi <= source.len());
+    let out = b.alloc_qubits(hi - lo);
+    for (i, &q) in source[lo..hi].iter().enumerate() {
+        b.ccx(ctrl, q, out[i]);
+    }
+    out
+}
+
+fn dialog_gcd_clear_controlled_slice_hmr(
+    b: &mut B,
+    ctrl: QubitId,
+    source: &[QubitId],
+    lo: usize,
+    loaded: &[QubitId],
+) {
+    assert!(lo + loaded.len() <= source.len());
+    for (i, &q) in loaded.iter().enumerate() {
+        let m = b.alloc_bit();
+        b.hmr(q, m);
+        b.cz_if(ctrl, source[lo + i], m);
+    }
+}
+
+fn dialog_gcd_chunk_hi(blocks: usize, block: usize, ext_n: usize) -> usize {
+    if blocks == 2 && block == 0 {
+        return dialog_gcd_apply_chunked_f_cut().unwrap_or(ext_n / 2).min(ext_n - 1);
+    }
+    ((block + 1) * ext_n) / blocks
+}
+
+fn dialog_gcd_add_ctrl_chunked_low_to_ext(
+    b: &mut B,
+    source: &[QubitId],
+    acc_ext: &[QubitId],
+    ctrl: QubitId,
+    c_in: QubitId,
+    blocks: usize,
+) {
+    let n = source.len();
+    assert_eq!(acc_ext.len(), n + 1);
+    let ext_n = acc_ext.len();
+    let blocks = blocks.max(2).min(ext_n);
+    let mut carry = c_in;
+    let mut lo = 0usize;
+    let mut couts: Vec<(QubitId, usize)> = Vec::new();
+
+    for blk in 0..blocks {
+        let hi = dialog_gcd_chunk_hi(blocks, blk, ext_n);
+        if hi <= lo {
+            continue;
+        }
+        if blk == blocks - 1 || hi == ext_n {
+            let f = dialog_gcd_load_controlled_slice(b, ctrl, source, lo.min(n), n);
+            cuccaro_add_fast_low_to_ext(b, &f, &acc_ext[lo..hi], carry);
+            dialog_gcd_clear_controlled_slice_hmr(b, ctrl, source, lo.min(n), &f);
+            b.free_vec(&f);
+            break;
+        }
+
+        assert!(hi <= n);
+        let f = dialog_gcd_load_controlled_slice(b, ctrl, source, lo, hi);
+        let zero = b.alloc_qubit();
+        let cout = b.alloc_qubit();
+        let mut a_block = f.clone();
+        a_block.push(zero);
+        let mut acc_block = acc_ext[lo..hi].to_vec();
+        acc_block.push(cout);
+        cuccaro_add_fast(b, &a_block, &acc_block, carry);
+        b.free(zero);
+        dialog_gcd_clear_controlled_slice_hmr(b, ctrl, source, lo, &f);
+        b.free_vec(&f);
+        couts.push((cout, hi));
+        carry = cout;
+        lo = hi;
+    }
+
+    for &(cout, p) in couts.iter().rev() {
+        ccx_cmp_lt_into_fast(b, &acc_ext[..p], &source[..p], ctrl, cout);
+        b.free(cout);
+    }
+}
+
+fn dialog_gcd_sub_ctrl_chunked_low_to_ext(
+    b: &mut B,
+    source: &[QubitId],
+    acc_ext: &[QubitId],
+    ctrl: QubitId,
+    c_in: QubitId,
+    blocks: usize,
+) {
+    let n = source.len();
+    assert_eq!(acc_ext.len(), n + 1);
+    let ext_n = acc_ext.len();
+    let blocks = blocks.max(2).min(ext_n);
+    let mut borrow = c_in;
+    let mut lo = 0usize;
+    let mut bouts: Vec<(QubitId, usize)> = Vec::new();
+
+    for blk in 0..blocks {
+        let hi = dialog_gcd_chunk_hi(blocks, blk, ext_n);
+        if hi <= lo {
+            continue;
+        }
+        if blk == blocks - 1 || hi == ext_n {
+            let f = dialog_gcd_load_controlled_slice(b, ctrl, source, lo.min(n), n);
+            cuccaro_sub_fast_low_to_ext(b, &f, &acc_ext[lo..hi], borrow);
+            dialog_gcd_clear_controlled_slice_hmr(b, ctrl, source, lo.min(n), &f);
+            b.free_vec(&f);
+            break;
+        }
+
+        assert!(hi <= n);
+        let f = dialog_gcd_load_controlled_slice(b, ctrl, source, lo, hi);
+        let zero = b.alloc_qubit();
+        let bout = b.alloc_qubit();
+        let mut a_block = f.clone();
+        a_block.push(zero);
+        let mut acc_block = acc_ext[lo..hi].to_vec();
+        acc_block.push(bout);
+        cuccaro_sub_fast(b, &a_block, &acc_block, borrow);
+        b.free(zero);
+        dialog_gcd_clear_controlled_slice_hmr(b, ctrl, source, lo, &f);
+        b.free_vec(&f);
+        bouts.push((bout, hi));
+        borrow = bout;
+        lo = hi;
+    }
+
+    for &(bout, p) in bouts.iter().rev() {
+        for i in 0..p {
+            b.x(source[i]);
+        }
+        ccx_cmp_lt_into_fast(b, &source[..p], &acc_ext[..p], ctrl, bout);
+        for i in 0..p {
+            b.x(source[i]);
+        }
+        b.free(bout);
+    }
+}
+
+fn dialog_gcd_cmod_add_materialized_pseudomersenne_chunked(
+    b: &mut B,
+    acc: &[QubitId],
+    a: &[QubitId],
+    ctrl: QubitId,
+    p: U256,
+    blocks: usize,
+) {
+    assert_eq!(acc.len(), N);
+    assert_eq!(a.len(), N);
+    let c = U256::MAX.wrapping_sub(p).wrapping_add(U256::from(1u64));
+
+    let (acc_ext, acc_ovf) = ext_reg(b, acc);
+    let c_in = b.alloc_qubit();
+
+    b.set_phase("dialog_gcd_materialized_special_chunked_raw_sum");
+    dialog_gcd_add_ctrl_chunked_low_to_ext(b, a, &acc_ext, ctrl, c_in, blocks);
+    b.free(c_in);
+
+    b.set_phase("dialog_gcd_materialized_special_overflow_fold");
+    if let Some(w) = fold_carry_trunc_window() {
+        cadd_nbit_const_direct_trunc_fast(b, &acc[..DIALOG_GCD_SPECIAL_ADD_LSBS], c, acc_ovf, w);
+    } else {
+        cadd_nbit_const_fast(b, &acc[..DIALOG_GCD_SPECIAL_ADD_LSBS], c, acc_ovf);
+    }
+
+    b.set_phase("dialog_gcd_materialized_special_overflow_clean");
+    let compare_start = N - dialog_gcd_apply_clean_compare_bits();
+    ccx_cmp_lt_into_fast(b, &acc[compare_start..], &a[compare_start..], ctrl, acc_ovf);
+    unext_reg(b, acc_ovf);
+}
+
+fn dialog_gcd_cmod_sub_materialized_pseudomersenne_chunked(
+    b: &mut B,
+    acc: &[QubitId],
+    a: &[QubitId],
+    ctrl: QubitId,
+    p: U256,
+    blocks: usize,
+) {
+    assert_eq!(acc.len(), N);
+    assert_eq!(a.len(), N);
+    let c = U256::MAX.wrapping_sub(p).wrapping_add(U256::from(1u64));
+
+    let (acc_ext, acc_ovf) = ext_reg(b, acc);
+    let c_in = b.alloc_qubit();
+
+    b.set_phase("dialog_gcd_materialized_special_chunked_raw_difference");
+    dialog_gcd_sub_ctrl_chunked_low_to_ext(b, a, &acc_ext, ctrl, c_in, blocks);
+    b.free(c_in);
+
+    b.set_phase("dialog_gcd_materialized_special_underflow_fold");
+    if let Some(w) = fold_carry_trunc_window() {
+        csub_nbit_const_direct_trunc_fast(b, &acc[..DIALOG_GCD_SPECIAL_ADD_LSBS], c, acc_ovf, w);
+    } else {
+        csub_nbit_const_fast(b, &acc[..DIALOG_GCD_SPECIAL_ADD_LSBS], c, acc_ovf);
+    }
+
+    b.set_phase("dialog_gcd_materialized_special_underflow_clean");
+    dialog_gcd_clean_truncated_underflow(b, acc, a, ctrl, acc_ovf);
+    unext_reg(b, acc_ovf);
+}
+
 fn dialog_gcd_cmod_sub_materialized_pseudomersenne(
     b: &mut B,
     acc: &[QubitId],
@@ -24138,6 +24387,13 @@ fn dialog_gcd_cmod_sub_materialized_pseudomersenne(
 ) {
     assert_eq!(acc.len(), N);
     assert_eq!(a.len(), N);
+    if let Some(blocks) = dialog_gcd_apply_chunked_f_blocks()
+        .filter(|_| dialog_gcd_raw_apply_truncated_clean_enabled())
+        .filter(|_| dialog_gcd_measured_apply_sub_enabled())
+    {
+        dialog_gcd_cmod_sub_materialized_pseudomersenne_chunked(b, acc, a, ctrl, p, blocks);
+        return;
+    }
     let c = U256::MAX.wrapping_sub(p).wrapping_add(U256::from(1u64));
 
     let f = b.alloc_qubits(N);
@@ -24181,36 +24437,7 @@ fn dialog_gcd_cmod_sub_materialized_pseudomersenne(
 
     b.set_phase("dialog_gcd_materialized_special_underflow_clean");
     if dialog_gcd_raw_apply_truncated_clean_enabled() {
-        let compare_start = N - dialog_gcd_apply_clean_compare_bits();
-        let underflow_pred = b.alloc_qubit();
-        b.x(underflow_pred);
-        for &q in &a[compare_start..] {
-            b.x(q);
-        }
-        cmp_lt_into_fast(
-            b,
-            &acc[compare_start..],
-            &a[compare_start..],
-            underflow_pred,
-        );
-        if dialog_gcd_measured_underflow_gate_enabled() {
-            let m = b.alloc_bit();
-            b.hmr(acc_ovf, m);
-            b.cz_if(ctrl, underflow_pred, m);
-        } else {
-            b.ccx(ctrl, underflow_pred, acc_ovf);
-        }
-        cmp_lt_into_fast(
-            b,
-            &acc[compare_start..],
-            &a[compare_start..],
-            underflow_pred,
-        );
-        for &q in &a[compare_start..] {
-            b.x(q);
-        }
-        b.x(underflow_pred);
-        b.free(underflow_pred);
+        dialog_gcd_clean_truncated_underflow(b, acc, a, ctrl, acc_ovf);
     } else {
         b.x(acc_ovf);
         mod_neg_inplace_fast(b, &f, p);
@@ -24353,36 +24580,7 @@ fn dialog_gcd_cmod_sub_materialized_pseudomersenne_borrowed_subtrahend(
 
     b.set_phase("dialog_gcd_materialized_special_borrowed_underflow_clean");
     if dialog_gcd_raw_apply_truncated_clean_enabled() {
-        let compare_start = N - dialog_gcd_apply_clean_compare_bits();
-        let underflow_pred = b.alloc_qubit();
-        b.x(underflow_pred);
-        for &q in &a[compare_start..] {
-            b.x(q);
-        }
-        cmp_lt_into_fast(
-            b,
-            &acc[compare_start..],
-            &a[compare_start..],
-            underflow_pred,
-        );
-        if dialog_gcd_measured_underflow_gate_enabled() {
-            let m = b.alloc_bit();
-            b.hmr(acc_ovf, m);
-            b.cz_if(ctrl, underflow_pred, m);
-        } else {
-            b.ccx(ctrl, underflow_pred, acc_ovf);
-        }
-        cmp_lt_into_fast(
-            b,
-            &acc[compare_start..],
-            &a[compare_start..],
-            underflow_pred,
-        );
-        for &q in &a[compare_start..] {
-            b.x(q);
-        }
-        b.x(underflow_pred);
-        b.free(underflow_pred);
+        dialog_gcd_clean_truncated_underflow(b, acc, a, ctrl, acc_ovf);
     } else {
         b.x(acc_ovf);
         mod_neg_inplace_fast(b, f, p);
@@ -24592,35 +24790,8 @@ fn round763_dedup_enabled() -> bool {
     std::env::var("DIALOG_GCD_ROUND763_DEDUP").ok().as_deref() == Some("1")
 }
 
-fn round763_compress_lever_enabled() -> bool {
-    // EXACT (reachable-input) rewrite of the round763 6->5 sidecar packer.
-    // Provable: each raw slot is (b0, b0_and_b1) with b0_and_b1 = b0 AND (v<u),
-    // so state (0,1) is UNREACHABLE on every GCD input. On that 27-code support
-    // three dedup'd CCX collapse to CX (verified by exhaustive 27-input search):
-    //   ccx(4,5->3)->cx(5->3); ccx(1,2->4)->cx(1->4); ccx(0,5->2)->cx(0->2).
-    // With the unconditional ccx(1,3->4) bracket dedup, 9 CCX -> 4 CCX/direction.
-    // Forward/inverse stay mutual inverses + 27-distinct injection with scratch->0
-    // on reachable inputs. Default OFF (the new op stream reseeds Fiat-Shamir).
-    std::env::var("DIALOG_GCD_ROUND763_COMPRESS_LEVER")
-        .ok()
-        .as_deref()
-        == Some("1")
-}
-
 fn emit_dialog_gcd_round763_compressor(b: &mut B, block: &[QubitId]) {
     assert_eq!(block.len(), 6);
-    if round763_compress_lever_enabled() {
-        // 4-CCX reachable-support form (see round763_compress_lever_enabled).
-        b.cx(block[5], block[3]);
-        b.ccx(block[3], block[4], block[5]);
-        b.cx(block[1], block[4]);
-        b.cx(block[1], block[0]);
-        b.ccx(block[4], block[5], block[1]);
-        b.cx(block[0], block[2]);
-        b.ccx(block[2], block[5], block[0]);
-        b.ccx(block[0], block[1], block[5]);
-        return;
-    }
     b.ccx(block[4], block[5], block[3]);
     b.ccx(block[3], block[4], block[5]);
     b.ccx(block[1], block[2], block[4]);
@@ -24639,18 +24810,6 @@ fn emit_dialog_gcd_round763_compressor(b: &mut B, block: &[QubitId]) {
 
 fn emit_dialog_gcd_round763_compressor_inverse(b: &mut B, block: &[QubitId]) {
     assert_eq!(block.len(), 6);
-    if round763_compress_lever_enabled() {
-        // Exact gate-reverse of the 4-CCX reachable-support forward form.
-        b.ccx(block[0], block[1], block[5]);
-        b.ccx(block[2], block[5], block[0]);
-        b.cx(block[0], block[2]);
-        b.ccx(block[4], block[5], block[1]);
-        b.cx(block[1], block[0]);
-        b.cx(block[1], block[4]);
-        b.ccx(block[3], block[4], block[5]);
-        b.cx(block[5], block[3]);
-        return;
-    }
     b.ccx(block[0], block[1], block[5]);
     b.ccx(block[2], block[5], block[0]);
     b.ccx(block[0], block[5], block[2]);
@@ -29061,13 +29220,6 @@ fn configure_ecdsafail_submission_route() {
     set_default_env("KAL_DOUBLE_CARRY_TRUNC_W", "20");
     set_default_env("KAL_FOLD_CARRY_TRUNC_W", "20");
     set_default_env("DIALOG_GCD_ROUND763_DEDUP", "1");
-    // EXACT round763 compressor rewrite: the 6->5 sidecar packer's input slot
-    // (b0, b0_and_b1) has state (0,1) UNREACHABLE on all GCD inputs (b0_and_b1 =
-    // b0 AND (v<u)). On that 27-code support, 3 dedup'd CCX collapse to CX,
-    // taking the compressor 9 CCX -> 4 CCX/direction. −3,192 executed Toffoli,
-    // peak-neutral 1571, validated 0/0/0. (DIALOG_GCD_ROUND763_COMPRESS_LEVER=0
-    // restores the 9-CCX form.)
-    set_default_env("DIALOG_GCD_ROUND763_COMPRESS_LEVER", "1");
     set_default_env("DIALOG_GCD_MEASURED_UNDERFLOW_GATE", "1");
     // Branch comparator width tightened 63 -> 61 (−1,160 executed Toffoli),
     // STACKED on the PA9024 margin-5 cut. Two within-budget truncations coexist
@@ -29107,10 +29259,15 @@ fn configure_ecdsafail_submission_route() {
     // (1,668,753 -> 1,770,897) but peak -126 => score 2,833,542,594 -> 2,783,850,084.
     set_default_env("DIALOG_GCD_HOST_GATED", "1");
     set_default_env("DIALOG_GCD_APPLY_WINDOW_BLOCKS", "2");
-    // New low-bit body op stream needs its own clean Fiat-Shamir island:
-    // REROLL=1, POST_SUB_REROLL=12 validates 0/0/0 over 9024.
-    set_default_env("DIALOG_REROLL", "6");
-    set_default_env("DIALOG_POST_SUB_REROLL", "3");
+    // Chunked apply materializes ctrl&a only for the active carry window, so the
+    // apply phase drops under the ROUND84 peak binder. The asymmetric first cut
+    // trims boundary-clear comparators while staying peak-safe (1567q).
+    set_default_env("DIALOG_GCD_APPLY_CHUNKED_F_BLOCKS", "2");
+    set_default_env("DIALOG_GCD_APPLY_CHUNKED_F_CUT", "70");
+    // Chunked apply + fused underflow clean needs its own Fiat-Shamir island:
+    // REROLL=4, POST_SUB_REROLL=15 validates 0/0/0 over 9024.
+    set_default_env("DIALOG_REROLL", "4");
+    set_default_env("DIALOG_POST_SUB_REROLL", "15");
     // Fuse the branch-bit comparator with the b0-controlled log update: derive
     // b0_and_b1 from the in-flight comparator carry instead of materializing a
     // separate cmp qubit and recomputing the comparator for uncompute. Pure
