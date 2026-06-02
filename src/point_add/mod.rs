@@ -29692,10 +29692,10 @@ fn configure_ecdsafail_submission_route() {
     // Branch comparator width tightened 61 -> 59 (−1,600 executed Toffoli),
     // stacked on the chunked-apply + round763 + acc=19 base via the 2-D reroll
     // island (DIALOG_REROLL=0, DIALOG_POST_SUB_REROLL=10). Validated 0/0/0 @ 1567.
-    set_default_env("DIALOG_GCD_COMPARE_BITS", "59");
+    set_default_env("DIALOG_GCD_COMPARE_BITS", "58");
     set_default_env("DIALOG_GCD_APPLY_CLEAN_COMPARE_BITS", "19");
     set_default_env("DIALOG_GCD_RAW_PA", "1");
-    set_default_env("DIALOG_GCD_ACTIVE_ITERATIONS", "399");
+    set_default_env("DIALOG_GCD_ACTIVE_ITERATIONS", "398");
     set_default_env("DIALOG_GCD_RAW_IPMUL_TERMINAL_REUSE", "1");
     set_default_env("DIALOG_GCD_RAW_IPMUL_CLEAR_P_RESIDUAL", "1");
     set_default_env("DIALOG_GCD_RAW_QUOTIENT_TERMINAL_REUSE", "1");
@@ -29798,11 +29798,11 @@ fn configure_ecdsafail_submission_route() {
     // 399 T/qubit, far inside break-even. Score 1466 x 1,732,283 = 2,539,526,878.
     set_default_env("DIALOG_GCD_BRANCH_BITS_HOST_COMPARATOR", "1");
     set_default_env("DIALOG_GCD_APPLY_CHUNKED_F_CUT", "116");
-    // The hosted comparator + F_CUT=116 op-stream re-rolls the Fiat-Shamir island. 2-D
-    // (DIALOG_REROLL x DIALOG_POST_SUB_REROLL) search lands 16/0 clean 0/0/0 over all 9024
-    // shots at 1466q and 1,732,283 avg executed Toffoli.
-    set_default_env("DIALOG_REROLL", "16");
-    set_default_env("DIALOG_POST_SUB_REROLL", "0");
+    // T-cut on the 1466q hosted-comparator route: the active398 island composes
+    // with one more branch-compare bit cut. A 2-D reroll search lands 52/28
+    // clean 0/0/0 over all 9024 shots at 1466q and 1,729,241 Toffoli.
+    set_default_env("DIALOG_REROLL", "52");
+    set_default_env("DIALOG_POST_SUB_REROLL", "28");
     // Fuse the branch-bit comparator with the b0-controlled log update: derive
     // b0_and_b1 from the in-flight comparator carry instead of materializing a
     // separate cmp qubit and recomputing the comparator for uncompute. Pure
