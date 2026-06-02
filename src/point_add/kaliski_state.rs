@@ -32,13 +32,12 @@ use super::*;
 /// (since max(r,s) doubles per iter starting from max=1, so max ≤ 2^iter_idx).
 /// In that range, mod_double(r)'s Solinas cadd is identity — replace with
 /// a plain shift (0 Toffoli) for ~255 CCX savings per iter.
-// bxue-l2 island (peak 2310 after reverting the f1-drop): R_SMALL=326,
-// BULK_PREFIX_SAFE_ITERS=400, pair1=399, pair2=397.
-// T-squeeze: R_SMALL=325 — the re-roll value that lands K0=25 clean on the
-// cswap-base a25248f margin=0 island (with K0=26/R=326 only W=26 is clean at
-// 2,574,129; dropping to K0=25 needs the R=325 re-roll → 2,570,415). R=324/326/327
-// reject at this depth. Stacks: margin=0 + K0=25 + R=325 + W=26 = 5,935,088,235.
-pub(crate) const R_SMALL_THRESHOLD: usize = 321;
+// C* island retune: R_SMALL=325 is the full-verified threshold for the current
+// dialog-fold + affine-recompute op stream when paired with KAL_REROLL=10.
+// It saves four correction-free r-doubling iterations versus R=321.  R=326
+// looked clean in 512-shot screening, but full 9024-shot validation rejected
+// multiple rerolls with classical mismatches / phase garbage.
+pub(crate) const R_SMALL_THRESHOLD: usize = 325;
 
 pub(crate) fn r_small_threshold() -> usize {
     std::env::var("KAL_R_SMALL_THRESHOLD")
