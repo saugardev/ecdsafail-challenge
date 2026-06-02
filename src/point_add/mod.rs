@@ -23763,13 +23763,37 @@ fn dialog_gcd_ccx_cmp_gt_truncated_into_width_hosted(
     let cmp_u = &v[start..];
     let cmp_v = &u[start..];
     let n = cmp_u.len();
-    // Need c_in (1) + carries (n) = n+1 borrowed lanes.
-    if let Some(slice) = borrowed.filter(|s| s.len() >= n + 1) {
+    // Need c_in (1) + carries (n) = n+1 clean lanes. PARTIAL hosting: borrow the
+    // future-log prefix that fits and allocate only the deficit, instead of
+    // all-or-nothing (which fully self-allocs n+1 at the late GCD steps where the
+    // slice runs short, pinning the branch_bits peak at 1446). The borrowed-carries
+    // comparator indexes c_in and each carries[i] independently, so a gathered
+    // [borrowed_prefix ++ owned] vec is value-identical; borrowed lanes are restored
+    // to |0> by the measured backward inv-MAJ sweep, owned lanes are freed.
+    let need = n + 1;
+    let avail = borrowed.map(|s| s.len()).unwrap_or(0);
+    if dialog_gcd_partial_host_comparator_enabled() && avail > 0 && avail < need {
+        let slice = borrowed.expect("avail>0");
+        let owned = b.alloc_qubits(need - avail);
+        let mut clean: Vec<QubitId> = Vec::with_capacity(need);
+        clean.extend_from_slice(slice);
+        clean.extend_from_slice(&owned);
+        let (c_in, carries) = clean.split_first().expect("need >= 1");
+        ccx_cmp_lt_into_fast_borrowed_carries(b, cmp_u, cmp_v, ctrl, target, *c_in, &carries[..n]);
+        b.free_vec(&owned);
+    } else if let Some(slice) = borrowed.filter(|s| s.len() >= need) {
         let (c_in, carries) = slice.split_first().expect("slice len >= n+1 > 0");
         ccx_cmp_lt_into_fast_borrowed_carries(b, cmp_u, cmp_v, ctrl, target, *c_in, &carries[..n]);
     } else {
         ccx_cmp_lt_into_fast(b, cmp_u, cmp_v, ctrl, target);
     }
+}
+
+fn dialog_gcd_partial_host_comparator_enabled() -> bool {
+    std::env::var("DIALOG_GCD_PARTIAL_HOST_COMPARATOR")
+        .ok()
+        .as_deref()
+        != Some("0")
 }
 
 fn dialog_gcd_cmp_gt_truncated_into(b: &mut B, u: &[QubitId], v: &[QubitId], flag: QubitId) {
@@ -29894,15 +29918,15 @@ fn configure_ecdsafail_submission_route() {
     // 399 T/qubit, far inside break-even. Score 1446 x 1,740,263 = 2,516,420,298.
     set_default_env("DIALOG_GCD_BODY_HOST_CIN", "1");
     set_default_env("DIALOG_GCD_LATE_BORROW_UV_HIGH", "1");
-    set_default_env("DIALOG_GCD_APPLY_CHUNKED_F_CUT", "126");
+    set_default_env("DIALOG_GCD_APPLY_CHUNKED_F_CUT", "128");
     // TOFFOLI STACK on the 1446 base: with body-host-cin + uv-high-borrow + F_CUT=126,
     // the two public proven tightenings COMPARE_BITS 59->58 (−952) and
     // ACTIVE_ITERATIONS 399->397 (−4,252) stack for −5,204 executed Toffoli at the
     // same 1446 peak. The combined op-stream re-rolls the Fiat-Shamir island; a 2-D
     // (DIALOG_REROLL x DIALOG_POST_SUB_REROLL) search lands 37/1 clean 0/0/0 over all
     // 9024 shots. Validated via eval_circuit: 1446q x 1,735,059 T = 2,508,895,314.
-    set_default_env("DIALOG_REROLL", "37");
-    set_default_env("DIALOG_POST_SUB_REROLL", "1");
+    set_default_env("DIALOG_REROLL", "52");
+    set_default_env("DIALOG_POST_SUB_REROLL", "7");
     // Fuse the branch-bit comparator with the b0-controlled log update: derive
     // b0_and_b1 from the in-flight comparator carry instead of materializing a
     // separate cmp qubit and recomputing the comparator for uncompute. Pure
