@@ -27860,7 +27860,7 @@ fn configure_ecdsafail_submission_route() {
     set_default_env("DIALOG_GCD_COMPRESSED_SIDECAR_LOG", "1");
     set_default_env("DIALOG_GCD_COMPRESSED_BLOCK_LIFECYCLE", "1");
     set_default_env("DIALOG_GCD_PA9024_COMPARE_SCHEDULE", "0");
-    set_default_env("DIALOG_GCD_COMPARE_BITS", "63");
+    set_default_env("DIALOG_GCD_COMPARE_BITS", "62");
     set_default_env("DIALOG_GCD_APPLY_CLEAN_COMPARE_BITS", "20");
     set_default_env("DIALOG_GCD_RAW_PA", "1");
     set_default_env("DIALOG_GCD_ACTIVE_ITERATIONS", "399");
@@ -27883,13 +27883,13 @@ fn configure_ecdsafail_submission_route() {
     // difference, mirroring the already-measured apply ADD. ~n Toffoli instead
     // of ~2n per call; peak-neutral (same carry lane the ADD already uses).
     set_default_env("DIALOG_GCD_MEASURED_APPLY_SUB", "1");
-    // COMPARE_BITS tightening: narrow the GCD comparator window 75 -> 63 and
-    // co-tune the Fiat-Shamir reroll (1 -> 5) to land a clean 9024-shot island.
-    // Pure Toffoli reduction (1981734 -> 1952382), peak-neutral at 1698.
+    // COMPARE_BITS tightening: narrow the GCD comparator window 75 -> 62 and
+    // co-tune the Fiat-Shamir reroll to land a clean 9024-shot island.
+    // Pure Toffoli reduction (1981734 -> 1925930), peak-neutral at 1698.
     // (Validated 0/0/0 over 9024 via eval_circuit.)
     // Apply-phase clean compares also use the measured comparator
-    // (cmp_lt_into_fast); op stream changes, reroll=2 lands a clean island.
-    set_default_env("DIALOG_REROLL", "2");
+    // (cmp_lt_into_fast); op stream changes, reroll=0 lands a clean island.
+    set_default_env("DIALOG_REROLL", "0");
 }
 
 fn build_builder() -> B {
