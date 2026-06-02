@@ -28755,12 +28755,17 @@ fn configure_ecdsafail_submission_route() {
     set_default_env("DIALOG_GCD_RAW_TOBITVECTOR_MATERIALIZED_SUB", "1");
     set_default_env("DIALOG_GCD_RAW_TOBITVECTOR_VARIABLE_WIDTH", "1");
     set_default_env("DIALOG_GCD_RAW_TOBITVECTOR_BORROW_FUTURE_LOG_CARRIES", "1");
-    set_default_env("ROUND84_XTAIL_SCHOOLBOOK", "1");
-    // W-TRUNC tightening: lower the GCD-body width envelope margin 37 -> 28 and
-    // co-tune the Fiat-Shamir reroll to land a clean 9024-shot island. Pure
-    // Toffoli reduction (2447846 -> 2396158), peak-neutral at 1698.
-    // (Validated 0/0/0 over 9024 via eval_circuit.)
-    set_default_env("DIALOG_GCD_WIDTH_MARGIN", "26");
+    // ROUND84 x-tail square: Karatsuba beats schoolbook by -16,272 emitted
+    // Toffoli on the peak-1572 base, and Karatsuba's z1_reg fits UNDER the
+    // materialized_special apply binder so peak stays 1572 (verified). The
+    // different op count re-rolls the Fiat-Shamir island, co-tuned below
+    // (WIDTH_MARGIN=27, REROLL=0). Validated 0/0/0 over 9024.
+    // ROUND84_XTAIL_KARATSUBA=0 (+ROUND84_XTAIL_SCHOOLBOOK=1) restores schoolbook.
+    set_default_env("ROUND84_XTAIL_KARATSUBA", "1");
+    // W-TRUNC tightening: GCD-body width envelope margin. Re-scanned for the
+    // Karatsuba x-tail op stream: margin=27 + REROLL=0 lands a clean 9024-shot
+    // island (anupsv's margin=26/REROLL=20 was for the schoolbook stream).
+    set_default_env("DIALOG_GCD_WIDTH_MARGIN", "27");
     // Measured (Gidney) uncompute for the apply-phase modular subtract's raw
     // difference, mirroring the already-measured apply ADD. ~n Toffoli instead
     // of ~2n per call; peak-neutral (same carry lane the ADD already uses).
@@ -28772,8 +28777,9 @@ fn configure_ecdsafail_submission_route() {
     // (1,668,753 -> 1,770,897) but peak -126 => score 2,833,542,594 -> 2,783,850,084.
     set_default_env("DIALOG_GCD_HOST_GATED", "1");
     set_default_env("DIALOG_GCD_APPLY_WINDOW_BLOCKS", "2");
-    // New op stream (windowed apply) needs its own clean Fiat-Shamir island.
-    set_default_env("DIALOG_REROLL", "20");
+    // New op stream (windowed apply + Karatsuba x-tail) needs its own clean
+    // Fiat-Shamir island: REROLL=0 with WIDTH_MARGIN=27 validates 0/0/0 over 9024.
+    set_default_env("DIALOG_REROLL", "0");
     // Fuse the branch-bit comparator with the b0-controlled log update: derive
     // b0_and_b1 from the in-flight comparator carry instead of materializing a
     // separate cmp qubit and recomputing the comparator for uncompute. Pure
