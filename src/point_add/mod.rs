@@ -275,7 +275,7 @@ pub fn build() -> Vec<Op> {
         let rr: usize = std::env::var("KAL_REROLL")
             .ok()
             .and_then(|v| v.parse::<usize>().ok())
-            .unwrap_or(5);
+            .unwrap_or(47); // CO-TUNE: rr=47 lands the cswap=331 full-9024 island
         for _ in 0..rr {
             b.x(tx[0]);
             b.x(tx[0]);

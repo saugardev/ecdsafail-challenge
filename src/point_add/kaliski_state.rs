@@ -552,7 +552,7 @@ pub(crate) fn kal_cswap_uv_merge_safe_iters() -> usize {
     // cswaps fwd+bwd, -22,600 avg-exec Toffoli) co-tuned with reroll=5 below.
     // 330 has no clean reroll island (u==v_w equality at iter 329 breaks the
     // cheap gt^=frame correction). Keep tunable for future sweeps.
-    env_usize("KAL_CSWAP_UV_MERGE_SAFE_ITERS").unwrap_or(329)
+    env_usize("KAL_CSWAP_UV_MERGE_SAFE_ITERS").unwrap_or(331) // CO-TUNE: 331 + reroll=47 (full-9024 island)
 }
 
 /// For nonzero secp256k1 inputs, the first 256 Kaliski iterations are always
