@@ -24038,6 +24038,29 @@ fn dialog_gcd_host_gated_enabled() -> bool {
     std::env::var("DIALOG_GCD_HOST_GATED").ok().as_deref() == Some("1")
 }
 
+fn dialog_gcd_materialized_body_gated_register<'a>(
+    b: &mut B,
+    body_len: usize,
+    borrowed_carries: Option<&'a [QubitId]>,
+) -> (Vec<QubitId>, Vec<QubitId>, Option<&'a [QubitId]>) {
+    let carry_need = body_len.saturating_sub(1);
+    let borrowed_for_body = if dialog_gcd_host_gated_enabled() {
+        borrowed_carries.filter(|carries| carries.len() >= carry_need)
+    } else {
+        None
+    };
+    let hosted_gated_len = borrowed_for_body
+        .map(|carries| carries.len().saturating_sub(carry_need).min(body_len))
+        .unwrap_or(0);
+    let owned_gated = b.alloc_qubits(body_len - hosted_gated_len);
+    let mut gated = Vec::with_capacity(body_len);
+    if let Some(carries) = borrowed_for_body {
+        gated.extend_from_slice(&carries[carry_need..carry_need + hosted_gated_len]);
+    }
+    gated.extend_from_slice(&owned_gated);
+    (gated, owned_gated, borrowed_for_body)
+}
+
 fn dialog_gcd_controlled_sub_selected(
     b: &mut B,
     subtrahend: &[QubitId],
@@ -24049,33 +24072,15 @@ fn dialog_gcd_controlled_sub_selected(
     assert!(!subtrahend.is_empty());
     if dialog_gcd_raw_tobitvector_materialized_sub_enabled() {
         let n = subtrahend.len();
-        // Host the gated register on the tail of the borrowed clean slice when
-        // it is long enough for both carry (n-1) and gated (n).
-        let gated_host: Option<&[QubitId]> = if dialog_gcd_host_gated_enabled() {
-            borrowed_carries.and_then(|c| {
-                if c.len() >= 2 * n - 1 {
-                    Some(&c[n - 1..2 * n - 1])
-                } else {
-                    None
-                }
-            })
-        } else {
-            None
-        };
-        let mut gated_owned: Vec<QubitId> = Vec::new();
-        let gated: &[QubitId] = match gated_host {
-            Some(h) => h,
-            None => {
-                gated_owned = b.alloc_qubits(n);
-                gated_owned.as_slice()
-            }
-        };
         let body_w = dialog_gcd_body_carry_trunc_width(n);
         let odd_lowbit_fast = dialog_gcd_odd_u_lowbit_fastpath_enabled();
         let body_start = if odd_lowbit_fast { 1 } else { 0 };
+        let body_len = body_w - body_start;
+        let (gated, gated_owned, borrowed_for_body) =
+            dialog_gcd_materialized_body_gated_register(b, body_len, borrowed_carries);
         b.set_phase("dialog_gcd_raw_tobitvector_materialized_sub_load");
-        for i in body_start..body_w {
-            b.ccx(ctrl, subtrahend[i], gated[i]);
+        for (j, &g) in gated.iter().enumerate() {
+            b.ccx(ctrl, subtrahend[body_start + j], g);
         }
         if odd_lowbit_fast {
             // Reachable GCD states have subtrahend[0]=1 and acc[0]=ctrl here:
@@ -24083,30 +24088,26 @@ fn dialog_gcd_controlled_sub_selected(
             b.cx(ctrl, acc[0]);
         }
         b.set_phase("dialog_gcd_raw_tobitvector_materialized_sub_body");
-        if body_start < body_w {
-            let body_len = body_w - body_start;
-            if let Some(carries) =
-                borrowed_carries.filter(|carries| carries.len() >= body_len.saturating_sub(1))
-            {
+        if body_len > 0 {
+            let carry_need = body_len.saturating_sub(1);
+            if let Some(carries) = borrowed_for_body {
                 sub_nbit_qq_fast_borrowed_carries(
                     b,
-                    &gated[body_start..body_w],
+                    &gated,
                     &acc[body_start..body_w],
-                    &carries[..body_len.saturating_sub(1)],
+                    &carries[..carry_need],
                 );
             } else {
-                sub_nbit_qq_fast(b, &gated[body_start..body_w], &acc[body_start..body_w]);
+                sub_nbit_qq_fast(b, &gated, &acc[body_start..body_w]);
             }
         }
         b.set_phase("dialog_gcd_raw_tobitvector_materialized_sub_clear");
-        for i in body_start..body_w {
+        for (j, &g) in gated.iter().enumerate() {
             let m = b.alloc_bit();
-            b.hmr(gated[i], m);
-            b.cz_if(ctrl, subtrahend[i], m);
+            b.hmr(g, m);
+            b.cz_if(ctrl, subtrahend[body_start + j], m);
         }
-        if gated_host.is_none() {
-            b.free_vec(&gated_owned);
-        }
+        b.free_vec(&gated_owned);
     } else {
         cucc_sub_ctrl_lowq(b, subtrahend, acc, ctrl);
     }
@@ -24123,31 +24124,15 @@ fn dialog_gcd_controlled_add_selected(
     assert!(!addend.is_empty());
     if dialog_gcd_raw_tobitvector_materialized_sub_enabled() {
         let n = addend.len();
-        let gated_host: Option<&[QubitId]> = if dialog_gcd_host_gated_enabled() {
-            borrowed_carries.and_then(|c| {
-                if c.len() >= 2 * n - 1 {
-                    Some(&c[n - 1..2 * n - 1])
-                } else {
-                    None
-                }
-            })
-        } else {
-            None
-        };
-        let mut gated_owned: Vec<QubitId> = Vec::new();
-        let gated: &[QubitId] = match gated_host {
-            Some(h) => h,
-            None => {
-                gated_owned = b.alloc_qubits(n);
-                gated_owned.as_slice()
-            }
-        };
         let body_w = dialog_gcd_body_carry_trunc_width(n);
         let odd_lowbit_fast = dialog_gcd_odd_u_lowbit_fastpath_enabled();
         let body_start = if odd_lowbit_fast { 1 } else { 0 };
+        let body_len = body_w - body_start;
+        let (gated, gated_owned, borrowed_for_body) =
+            dialog_gcd_materialized_body_gated_register(b, body_len, borrowed_carries);
         b.set_phase("dialog_gcd_raw_tobitvector_materialized_add_load");
-        for i in body_start..body_w {
-            b.ccx(ctrl, addend[i], gated[i]);
+        for (j, &g) in gated.iter().enumerate() {
+            b.ccx(ctrl, addend[body_start + j], g);
         }
         if odd_lowbit_fast {
             // In reverse, acc[0] is zero after unshift and addend[0]=1:
@@ -24155,30 +24140,26 @@ fn dialog_gcd_controlled_add_selected(
             b.cx(ctrl, acc[0]);
         }
         b.set_phase("dialog_gcd_raw_tobitvector_materialized_add_body");
-        if body_start < body_w {
-            let body_len = body_w - body_start;
-            if let Some(carries) =
-                borrowed_carries.filter(|carries| carries.len() >= body_len.saturating_sub(1))
-            {
+        if body_len > 0 {
+            let carry_need = body_len.saturating_sub(1);
+            if let Some(carries) = borrowed_for_body {
                 add_nbit_qq_fast_borrowed_carries(
                     b,
-                    &gated[body_start..body_w],
+                    &gated,
                     &acc[body_start..body_w],
-                    &carries[..body_len.saturating_sub(1)],
+                    &carries[..carry_need],
                 );
             } else {
-                add_nbit_qq_fast(b, &gated[body_start..body_w], &acc[body_start..body_w]);
+                add_nbit_qq_fast(b, &gated, &acc[body_start..body_w]);
             }
         }
         b.set_phase("dialog_gcd_raw_tobitvector_materialized_add_clear");
-        for i in body_start..body_w {
+        for (j, &g) in gated.iter().enumerate() {
             let m = b.alloc_bit();
-            b.hmr(gated[i], m);
-            b.cz_if(ctrl, addend[i], m);
+            b.hmr(g, m);
+            b.cz_if(ctrl, addend[body_start + j], m);
         }
-        if gated_host.is_none() {
-            b.free_vec(&gated_owned);
-        }
+        b.free_vec(&gated_owned);
     } else {
         cucc_add_ctrl_lowq(b, addend, acc, ctrl);
     }
@@ -29692,11 +29673,7 @@ fn configure_ecdsafail_submission_route() {
     // Branch comparator width tightened 61 -> 59 (−1,600 executed Toffoli),
     // stacked on the chunked-apply + round763 + acc=19 base via the 2-D reroll
     // island (DIALOG_REROLL=0, DIALOG_POST_SUB_REROLL=10). Validated 0/0/0 @ 1567.
-    // Branch comparator width tightened 58 -> 57 on the 1466 hosted-comparator
-    // route (single dodgeable width truncation beyond the cb58 frontier; -1,016
-    // avg-executed Toffoli). Composed on active398 it re-rolls the FS island,
-    // retuned below. Peak-neutral at 1466.
-    set_default_env("DIALOG_GCD_COMPARE_BITS", "57");
+    set_default_env("DIALOG_GCD_COMPARE_BITS", "58");
     set_default_env("DIALOG_GCD_APPLY_CLEAN_COMPARE_BITS", "19");
     set_default_env("DIALOG_GCD_RAW_PA", "1");
     set_default_env("DIALOG_GCD_ACTIVE_ITERATIONS", "398");
@@ -29801,14 +29778,12 @@ fn configure_ecdsafail_submission_route() {
     // Net peak 1500 -> 1466 for +13,566 avg-executed Toffoli (1,718,717 -> 1,732,283) ~=
     // 399 T/qubit, far inside break-even. Score 1466 x 1,732,283 = 2,539,526,878.
     set_default_env("DIALOG_GCD_BRANCH_BITS_HOST_COMPARATOR", "1");
-    set_default_env("DIALOG_GCD_APPLY_CHUNKED_F_CUT", "116");
-    // T-cut on the 1466q hosted-comparator route: the active398 island composes
-    // with one more branch-compare bit cut. A 2-D reroll search lands 52/28
-    // clean 0/0/0 over all 9024 shots at 1466q and 1,729,241 Toffoli.
-    // cb57 op-stream re-rolls the FS island vs the cb58 frontier (52/28); a
-    // full-9024 2-D reroll search over the baked binary lands (3,32) clean 0/0/0.
-    set_default_env("DIALOG_REROLL", "3");
-    set_default_env("DIALOG_POST_SUB_REROLL", "32");
+    set_default_env("DIALOG_GCD_APPLY_CHUNKED_F_CUT", "126");
+    // Partial body-gated hosting plus F_CUT=126 drops the hosted-comparator
+    // route to the 1446q branch/apply co-binder. A 2-D reroll search lands
+    // 1/28 clean 0/0/0 over all 9024 shots at 1446q and 1,737,201 Toffoli.
+    set_default_env("DIALOG_REROLL", "1");
+    set_default_env("DIALOG_POST_SUB_REROLL", "28");
     // Fuse the branch-bit comparator with the b0-controlled log update: derive
     // b0_and_b1 from the in-flight comparator carry instead of materializing a
     // separate cmp qubit and recomputing the comparator for uncompute. Pure
