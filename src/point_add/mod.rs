@@ -1885,6 +1885,107 @@ fn cuccaro_sub_fast_low_to_ext_borrowed_carries(
     b.cx(a[0], acc_ext[0]);
 }
 
+/// Zero-carry-in specialization of
+/// [`cuccaro_add_fast_low_to_ext_borrowed_carries`].  The omitted `c_in`
+/// register is known zero: its only forward role is to preserve the original
+/// low source bit until the measured carry clear.  After that clear `a[0]`
+/// holds the same value, so it can control the phase correction directly.
+fn cuccaro_add_fast_low_to_ext_borrowed_carries_no_cin(
+    b: &mut B,
+    a: &[QubitId],
+    acc_ext: &[QubitId],
+    carries: &[QubitId],
+) {
+    let n = a.len();
+    assert_eq!(acc_ext.len(), n + 1);
+    if n == 0 {
+        return;
+    }
+    let gate_suffix = square_selfhost_gate_suffix_carries(n);
+    let borrowed = n - gate_suffix;
+    assert!(carries.len() >= borrowed);
+
+    b.cx(a[0], acc_ext[0]);
+    b.ccx(a[0], acc_ext[0], carries[0]);
+    b.cx(carries[0], a[0]);
+    for i in 1..borrowed {
+        b.cx(a[i], acc_ext[i]);
+        b.cx(a[i], a[i - 1]);
+        b.ccx(a[i - 1], acc_ext[i], carries[i]);
+        b.cx(carries[i], a[i]);
+    }
+    for i in borrowed..n {
+        maj(b, a[i - 1], acc_ext[i], a[i]);
+    }
+
+    b.cx(a[n - 1], acc_ext[n]);
+
+    for i in (borrowed..n).rev() {
+        uma(b, a[i - 1], acc_ext[i], a[i]);
+    }
+    for i in (1..borrowed).rev() {
+        b.cx(carries[i], a[i]);
+        let m = b.alloc_bit();
+        b.hmr(carries[i], m);
+        b.cz_if(a[i - 1], acc_ext[i], m);
+        b.cx(a[i], a[i - 1]);
+        b.cx(a[i - 1], acc_ext[i]);
+    }
+    b.cx(carries[0], a[0]);
+    let m0 = b.alloc_bit();
+    b.hmr(carries[0], m0);
+    b.cz_if(a[0], acc_ext[0], m0);
+}
+
+/// Zero-carry-in inverse of
+/// [`cuccaro_add_fast_low_to_ext_borrowed_carries_no_cin`].
+fn cuccaro_sub_fast_low_to_ext_borrowed_carries_no_cin(
+    b: &mut B,
+    a: &[QubitId],
+    acc_ext: &[QubitId],
+    carries: &[QubitId],
+) {
+    let n = a.len();
+    assert_eq!(acc_ext.len(), n + 1);
+    if n == 0 {
+        return;
+    }
+    let gate_suffix = square_selfhost_gate_suffix_carries(n);
+    let borrowed = n - gate_suffix;
+    assert!(carries.len() >= borrowed);
+
+    b.ccx(a[0], acc_ext[0], carries[0]);
+    b.cx(carries[0], a[0]);
+    for i in 1..borrowed {
+        b.cx(a[i - 1], acc_ext[i]);
+        b.cx(a[i], a[i - 1]);
+        b.ccx(a[i - 1], acc_ext[i], carries[i]);
+        b.cx(carries[i], a[i]);
+    }
+    for i in borrowed..n {
+        inv_uma(b, a[i - 1], acc_ext[i], a[i]);
+    }
+
+    b.cx(a[n - 1], acc_ext[n]);
+
+    for i in (borrowed..n).rev() {
+        inv_maj(b, a[i - 1], acc_ext[i], a[i]);
+    }
+    for i in (1..borrowed).rev() {
+        b.cx(carries[i], a[i]);
+        let m = b.alloc_bit();
+        b.hmr(carries[i], m);
+        b.cz_if(a[i - 1], acc_ext[i], m);
+        b.cx(a[i], a[i - 1]);
+        b.cx(a[i], acc_ext[i]);
+    }
+    b.cx(carries[0], a[0]);
+    let m0 = b.alloc_bit();
+    b.hmr(carries[0], m0);
+    b.cz_if(a[0], acc_ext[0], m0);
+    b.cx(a[0], acc_ext[0]);
+}
+
 /// Windowed measured add: `acc += a + c_in (mod 2^n)`, reusing the proven
 /// `cuccaro_add_fast` block-wise but threading the inter-block carry through a
 /// 1-bit register extension. Only ~n/blocks measured-carry ancillae are live at
@@ -6203,6 +6304,14 @@ fn assert_qubit_slices_disjoint(slices: &[&[QubitId]]) {
     }
 }
 
+fn square_selfhost_gate_suffix_carries(n: usize) -> usize {
+    std::env::var("SQUARE_SELFHOST_GATE_SUFFIX_CARRIES")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(0)
+        .min(n.saturating_sub(1))
+}
+
 /// Like `schoolbook_square_symmetric_lowq` but converts the per-row Cuccaro
 /// UMA-uncompute (CCX, executed every shot) into measurement-based (fast)
 /// uncompute, WITHOUT a separate clean host register. The fast carry lane is
@@ -6256,8 +6365,7 @@ fn schoolbook_square_symmetric_lowq_selfhosted_with_clean_supplement(
             b.free(c_in);
             b.free(pad);
         } else if safe_reuse {
-            let c_in = b.alloc_qubit();
-            let need = row.len();
+            let need = row.len() - square_selfhost_gate_suffix_carries(row.len());
             let avail = tmp_ext.len() - hi;
             let from_tmp = need.min(avail);
             let from_supplement = (need - from_tmp).min(clean_supplement.len());
@@ -6266,8 +6374,7 @@ fn schoolbook_square_symmetric_lowq_selfhosted_with_clean_supplement(
             let mut carries: Vec<QubitId> = tmp_ext[hi..hi + from_tmp].to_vec();
             carries.extend_from_slice(&clean_supplement[..from_supplement]);
             carries.extend_from_slice(&gpool);
-            cuccaro_add_fast_low_to_ext_borrowed_carries(b, &row, &slice, c_in, &carries);
-            b.free(c_in);
+            cuccaro_add_fast_low_to_ext_borrowed_carries_no_cin(b, &row, &slice, &carries);
             b.free_vec(&gpool);
         } else {
             let pad = b.alloc_qubit();
@@ -6335,8 +6442,7 @@ fn schoolbook_square_symmetric_lowq_selfhosted_inverse_with_clean_supplement(
             b.free(c_in);
             b.free(pad);
         } else if safe_reuse {
-            let c_in = b.alloc_qubit();
-            let need = row.len();
+            let need = row.len() - square_selfhost_gate_suffix_carries(row.len());
             let avail = tmp_ext.len() - hi;
             let from_tmp = need.min(avail);
             let from_supplement = (need - from_tmp).min(clean_supplement.len());
@@ -6345,8 +6451,7 @@ fn schoolbook_square_symmetric_lowq_selfhosted_inverse_with_clean_supplement(
             let mut carries: Vec<QubitId> = tmp_ext[hi..hi + from_tmp].to_vec();
             carries.extend_from_slice(&clean_supplement[..from_supplement]);
             carries.extend_from_slice(&gpool);
-            cuccaro_sub_fast_low_to_ext_borrowed_carries(b, &row, &slice, c_in, &carries);
-            b.free(c_in);
+            cuccaro_sub_fast_low_to_ext_borrowed_carries_no_cin(b, &row, &slice, &carries);
             b.free_vec(&gpool);
         } else {
             let pad = b.alloc_qubit();
@@ -30845,9 +30950,10 @@ fn configure_ecdsafail_submission_route() {
     set_default_env("DIALOG_GCD_COMPRESSED_BLOCK_LIFECYCLE", "1");
     set_default_env("DIALOG_GCD_HOST_REVERSE_RAW_BLOCK", "1");
     set_default_env("DIALOG_GCD_COMPRESSED_LOG_U_HIGH_RUNWAY", "1");
-    set_default_env("DIALOG_GCD_COMPRESSED_LOG_U_HIGH_RUNWAY_BLOCKS", "3");
+    set_default_env("DIALOG_GCD_COMPRESSED_LOG_U_HIGH_RUNWAY_BLOCKS", "4");
     set_default_env("DIALOG_GCD_APPLY_REPLAY_SWAP_HOST", "1");
     set_default_env("SQUARE_SELFHOST_SAFE_LANE_REUSE", "1");
+    set_default_env("SQUARE_SELFHOST_GATE_SUFFIX_CARRIES", "1");
     set_default_env("DIALOG_GCD_PA9024_COMPARE_SCHEDULE", "1");
     // PA9024 compare-schedule margin retuned with ACTIVE_ITERATIONS=396 and
     // APPLY_CLEAN_COMPARE_BITS=21. The wider margin gives back a little Toffoli
@@ -31013,8 +31119,8 @@ fn configure_ecdsafail_submission_route() {
     set_default_env("DIALOG_GCD_APPLY_CHUNKED_F_CUT2", "140");
     // Active-396 island: compare_bits=58 + apply_clean=21 + schedule margin=8
     // validates 0/0/0 over all 9024 shots at 1438q x 1,736,773 T.
-    set_default_env("DIALOG_REROLL", "109");
-    set_default_env("DIALOG_POST_SUB_REROLL", "100");
+    set_default_env("DIALOG_REROLL", "67");
+    set_default_env("DIALOG_POST_SUB_REROLL", "101");
     // Fuse the branch-bit comparator with the b0-controlled log update: derive
     // b0_and_b1 from the in-flight comparator carry instead of materializing a
     // separate cmp qubit and recomputing the comparator for uncompute. Pure
