@@ -31276,7 +31276,10 @@ fn configure_ecdsafail_submission_route() {
     // Margin 7 -> 6 stacked on the WIDTH_SLOPE=711 tightening: narrows the per-step
     // comparator on low/mid-width GCD steps, orthogonal to the slope envelope.
     set_default_env("DIALOG_GCD_PA9024_COMPARE_SCHEDULE_MARGIN", "6");
-    set_default_env("KAL_DOUBLE_CARRY_TRUNC_W", "24");
+    // DOUBLE-carry lazy-Solinas window tightened 24 -> 23 (-1,038 avg executed
+    // Toffoli, peak-neutral at 1390q). Re-found tail nonce below validates the
+    // combined double+fold carry-truncation stream.
+    set_default_env("KAL_DOUBLE_CARRY_TRUNC_W", "23");
     // FOLD-carry lazy-Solinas window tightened 24 -> 23 (-518 avg executed
     // Toffoli, peak-neutral at 1390q). Re-stacked onto alexander-sei's
     // COMPARE_BITS=52 base, which had reverted FOLD to 24. Value-exact on the
@@ -31492,10 +31495,10 @@ fn configure_ecdsafail_submission_route() {
     // clean island (found by the parallel prefix-clone classical filter in
     // harness/fasteval, then quantum-confirmed). Validated 0/0/0 over all 9024
     // shots at 1390q x 1,519,735 T = 2,112,431,650. Backups: 354, 418.
-    // Re-rolled for the KAL_FOLD_CARRY_TRUNC_W=23 op stream (above): nonce=55
-    // lands a clean island, validated 0/0/0 over all 9024 shots at
-    // 1390q x 1,519,217 T = 2,111,711,630.
-    set_default_env("DIALOG_TAIL_NONCE", "55");
+    // Re-rolled for the combined KAL_DOUBLE/FOLD_CARRY_TRUNC_W=23 op stream:
+    // nonce=254 lands a clean island, validated 0/0/0 over all 9024 shots at
+    // 1390q x 1,518,179 T = 2,110,268,810.
+    set_default_env("DIALOG_TAIL_NONCE", "254");
     // Fuse the branch-bit comparator with the b0-controlled log update: derive
     // b0_and_b1 from the in-flight comparator carry instead of materializing a
     // separate cmp qubit and recomputing the comparator for uncompute. Pure
